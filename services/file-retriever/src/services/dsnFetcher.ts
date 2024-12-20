@@ -19,30 +19,37 @@ const fetchNode = async (
   cid: string,
   ignoreCidCheck = false,
 ): Promise<PBNode> => {
-  const start = performance.now()
-  const objectMappingHash = Buffer.from(
-    blake3HashFromCid(stringToCid(cid)),
-  ).toString('hex')
+  try {
+    const start = performance.now()
+    const objectMappingHash = Buffer.from(
+      blake3HashFromCid(stringToCid(cid)),
+    ).toString('hex')
 
-  const response = await fetch(
-    `${config.subspaceGatewayUrl}/data/${objectMappingHash}`,
-  )
-  if (!response.ok) {
-    console.error('Failed to fetch node', response)
-    throw new HttpError(500, 'Internal server error: Failed to fetch node')
+    const response = await fetch(
+      `${config.subspaceGatewayUrl}/data/${objectMappingHash}`,
+    )
+    if (!response.ok) {
+      console.error('Failed to fetch node', response)
+      throw new HttpError(500, 'Internal server error: Failed to fetch node')
+    }
+
+    const blob = await response.arrayBuffer()
+
+    const node = decodeNode(blob)
+
+    if (!ignoreCidCheck && cidToString(cidOfNode(node)) !== cid) {
+      throw new Error(
+        `Cid mismatch: ${cid} !== ${cidToString(cidOfNode(node))}`,
+      )
+    }
+
+    const end = performance.now()
+    logger.debug(`Fetching node ${cid} took ${end - start}ms`)
+    return node
+  } catch (error) {
+    logger.error(`Error fetching node ${cid}: ${error}`)
+    throw error
   }
-
-  const blob = await response.arrayBuffer()
-
-  const node = decodeNode(blob)
-
-  if (!ignoreCidCheck && cidToString(cidOfNode(node)) !== cid) {
-    throw new Error(`Cid mismatch: ${cid} !== ${cidToString(cidOfNode(node))}`)
-  }
-
-  const end = performance.now()
-  logger.debug(`Fetching node ${cid} took ${end - start}ms`)
-  return node
 }
 
 /**
