@@ -14,6 +14,10 @@ import { safeIPLDDecode } from '../utils/dagData.js'
 import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
+import axios from 'axios'
+import pLimit from 'p-limit'
+
+const concurrencyLimit = pLimit(config.maxSimultaneousFetches)
 
 const fetchNode = async (
   cid: string,
@@ -25,17 +29,18 @@ const fetchNode = async (
       blake3HashFromCid(stringToCid(cid)),
     ).toString('hex')
 
-    const response = await fetch(
-      `${config.subspaceGatewayUrl}/data/${objectMappingHash}`,
+    const response = await concurrencyLimit(() =>
+      axios.get(`${config.subspaceGatewayUrl}/data/${objectMappingHash}`, {
+        timeout: 3600_000,
+        responseType: 'arraybuffer',
+      }),
     )
-    if (!response.ok) {
+    if (response.status !== 200) {
       console.error('Failed to fetch node', response)
       throw new HttpError(500, 'Internal server error: Failed to fetch node')
     }
 
-    const blob = await response.arrayBuffer()
-
-    const node = decodeNode(blob)
+    const node = decodeNode(response.data)
 
     if (!ignoreCidCheck && cidToString(cidOfNode(node)) !== cid) {
       throw new Error(
