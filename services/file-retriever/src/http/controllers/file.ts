@@ -17,7 +17,10 @@ fileRouter.get('/:cid', authMiddleware, async (req, res) => {
     res.set('Content-Type', file.mimeType)
   }
   if (file.filename) {
-    res.set('Content-Disposition', `attachment; filename="${file.filename}"`)
+    res.set(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.filename)}"`,
+    )
   }
   if (file.size) {
     res.set('Content-Length', file.size.toString())
