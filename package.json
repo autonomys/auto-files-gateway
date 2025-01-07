@@ -1,14 +1,23 @@
 {
   "name": "auto-files-gateway",
   "packageManager": "yarn@4.2.2",
+  "type": "module",
   "workspaces": [
     "services/*"
   ],
   "scripts": {
     "indexer": "yarn workspace object-mapping-indexer",
-    "file-retriever": "yarn workspace file-retriever"
+    "file-retriever": "yarn workspace file-retriever",
+    "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts"
   },
   "dependencies": {
+    "axios": "^1.7.9",
+    "ts-node": "^10.9.2",
     "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/k6": "^0.54.2",
+    "@types/node": "^22.10.2",
+    "bun": "^1.1.39"
   }
 }
