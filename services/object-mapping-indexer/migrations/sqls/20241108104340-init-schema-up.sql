@@ -6,6 +6,6 @@ CREATE TABLE object_mappings (
     hash TEXT NOT NULL PRIMARY KEY,
     "pieceIndex" INTEGER NOT NULL,
     "pieceOffset" INTEGER NOT NULL,
-    "blockNumber" BIGINT NOT NULL,
+    "blockNumber" INTEGER NOT NULL,
     "insertedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
