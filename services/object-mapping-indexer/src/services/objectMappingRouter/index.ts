@@ -1,9 +1,6 @@
 import { v4 } from 'uuid'
 import Websocket from 'websocket'
-import {
-  constructListFromObjectMapping,
-  ObjectMappingListEntry,
-} from '../../models/mapping.js'
+import { ObjectMappingListEntry } from '../../models/mapping.js'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { config } from '../../config.js'
 import { logger } from '../../drivers/logger.js'
@@ -109,16 +106,12 @@ const emitRecoverObjectMappings = async () => {
   const promises = recovering.map(
     async ([subscriptionId, { connection, blockNumber }]) => {
       logger.debug(`Emitting recover object mappings for ${subscriptionId}`)
-      const objectMappings =
-        await objectMappingUseCase.getObjectByBlock(blockNumber)
+      const result = await objectMappingUseCase.getObjectByBlock(blockNumber)
+
       state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
         connection,
         blockNumber: blockNumber + 1,
       })
-      const result = constructListFromObjectMapping(
-        objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset]),
-        blockNumber,
-      )
 
       if (blockNumber >= state.lastRealtimeBlockNumber) {
         unsubscribeRecoverObjectMappings(subscriptionId)
