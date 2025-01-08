@@ -3,6 +3,8 @@ volumes:
 
 services:
   subspace-node:
+    profiles:
+      - dev
     image: ghcr.io/autonomys/node:${NODE_DOCKER_TAG}
     volumes:
       - subspace-node-data:/var/subspace:rw
@@ -31,6 +33,8 @@ services:
       retries: 60
     stop_grace_period: 30s
   object-mapping-app:
+    profiles:
+      - indexer
     build:
       context: ../..
       dockerfile: docker/object-mapping-indexer/Dockerfile
@@ -42,14 +46,14 @@ services:
       # constants
       - NODE_ENV=production
       - OBJECT_MAPPING_INDEXER_PORT=3000
-      - NODE_RPC_URL=ws://subspace-node:9944/ws
+      - NODE_RPC_URL=${NODE_RPC_URL}
 
       # variables
       - REQUEST_SIZE_LIMIT=${REQUEST_SIZE_LIMIT}
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
       - LOG_LEVEL=${LOG_LEVEL}
       - RECOVERY_INTERVAL=${RECOVERY_INTERVAL}
-    depends_on:
-      subspace-node:
-        condition: service_healthy
+    # depends_on:
+    #   subspace-node:
+    #     condition: service_healthy
     restart: unless-stopped

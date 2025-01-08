@@ -17,6 +17,6 @@ RUN npm install tar
 RUN npm install
 RUN npm run build
 
-EXPOSE 8090
+EXPOSE 3000
 
 CMD ["bash", "start-server.sh"]

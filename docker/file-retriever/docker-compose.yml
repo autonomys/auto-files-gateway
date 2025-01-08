@@ -3,6 +3,8 @@ volumes:
 
 services:
   subspace-node:
+    profiles:
+      - dev
     image: ghcr.io/autonomys/node:${NODE_DOCKER_TAG}
     volumes:
       - subspace-node-data:/var/subspace:rw
@@ -24,27 +26,28 @@ services:
       --rpc-max-connections 20000
       --name object-mapping-node
       --sync full
-      --create-object-mappings ${BLOCK_NUMBER_TO_START_FROM}
     healthcheck:
       timeout: 5s
       interval: 30s
       retries: 60
     stop_grace_period: 30s
   subspace-http-gateway:
+    profiles:
+      - retriever
     image: ghcr.io/autonomys/gateway:${GATEWAY_DOCKER_TAG}
-    depends_on:
-      subspace-node:
-        condition: service_healthy
+    # depends_on:
+    #   subspace-node:
+    #     condition: service_healthy
     ports:
       - '8080:8080'
       - '30334:30333'
       - '30434:30433'
     restart: unless-stopped
     stop_grace_period: 30s
-    environment:
-      - RUST_LOG=info,actix_web=debug,subspace_gateway=trace
-    command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips
+    command: http --node-rpc-url ${NODE_RPC_URL} --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
   file-retriever:
+    profiles:
+      - retriever
     build:
       context: ../..
       dockerfile: docker/file-retriever/Dockerfile
@@ -61,7 +64,8 @@ services:
       - CACHE_DIR=${CACHE_DIR}
       - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
       - CACHE_TTL=${CACHE_TTL}
-    depends_on:
-      subspace-node:
-        condition: service_healthy
+      - LOG_LEVEL=${LOG_LEVEL}
+    # depends_on:
+    #   subspace-node:
+    #     condition: service_healthy
     restart: unless-stopped
