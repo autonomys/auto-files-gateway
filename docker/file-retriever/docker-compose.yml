@@ -61,6 +61,8 @@ services:
       - CACHE_DIR=${CACHE_DIR}
       - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
       - CACHE_TTL=${CACHE_TTL}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - API_SECRET=${API_SECRET}
     depends_on:
       subspace-node:
         condition: service_healthy

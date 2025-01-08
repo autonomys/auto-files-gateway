@@ -49,6 +49,10 @@ services:
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
       - LOG_LEVEL=${LOG_LEVEL}
       - RECOVERY_INTERVAL=${RECOVERY_INTERVAL}
+      - DATABASE_URL=${DATABASE_URL}
+      - CACHE_DIR=${CACHE_DIR}
+      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
+      - CACHE_TTL=${CACHE_TTL}
     depends_on:
       subspace-node:
         condition: service_healthy
