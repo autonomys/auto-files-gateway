@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "db-migrate up && node dist/server.js",
     "dev": "node --loader ts-node/esm",
     "test": "jest"
   },
@@ -16,6 +16,7 @@
   "dependencies": {
     "@autonomys/auto-dag-data": "^1.0.5",
     "@peculiar/webcrypto": "^1.5.0",
+    "@types/node": "^22.10.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",

@@ -1,5 +1,5 @@
 volumes:
-  postgres-data: {}
+  subspace-node-data: {}
 
 services:
   subspace-node:
@@ -30,36 +30,25 @@ services:
       interval: 30s
       retries: 60
     stop_grace_period: 30s
-  subspace-gateway:
-    image: ghcr.io/autonomys/gateway:${GATEWAY_DOCKER_TAG}
-    ports:
-      - '9955:9955'
-    restart: unless-stopped
-    command: rpc --node-rpc-url ws://subspace-node:9944/ws
-    depends_on:
-      subspace-node:
-        condition: service_healthy
   object-mapping-app:
-    image: node:20
+    build:
+      context: ../..
+      dockerfile: docker/object-mapping-indexer/Dockerfile
     container_name: object-mapping-app
     working_dir: /app
-    volumes:
-      - .:/app
     ports:
       - '3000:3000'
     environment:
       # constants
       - NODE_ENV=production
-      - OBJECT_MAPPING_INDEXER_PORT=8080
-      - SUBSPACE_GATEWAY_URL=http://subspace-rpc-gateway:9955
+      - OBJECT_MAPPING_INDEXER_PORT=3000
+      - NODE_RPC_URL=ws://subspace-node:9944/ws
 
       # variables
-      - DATABASE_URL=${DATABASE_URL}
       - REQUEST_SIZE_LIMIT=${REQUEST_SIZE_LIMIT}
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
       - LOG_LEVEL=${LOG_LEVEL}
       - RECOVERY_INTERVAL=${RECOVERY_INTERVAL}
-    entrypoint: ['bash', './start-server.sh']
     depends_on:
       subspace-node:
         condition: service_healthy

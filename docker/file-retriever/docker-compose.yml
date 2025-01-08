@@ -37,12 +37,16 @@ services:
         condition: service_healthy
     ports:
       - '8080:8080'
+      - '30334:30333'
+      - '30434:30433'
     restart: unless-stopped
     stop_grace_period: 30s
-    command: http --node-rpc-url ws://subspace-node:9944/ws
+    environment:
+      - RUST_LOG=info,actix_web=debug,subspace_gateway=trace
+    command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips
   file-retriever:
     build:
-      context: .
+      context: ../..
       dockerfile: docker/file-retriever/Dockerfile
     container_name: file-retriever
     volumes:
@@ -51,7 +55,7 @@ services:
       - '8090:8090'
     environment:
       - NODE_ENV=production
-      - SUBSPACE_GATEWAY_URL=${SUBSPACE_GATEWAY_URL}
+      - SUBSPACE_GATEWAY_URL=http://subspace-http-gateway:8080
       - CORS_ORIGIN=${CORS_ORIGIN}
       - MAX_SIMULTANEOUS_FETCHES=${MAX_SIMULTANEOUS_FETCHES}
       - CACHE_DIR=${CACHE_DIR}

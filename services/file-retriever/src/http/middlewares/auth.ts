@@ -6,24 +6,21 @@ export const authMiddleware: Handler = (
   res: Response,
   next: NextFunction,
 ) => {
-  const header =
-    typeof req.query.api_key === 'string'
-      ? req.query.api_key
-      : req.headers.authorization
+  const header = req.headers.authorization
 
-  if (!header) {
-    res.status(401).json({ error: 'Unauthorized' })
-    return
+  let token: string | undefined
+  if (header) {
+    // Extract 'Bearer $token'
+    const token = header.split(' ')[1]
+    if (!token) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+  } else {
+    token = req.query.api_key as string | undefined
   }
 
-  // Extract 'Bearer $token'
-  const token = header.split(' ')[1]
-  if (!token) {
-    res.status(401).json({ error: 'Unauthorized' })
-    return
-  }
-
-  if (token !== config.apiSecret) {
+  if (!token || token !== config.apiSecret) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }

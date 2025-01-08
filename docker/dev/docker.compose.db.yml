@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - '127.0.0.1:5432:5432'
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  object-mapping-app:
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/postgres
+
+volumes:
+  db-data: {}

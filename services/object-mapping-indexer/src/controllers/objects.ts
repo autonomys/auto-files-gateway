@@ -16,6 +16,11 @@ objectsController.get('/:hash', async (req, res) => {
 
   const object = await objectMappingUseCase.getObject(hash)
 
+  if (!object) {
+    res.status(404).json({ error: 'Object not found' })
+    return
+  }
+
   res.json(object)
 
   return

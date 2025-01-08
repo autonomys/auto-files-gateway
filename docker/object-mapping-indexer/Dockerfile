@@ -18,6 +18,6 @@ RUN yarn add tar
 RUN yarn
 RUN yarn indexer build
 
-EXPOSE 8080
+EXPOSE 3000
 
 CMD ["yarn", "indexer", "start"]
