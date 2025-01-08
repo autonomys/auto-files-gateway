@@ -24,7 +24,7 @@ export const constructListFromObjectMapping = (
   blockNumber: number,
 ): ObjectMappingListEntry => {
   return {
-    blockNumber,
+    blockNumber: Number(blockNumber),
     v0: {
       objects,
     },
