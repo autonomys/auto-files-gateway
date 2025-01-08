@@ -30,3 +30,10 @@ export const constructListFromObjectMapping = (
     },
   }
 }
+
+export type GlobalObjectMapping = {
+  blockNumber: number
+  v0: {
+    objects: ObjectMapping[]
+  }
+}

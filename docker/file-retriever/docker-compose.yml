@@ -24,7 +24,6 @@ services:
       --rpc-max-connections 20000
       --name object-mapping-node
       --sync full
-      --create-object-mappings ${BLOCK_NUMBER_TO_START_FROM}
     healthcheck:
       timeout: 5s
       interval: 30s
@@ -41,9 +40,7 @@ services:
       - '30434:30433'
     restart: unless-stopped
     stop_grace_period: 30s
-    environment:
-      - RUST_LOG=info,actix_web=debug,subspace_gateway=trace
-    command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips
+    command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
   file-retriever:
     build:
       context: ../..
