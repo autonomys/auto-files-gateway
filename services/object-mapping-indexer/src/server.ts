@@ -1,5 +1,5 @@
 import 'dotenv/config.js'
-import express from 'express'
+import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { config } from './config.js'
 import { objectsController } from './controllers/objects.js'
@@ -20,6 +20,10 @@ const createServer = () => {
   }
 
   app.use('/objects', objectsController)
+  app.use((err: unknown, _: Request, res: Response) => {
+    console.error(err)
+    res.status(500).send('Internal Server Error')
+  })
 
   return app
 }

@@ -19,15 +19,21 @@ import pLimit from 'p-limit'
 
 const concurrencyLimit = pLimit(config.maxSimultaneousFetches)
 
+const getObjectMappingHash = (cid: string) => {
+  try {
+    return Buffer.from(blake3HashFromCid(stringToCid(cid))).toString('hex')
+  } catch {
+    throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
+  }
+}
+
 const fetchNode = async (
   cid: string,
   ignoreCidCheck = false,
 ): Promise<PBNode> => {
   try {
     const start = performance.now()
-    const objectMappingHash = Buffer.from(
-      blake3HashFromCid(stringToCid(cid)),
-    ).toString('hex')
+    const objectMappingHash = getObjectMappingHash(cid)
 
     const response = await concurrencyLimit(() =>
       axios.get(`${config.subspaceGatewayUrl}/data/${objectMappingHash}`, {
