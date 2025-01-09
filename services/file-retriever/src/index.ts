@@ -5,6 +5,7 @@ import { fileRouter } from './http/controllers/file.js'
 import { nodeRouter } from './http/controllers/node.js'
 import { config } from './config.js'
 import { logger } from './drivers/logger.js'
+import { HttpError } from './http/middlewares/error.js'
 
 const app: Application = express()
 
@@ -15,8 +16,11 @@ if (config.corsOrigin) {
 app.use('/files', fileRouter)
 app.use('/nodes', nodeRouter)
 app.use((err: unknown, _: Request, res: Response) => {
-  console.error(err)
-  res.status(500).send('Internal Server Error')
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json({ error: err.message })
+  } else {
+    res.status(500).send('Internal Server Error')
+  }
 })
 
 const port = Number(config.port)
