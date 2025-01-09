@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import express, { Application } from 'express'
+import express, { Application, Request, Response } from 'express'
 import cors from 'cors'
 import { fileRouter } from './http/controllers/file.js'
 import { nodeRouter } from './http/controllers/node.js'
@@ -14,6 +14,10 @@ if (config.corsOrigin) {
 
 app.use('/files', fileRouter)
 app.use('/nodes', nodeRouter)
+app.use((err: unknown, _: Request, res: Response) => {
+  console.error(err)
+  res.status(500).send('Internal Server Error')
+})
 
 const port = Number(config.port)
 
