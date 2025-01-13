@@ -6,7 +6,7 @@ const ONE_DAY = 24 * 60 * 60 * 1000
 export const config = {
   // Required
   apiSecret: env('API_SECRET'),
-  subspaceGatewayUrl: env('SUBSPACE_GATEWAY_URL'),
+  subspaceGatewayUrls: env('SUBSPACE_GATEWAY_URLS'),
   // Optional
   logLevel: env('LOG_LEVEL', { defaultValue: 'info' }),
   port: Number(env('FILE_RETRIEVER_PORT', { defaultValue: 8090 })),
