@@ -52,7 +52,7 @@ services:
       - '8090:8090'
     environment:
       - NODE_ENV=production
-      - SUBSPACE_GATEWAY_URL=http://subspace-http-gateway:8080
+      - SUBSPACE_GATEWAY_URLS=http://subspace-http-gateway:8080
       - CORS_ORIGIN=${CORS_ORIGIN}
       - MAX_SIMULTANEOUS_FETCHES=${MAX_SIMULTANEOUS_FETCHES}
       - CACHE_DIR=${CACHE_DIR}
