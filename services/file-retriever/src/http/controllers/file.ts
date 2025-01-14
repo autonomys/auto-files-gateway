@@ -26,9 +26,7 @@ fileRouter.get('/:cid', authMiddleware, async (req, res, next) => {
     if (file.size) {
       res.set('Content-Length', file.size.toString())
     }
-    if (file.encoding) {
-      res.set('Content-Encoding', file.encoding)
-    }
+    res.set('Content-Type', 'application/octet-stream')
 
     logger.debug(
       `Streaming file ${req.params.cid} to ${req.ip} with ${file.size} bytes`,
