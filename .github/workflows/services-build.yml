@@ -33,12 +33,12 @@ jobs:
       - name: Install dependencies, run tests, lint, and build for multiple folders
         run: |
           folders=("services/file-retriever" "services/object-mapping-indexer") # Add your folders here
+          yarn lint
           for folder in "${folders[@]}"; do
             echo "Processing $folder"
             cd $folder
             yarn install
             yarn test
-            yarn lint
             yarn build
             cd -
           done

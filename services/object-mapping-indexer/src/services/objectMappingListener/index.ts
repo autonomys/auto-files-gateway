@@ -5,6 +5,7 @@ import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { ObjectMappingListener } from './types.js'
 
 const events: Record<string, (event: unknown) => void> = {
+  // eslint-disable-next-line camelcase
   subspace_subscribeObjectMappings: async (event: unknown) => {
     const parsed = ObjectMappingListEntrySchema.safeParse(event)
     if (!parsed.success) {
