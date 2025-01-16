@@ -28,6 +28,7 @@
   },
   "scripts": {
     "dev": "node --loader ts-node/esm src/index.ts",
+    "test": "exit 0",
     "build": "tsc",
     "start": "node dist/index.js",
     "devrun": "node --loader ts-node/esm"
