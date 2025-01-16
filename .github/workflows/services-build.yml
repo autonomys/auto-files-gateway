@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**' # Only trigger on changes within this folder
+      - 'services/**' # Only trigger on changes within this folder
       - '.github/**'
   pull_request:
     paths:
-      - 'backend/**' # Only trigger on changes within this folder
+      - 'services/**' # Only trigger on changes within this folder
       - '.github/**'
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ jobs:
 
       - name: Install dependencies, run tests, lint, and build for multiple folders
         run: |
-          folders=("services/file-retriever" "services/subspace-node" "services/object-mapping-indexer") # Add your folders here
+          folders=("services/file-retriever" "services/object-mapping-indexer") # Add your folders here
           for folder in "${folders[@]}"; do
             echo "Processing $folder"
             cd $folder
