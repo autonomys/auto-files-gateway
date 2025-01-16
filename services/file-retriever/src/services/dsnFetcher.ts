@@ -17,7 +17,12 @@ import { logger } from '../drivers/logger.js'
 import axios from 'axios'
 import pLimit from 'p-limit'
 
-const concurrencyLimit = pLimit(config.maxSimultaneousFetches)
+const gatewayUrls = config.subspaceGatewayUrls.split(',')
+let gatewayIndex = 0
+
+const concurrencyLimits = gatewayUrls.map(() =>
+  pLimit(config.maxSimultaneousFetches),
+)
 
 const getObjectMappingHash = (cid: string) => {
   try {
@@ -35,8 +40,12 @@ const fetchNode = async (
     const start = performance.now()
     const objectMappingHash = getObjectMappingHash(cid)
 
+    const concurrencyLimit = concurrencyLimits[gatewayIndex]
+    const url = gatewayUrls[gatewayIndex]
+    gatewayIndex = (gatewayIndex + 1) % gatewayUrls.length
+
     const response = await concurrencyLimit(() =>
-      axios.get(`${config.subspaceGatewayUrl}/data/${objectMappingHash}`, {
+      axios.get(`${url}/data/${objectMappingHash}`, {
         timeout: 3600_000,
         responseType: 'arraybuffer',
       }),
