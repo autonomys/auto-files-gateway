@@ -15,7 +15,9 @@ if (config.corsOrigin) {
 
 app.use('/files', fileRouter)
 app.use('/nodes', nodeRouter)
-app.use((err: unknown, _: Request, res: Response) => {
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-function-type
+app.use((err: unknown, _: Request, res: Response, __: Function) => {
   if (err instanceof HttpError) {
     res.status(err.statusCode).json({ error: err.message })
   } else {
