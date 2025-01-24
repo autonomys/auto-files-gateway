@@ -6,6 +6,13 @@ let db: pg.Client
 const createDB = async (): Promise<pg.Client> => {
   const client = new pg.Client({
     connectionString: config.databaseUrl,
+    ...(process.env.ACCEPT_UNAUTHORIZED_CERTS === 'true'
+      ? {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        }
+      : {}),
   })
 
   await client.connect()

@@ -53,6 +53,7 @@ services:
       - CACHE_DIR=${CACHE_DIR}
       - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
       - CACHE_TTL=${CACHE_TTL}
+      - ACCEPT_UNAUTHORIZED_CERTS=${ACCEPT_UNAUTHORIZED_CERTS}
     depends_on:
       subspace-node:
         condition: service_healthy
