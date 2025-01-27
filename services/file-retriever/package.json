@@ -20,6 +20,7 @@
     "cpu-features": "^0.0.10",
     "dotenv": "^16.4.7",
     "express": "^4.21.1",
+    "express-async-errors": "^3.1.1",
     "keyv": "^5.2.1",
     "lru-cache": "^11.0.2",
     "mime-types": "^2.1.35",

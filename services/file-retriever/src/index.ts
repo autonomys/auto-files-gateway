@@ -6,6 +6,7 @@ import { nodeRouter } from './http/controllers/node.js'
 import { config } from './config.js'
 import { logger } from './drivers/logger.js'
 import { HttpError } from './http/middlewares/error.js'
+import { healthController } from './http/controllers/health.js'
 
 const app: Application = express()
 
@@ -15,6 +16,7 @@ if (config.corsOrigin) {
 
 app.use('/files', fileRouter)
 app.use('/nodes', nodeRouter)
+app.use('/health', healthController)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-function-type
 app.use((err: unknown, _: Request, res: Response, __: Function) => {

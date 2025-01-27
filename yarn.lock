@@ -3117,6 +3117,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"express-async-errors@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "express-async-errors@npm:3.1.1"
+  peerDependencies:
+    express: ^4.16.2
+  checksum: 10c0/56c4e90c44e98c7edc5bd38e18dd23b0d9a7139cb94ff3e25943ba257415b433e0e52ea8f9bc1fb5b70a5e6c5246eaace4fb69ab171edfb8896580928bb97ec6
+  languageName: node
+  linkType: hard
+
 "express@npm:^4.21.1":
   version: 4.21.1
   resolution: "express@npm:4.21.1"
@@ -3277,6 +3286,7 @@ __metadata:
     cpu-features: "npm:^0.0.10"
     dotenv: "npm:^16.4.7"
     express: "npm:^4.21.1"
+    express-async-errors: "npm:^3.1.1"
     keyv: "npm:^5.2.1"
     lru-cache: "npm:^11.0.2"
     mime-types: "npm:^2.1.35"
@@ -4685,6 +4695,7 @@ __metadata:
     eslint-plugin-eslint-plugin: "npm:^6.3.1"
     eslint-plugin-prettier: "npm:^5.2.1"
     express: "npm:^4.21.1"
+    express-async-errors: "npm:^3.1.1"
     pg: "npm:^8.13.1"
     pg-format: "npm:^1.0.4"
     prettier: "npm:^3.3.3"
@@ -6125,11 +6136,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.6.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.2#optional!builtin<compat/typescript>":
   version: 5.7.2
-  resolution: "typescript@patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/f3b8082c9d1d1629a215245c9087df56cb784f9fb6f27b5d55577a20e68afe2a889c040aacff6d27e35be165ecf9dca66e694c42eb9a50b3b2c451b36b5675cb
+  checksum: 10c0/c891ccf04008bc1305ba34053db951f8a4584b4a1bf2f68fd972c4a354df3dc5e62c8bfed4f6ac2d12e5b3b1c49af312c83a651048f818cd5b4949d17baacd79
   languageName: node
   linkType: hard
 
