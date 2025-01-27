@@ -1,4 +1,5 @@
 import fsPromises from 'fs/promises'
+import fs from 'fs'
 import path from 'path'
 
 export const writeFile = async (
@@ -14,4 +15,14 @@ export const writeFile = async (
 
   await fsPromises.writeFile(tempFilePath, data)
   await fsPromises.rename(tempFilePath, filepath)
+}
+
+export const ensureDirectoryExists = (dir: string) => {
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+export const asyncEnsureDirectoryExists = async (dir: string) => {
+  await fsPromises.mkdir(dir, { recursive: true })
+  return dir
 }
