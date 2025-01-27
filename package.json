@@ -8,7 +8,8 @@
   "scripts": {
     "indexer": "yarn workspace object-mapping-indexer",
     "file-retriever": "yarn workspace file-retriever",
-    "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts"
+    "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts",
+    "build": "yarn workspaces foreach --all run build"
   },
   "dependencies": {
     "axios": "^1.7.9",

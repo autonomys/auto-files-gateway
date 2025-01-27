@@ -1,7 +1,8 @@
 import { Handler, NextFunction, Request, Response } from 'express'
 import { config } from '../../config.js'
+import { asyncSafeHandler } from '../../utils/express.js'
 
-export const authMiddleware: Handler = (
+export const authMiddleware: Handler = asyncSafeHandler((
   req: Request,
   res: Response,
   next: NextFunction,
@@ -26,4 +27,4 @@ export const authMiddleware: Handler = (
   }
 
   next()
-}
+})
