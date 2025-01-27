@@ -23,7 +23,8 @@ const createServer = () => {
   app.use('/objects', objectsController)
   app.use('/health', healthController)
 
-  app.use((err: unknown, _: Request, res: Response) => {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-unused-vars
+  app.use((err: unknown, _: Request, res: Response, __: Function) => {
     console.error(err)
     res.status(500).send('Internal Server Error')
   })

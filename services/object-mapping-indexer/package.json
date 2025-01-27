@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "db-migrate up && node dist/server.js",
+    "start": "node dist/server.js",
     "dev": "node --loader ts-node/esm",
     "test": "jest"
   },

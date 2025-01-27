@@ -14,8 +14,6 @@ type FileCacheEntry = Omit<FileResponse, 'data'>
 type UncheckedFileCacheEntry = FileCacheEntry | null | undefined
 
 export const createFileCache = (config: BaseCacheConfig) => {
-  fs.mkdirSync(config.cacheDir, { recursive: true })
-
   const cidToFilePath = (cid: string) => {
     const partitions = config.pathPartitions
 
