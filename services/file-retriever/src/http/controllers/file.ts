@@ -3,11 +3,14 @@ import { authMiddleware } from '../middlewares/auth.js'
 import { fileComposer } from '../../services/fileComposer.js'
 import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
+import { asyncSafeHandler } from '../../utils/express.js'
 
 const fileRouter = Router()
 
-fileRouter.get('/:cid', authMiddleware, async (req, res, next) => {
-  try {
+fileRouter.get(
+  '/:cid',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
     const cid = req.params.cid
@@ -44,9 +47,7 @@ fileRouter.get('/:cid', authMiddleware, async (req, res, next) => {
         })
       }
     })
-  } catch (err) {
-    next(err)
-  }
-})
+  }),
+)
 
 export { fileRouter }
