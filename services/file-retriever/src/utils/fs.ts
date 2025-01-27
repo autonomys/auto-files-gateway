@@ -21,8 +21,3 @@ export const ensureDirectoryExists = (dir: string) => {
   fs.mkdirSync(dir, { recursive: true })
   return dir
 }
-
-export const asyncEnsureDirectoryExists = async (dir: string) => {
-  await fsPromises.mkdir(dir, { recursive: true })
-  return dir
-}
