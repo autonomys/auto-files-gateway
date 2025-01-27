@@ -6,6 +6,7 @@ import { objectsController } from './controllers/objects.js'
 import { createWsServer } from './drivers/ws/server.js'
 import { rpcServer } from './drivers/rpcServer/index.js'
 import { createObjectMappingListener } from './services/objectMappingListener/index.js'
+import { healthController } from './controllers/health.js'
 
 const createServer = () => {
   const app = express()
@@ -20,6 +21,8 @@ const createServer = () => {
   }
 
   app.use('/objects', objectsController)
+  app.use('/health', healthController)
+
   app.use((err: unknown, _: Request, res: Response) => {
     console.error(err)
     res.status(500).send('Internal Server Error')
