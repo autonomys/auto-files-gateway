@@ -9,9 +9,10 @@ import path from 'path'
 import KeyvSqlite from '@keyvhq/sqlite'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
+import { ensureDirectoryExists } from '../utils/fs.js'
 
 const cache = createFileCache({
-  cacheDir: path.join(config.cacheDir, 'files'),
+  cacheDir: ensureDirectoryExists(path.join(config.cacheDir, 'files')),
   pathPartitions: 3,
   stores: [
     new Keyv({
@@ -27,7 +28,7 @@ const cache = createFileCache({
     }),
     new Keyv({
       store: new KeyvSqlite({
-        uri: path.join(config.cacheDir, 'files.sqlite'),
+        uri: path.join(ensureDirectoryExists(config.cacheDir), 'files.sqlite'),
       }),
       ttl: config.cacheTtl,
       serialize: stringify,

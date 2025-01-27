@@ -1,3 +1,4 @@
+import path from 'path'
 import { env } from './utils/env.js'
 
 const TEN_GB = 10 * 1024 ** 3
@@ -16,7 +17,10 @@ export const config = {
       defaultValue: 10,
     }),
   ),
-  cacheDir: env('CACHE_DIR', { defaultValue: './.cache' }),
+  cacheDir: path.join(
+    process.cwd(),
+    env('CACHE_DIR', { defaultValue: './.cache' }),
+  ),
   cacheMaxSize: Number(
     env('CACHE_MAX_SIZE', {
       defaultValue: TEN_GB,
