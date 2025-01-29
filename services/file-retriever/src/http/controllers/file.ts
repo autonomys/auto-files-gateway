@@ -14,6 +14,7 @@ fileRouter.get(
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
     const cid = req.params.cid
+    const rawMode = req.query.raw === 'true'
 
     const file = await fileComposer.get(cid)
 
@@ -29,7 +30,7 @@ fileRouter.get(
     if (file.size) {
       res.set('Content-Length', file.size.toString())
     }
-    if (file.encoding) {
+    if (file.encoding && !rawMode) {
       res.set('Content-Encoding', file.encoding)
     }
 
