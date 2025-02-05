@@ -69,22 +69,16 @@ export const createFileCache = (config: BaseCacheConfig) => {
     const { data, ...rest } = fileResponse
 
     const start = performance.now()
-    const cachePromise = filepathCache
-      .set(cid, {
-        ...rest,
-      })
-      .then(() => {
-        const end = performance.now()
-        logger.debug(`Caching file for ${cid} took ${end - start}ms`)
-      })
+    await writeFile(filePath, data)
+    const end = performance.now()
+    logger.debug(`Writing file to cache for ${cid} took ${end - start}ms`)
 
     const start2 = performance.now()
-    const writePromise = writeFile(filePath, data).then(() => {
-      const end2 = performance.now()
-      logger.debug(`Writing file to cache for ${cid} took ${end2 - start2}ms`)
+    await filepathCache.set(cid, {
+      ...rest,
     })
-
-    await Promise.all([cachePromise, writePromise])
+    const end2 = performance.now()
+    logger.debug(`Caching file for ${cid} took ${end2 - start2}ms`)
   }
 
   const remove = async (cid: string) => {
