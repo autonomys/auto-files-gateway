@@ -110,23 +110,28 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
       let requestsPending = node.Links.map(({ Hash }) => cidToString(Hash))
       while (requestsPending.length > 0) {
         // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
-        const requestingNodes = requestsPending.slice(
-          0,
-          config.maxSimultaneousFetches,
-        )
+        const requestingNodes = requestsPending
 
         const start = performance.now()
         // we fetch the nodes in parallel
         const nodes = await Promise.all(
-          requestingNodes.map(async (e) => await fetchNode(e)),
+          requestingNodes.map(
+            async (e) => await fetchNode(e).catch(() => null),
+          ),
         )
+        if (nodes.some((e) => e === null)) {
+          controller.error(new Error('Failed to fetch nodes'))
+          return
+        }
+        const verifiedNodes = nodes as PBNode[]
+
         const end = performance.now()
         logger.debug(
           `Fetching ${requestingNodes.length} nodes took ${end - start}ms`,
         )
 
         let newLinks: string[] = []
-        for (const node of nodes) {
+        for (const node of verifiedNodes) {
           const ipldMetadata = safeIPLDDecode(node)
           // if the node has no links or has data (is the same thing), we write into the stream
           if (ipldMetadata?.data) {
@@ -140,10 +145,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
         }
 
         // we update the list of pending requests with the new links
-        requestsPending = [
-          ...newLinks,
-          ...requestsPending.slice(config.maxSimultaneousFetches),
-        ]
+        requestsPending = newLinks
       }
       controller.close()
     },
