@@ -1,9 +1,10 @@
 volumes:
   subspace-node-data: {}
+  file-retriever-data: {}
 
 services:
   subspace-node:
-    image: ghcr.io/autonomys/node:${NODE_DOCKER_TAG}
+    image: ${NODE_DOCKER_TAG}
     volumes:
       - subspace-node-data:/var/subspace:rw
     ports:
@@ -30,7 +31,7 @@ services:
       retries: 60
     stop_grace_period: 30s
   subspace-http-gateway:
-    image: ghcr.io/autonomys/gateway:${GATEWAY_DOCKER_TAG}
+    image: ${GATEWAY_DOCKER_TAG}
     depends_on:
       subspace-node:
         condition: service_healthy
@@ -47,7 +48,7 @@ services:
       dockerfile: docker/file-retriever/Dockerfile
     container_name: file-retriever
     volumes:
-      - .cache:/.cache
+      - file-retriever-data:/app
     ports:
       - '8090:8090'
     environment:
@@ -74,9 +75,9 @@ services:
     pid: host
     privileged: true
     volumes:
-      - "/:/host:ro"
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - '/:/host:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      NRIA_LICENSE_KEY: "${NR_API_KEY}"
-      NRIA_DISPLAY_NAME: "${NR_AGENT_IDENTIFIER}"
+      NRIA_LICENSE_KEY: '${NR_API_KEY}'
+      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
     restart: unless-stopped

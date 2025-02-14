@@ -3,7 +3,7 @@ volumes:
 
 services:
   subspace-node:
-    image: ghcr.io/autonomys/node:${NODE_DOCKER_TAG}
+    image: ${NODE_DOCKER_TAG}
     volumes:
       - subspace-node-data:/var/subspace:rw
     ports:
