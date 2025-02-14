@@ -48,7 +48,7 @@ services:
       dockerfile: docker/file-retriever/Dockerfile
     container_name: file-retriever
     volumes:
-      - file-retriever-data:/.cache
+      - file-retriever-data:/app
     ports:
       - '8090:8090'
     environment:
