@@ -1,5 +1,6 @@
 volumes:
   subspace-node-data: {}
+  file-retriever-data: {}
 
 services:
   subspace-node:
@@ -47,7 +48,7 @@ services:
       dockerfile: docker/file-retriever/Dockerfile
     container_name: file-retriever
     volumes:
-      - .cache:/.cache
+      - file-retriever-data:/.cache
     ports:
       - '8090:8090'
     environment:
