@@ -53,7 +53,7 @@ const get = async (cid: string): Promise<FileResponse> => {
   end = performance.now()
   logger.debug(`Forking file ${cid} took ${end - start}ms`)
 
-  await cache
+  cache
     .set(cid, {
       ...file,
       data: cachingStream,

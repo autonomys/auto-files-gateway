@@ -6,7 +6,7 @@ export default async function () {
   group('Concurrent Requests', function () {
     return http.batch(
       taurusFiles.map((file) => ({
-        url: `http://localhost:8090/files/${file}?api_key=random-secret`,
+        url: `https://gateway.taurus.autonomys.xyz/files/${file}?api_key=28592507e0de9a9bde5b45dbe3ecb7fd`,
         params: {
           timeout: '1h',
         },
