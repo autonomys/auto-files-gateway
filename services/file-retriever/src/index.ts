@@ -15,7 +15,10 @@ if (config.corsOrigin) {
   app.use(cors({ origin: config.corsOrigin }))
 }
 
-app.use(bandwidthTracker)
+if (config.monitoring.active) {
+  app.use(bandwidthTracker)
+}
+
 app.use('/files', fileRouter)
 app.use('/nodes', nodeRouter)
 app.use('/health', healthController)
