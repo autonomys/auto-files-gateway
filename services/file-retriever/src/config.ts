@@ -27,4 +27,8 @@ export const config = {
     }),
   ),
   cacheTtl: Number(env('CACHE_TTL', { defaultValue: ONE_DAY })),
+  monitoring: {
+    victoriaEndpoint: env<string>('VICTORIA_ENDPOINT'),
+    victoriaToken: env<string>('VICTORIA_TOKEN', undefined),
+  },
 }

@@ -16,7 +16,12 @@ fileRouter.get(
     const cid = req.params.cid
     const rawMode = req.query.raw === 'true'
 
-    const file = await fileComposer.get(cid)
+    const [fromCache, file] = await fileComposer.get(cid)
+    if (fromCache) {
+      res.setHeader('x-file-origin', 'cache')
+    } else {
+      res.setHeader('x-file-origin', 'gateway')
+    }
 
     if (file.mimeType) {
       res.set('Content-Type', file.mimeType)

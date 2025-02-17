@@ -36,11 +36,13 @@ const cache = createFileCache({
   ],
 })
 
-const get = async (cid: string): Promise<FileResponse> => {
+const get = async (
+  cid: string,
+): Promise<[fromCache: boolean, FileResponse]> => {
   const cachedFile = await cache.get(cid)
   if (cachedFile) {
     logger.debug(`Cache hit for file ${cid}`)
-    return cachedFile
+    return [true, cachedFile]
   }
 
   let start = performance.now()
@@ -62,10 +64,13 @@ const get = async (cid: string): Promise<FileResponse> => {
       console.error('Error caching file', e)
     })
 
-  return {
-    ...file,
-    data,
-  }
+  return [
+    false,
+    {
+      ...file,
+      data,
+    },
+  ]
 }
 
 export const fileComposer = {
