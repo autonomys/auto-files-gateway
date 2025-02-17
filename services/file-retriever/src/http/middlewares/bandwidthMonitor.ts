@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { sendMetricToVictoria } from '../../drivers/metrics'
 import { logger } from '../../drivers/logger'
+import { config } from '../../config'
 
 export const bandwidthTracker = (
   req: Request,
@@ -22,7 +23,7 @@ export const bandwidthTracker = (
     const requestDuration = Date.now() - requestReceivedAt
 
     const measurement = isGateway ? 'gateway_bandwidth' : 'cache_bandwidth'
-    const tag = isGateway ? 'origin=gateway' : 'origin=cache'
+    const tag = config.monitoring.metricEnvironmentTag
 
     // Ignore errors sending metrics to Victoria
     sendMetricToVictoria({

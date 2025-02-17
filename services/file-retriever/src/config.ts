@@ -31,5 +31,8 @@ export const config = {
     active: env('VICTORIA_ACTIVE', { defaultValue: 'false' }) === 'true',
     victoriaEndpoint: env<string>('VICTORIA_ENDPOINT'),
     victoriaToken: env<string>('VICTORIA_TOKEN', undefined),
+    metricEnvironmentTag: env<string>('METRIC_ENVIRONMENT_TAG', {
+      defaultValue: 'chain=unknown',
+    }),
   },
 }
