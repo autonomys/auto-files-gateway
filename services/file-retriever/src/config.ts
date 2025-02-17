@@ -27,4 +27,12 @@ export const config = {
     }),
   ),
   cacheTtl: Number(env('CACHE_TTL', { defaultValue: ONE_DAY })),
+  monitoring: {
+    active: env('VICTORIA_ACTIVE', { defaultValue: 'false' }) === 'true',
+    victoriaEndpoint: env<string>('VICTORIA_ENDPOINT'),
+    victoriaToken: env<string>('VICTORIA_TOKEN', undefined),
+    metricEnvironmentTag: env<string>('METRIC_ENVIRONMENT_TAG', {
+      defaultValue: 'chain=unknown',
+    }),
+  },
 }

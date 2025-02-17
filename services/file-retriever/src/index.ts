@@ -7,11 +7,16 @@ import { config } from './config.js'
 import { logger } from './drivers/logger.js'
 import { HttpError } from './http/middlewares/error.js'
 import { healthController } from './http/controllers/health.js'
+import { bandwidthTracker } from './http/middlewares/bandwidthMonitor.js'
 
 const app: Application = express()
 
 if (config.corsOrigin) {
   app.use(cors({ origin: config.corsOrigin }))
+}
+
+if (config.monitoring.active) {
+  app.use(bandwidthTracker)
 }
 
 app.use('/files', fileRouter)
