@@ -61,6 +61,10 @@ services:
       - CACHE_TTL=${CACHE_TTL}
       - LOG_LEVEL=${LOG_LEVEL}
       - API_SECRET=${API_SECRET}
+      - VICTORIA_ACTIVE=${VICTORIA_ACTIVE}
+      - VICTORIA_ENDPOINT=${VICTORIA_ENDPOINT}
+      - VICTORIA_TOKEN=${VICTORIA_TOKEN}
+      - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
     depends_on:
       subspace-node:
         condition: service_healthy
