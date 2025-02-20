@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
-import { sendMetricToVictoria } from '../../drivers/metrics'
-import { logger } from '../../drivers/logger'
-import { config } from '../../config'
+import { sendMetricToVictoria } from '../../drivers/metrics.js'
+import { logger } from '../../drivers/logger.js'
+import { config } from '../../config.js'
 
 export const bandwidthTracker = (
   req: Request,
