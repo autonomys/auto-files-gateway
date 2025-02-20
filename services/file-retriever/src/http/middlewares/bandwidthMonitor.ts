@@ -9,7 +9,7 @@ export const bandwidthTracker = (
   next: NextFunction,
 ) => {
   const requestReceivedAt = Date.now()
-  res.on('end', () => {
+  res.on('finish', () => {
     const contentLengthHeader = res.getHeader('Content-Length')
     const invalidOrMissingContentLength =
       !contentLengthHeader ||
