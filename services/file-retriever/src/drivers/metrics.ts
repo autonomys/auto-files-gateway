@@ -8,11 +8,10 @@ interface Metric {
 }
 
 export const sendMetricToVictoria = async (metric: Metric): Promise<void> => {
-  const data = `${metric.measurement},${metric.tag} ${Object.entries(
-    metric.fields,
+  const values = Object.entries(metric.fields).map(
+    ([key, value]) => `${key}=${value}`,
   )
-    .map(([key, value]) => `${key}=${value}`)
-    .join(',')} ${metric.timestamp}`
+  const data = `${metric.measurement},${metric.tag} ${values.join(',')}`
 
   const basicAuthToken = Buffer.from(
     `${config.monitoring.auth.username}:${config.monitoring.auth.password}`,
