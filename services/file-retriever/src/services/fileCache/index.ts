@@ -49,10 +49,10 @@ export const createFileCache = (config: BaseCacheConfig) => {
       await filepathCache.get(cid),
     )
     const end = performance.now()
-    logger.debug(`Getting file cache entry for ${cid} took ${end - start}ms`)
     if (!data) {
       return null
     }
+    logger.debug(`Getting file cache entry for ${cid} took ${end - start}ms`)
 
     const path = cidToFilePath(cid)
 
