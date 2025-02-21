@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
-import { sendMetricToVictoria } from '../../drivers/metrics'
-import { logger } from '../../drivers/logger'
-import { config } from '../../config'
+import { sendMetricToVictoria } from '../../drivers/metrics.js'
+import { logger } from '../../drivers/logger.js'
+import { config } from '../../config.js'
 
 export const bandwidthTracker = (
   req: Request,
@@ -9,7 +9,7 @@ export const bandwidthTracker = (
   next: NextFunction,
 ) => {
   const requestReceivedAt = Date.now()
-  res.on('end', () => {
+  res.once('finish', () => {
     const contentLengthHeader = res.getHeader('Content-Length')
     const invalidOrMissingContentLength =
       !contentLengthHeader ||

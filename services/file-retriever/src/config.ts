@@ -30,7 +30,10 @@ export const config = {
   monitoring: {
     active: env('VICTORIA_ACTIVE', { defaultValue: 'false' }) === 'true',
     victoriaEndpoint: env<string>('VICTORIA_ENDPOINT'),
-    victoriaToken: env<string>('VICTORIA_TOKEN', undefined),
+    auth: {
+      username: env<string>('VICTORIA_USERNAME'),
+      password: env<string>('VICTORIA_PASSWORD'),
+    },
     metricEnvironmentTag: env<string>('METRIC_ENVIRONMENT_TAG', {
       defaultValue: 'chain=unknown',
     }),

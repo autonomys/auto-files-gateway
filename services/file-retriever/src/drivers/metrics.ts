@@ -1,4 +1,4 @@
-import { config } from '../config'
+import { config } from '../config.js'
 
 interface Metric {
   measurement: string
@@ -8,20 +8,21 @@ interface Metric {
 }
 
 export const sendMetricToVictoria = async (metric: Metric): Promise<void> => {
-  const data = `${metric.measurement},${metric.tag} ${Object.entries(
-    metric.fields,
+  const values = Object.entries(metric.fields).map(
+    ([key, value]) => `${key}=${value}`,
   )
-    .map(([key, value]) => `${key}=${value}`)
-    .join(',')} ${metric.timestamp}`
+  const data = `${metric.measurement},${metric.tag} ${values.join(',')}`
+
+  const basicAuthToken = Buffer.from(
+    `${config.monitoring.auth.username}:${config.monitoring.auth.password}`,
+  ).toString('base64')
 
   const response = await fetch(config.monitoring.victoriaEndpoint, {
     method: 'POST',
     body: data,
-    headers: config.monitoring.victoriaToken
-      ? {
-          Authorization: `Bearer ${config.monitoring.victoriaToken}`,
-        }
-      : {},
+    headers: {
+      Authorization: `Basic ${basicAuthToken}`,
+    },
   })
   if (!response.ok) {
     throw new Error(`Failed to send metric to Victoria: ${response.statusText}`)

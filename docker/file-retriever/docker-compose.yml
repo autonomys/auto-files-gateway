@@ -48,7 +48,7 @@ services:
       dockerfile: docker/file-retriever/Dockerfile
     container_name: file-retriever
     volumes:
-      - file-retriever-data:/app
+      - file-retriever-data:/app/.cache
     ports:
       - '8090:8090'
     environment:
@@ -61,6 +61,11 @@ services:
       - CACHE_TTL=${CACHE_TTL}
       - LOG_LEVEL=${LOG_LEVEL}
       - API_SECRET=${API_SECRET}
+      - VICTORIA_ACTIVE=${VICTORIA_ACTIVE}
+      - VICTORIA_ENDPOINT=${VICTORIA_ENDPOINT}
+      - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
+      - VICTORIA_USERNAME=${VICTORIA_USERNAME}
+      - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
     depends_on:
       subspace-node:
         condition: service_healthy

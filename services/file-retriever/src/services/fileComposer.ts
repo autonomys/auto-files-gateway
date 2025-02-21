@@ -46,6 +46,7 @@ const get = async (
   }
 
   let start = performance.now()
+  logger.debug(`Fetching file from DSN ${cid}`)
   const file = await dsnFetcher.fetchFile(cid)
   let end = performance.now()
   logger.debug(`Fetching file from DSN ${cid} took ${end - start}ms`)
