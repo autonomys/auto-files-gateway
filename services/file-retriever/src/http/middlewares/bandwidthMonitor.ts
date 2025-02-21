@@ -8,7 +8,7 @@ export const bandwidthTracker = (
   res: Response,
   next: NextFunction,
 ) => {
-  const requestReceivedAt = Date.now()
+  const requestReceivedAt = performance.now()
   res.once('finish', () => {
     const contentLengthHeader = res.getHeader('Content-Length')
     const invalidOrMissingContentLength =
@@ -20,7 +20,7 @@ export const bandwidthTracker = (
     }
     const isGateway = res.getHeader('x-file-origin') === 'gateway'
     const contentLength = BigInt(contentLengthHeader)
-    const requestDuration = Date.now() - requestReceivedAt
+    const requestDuration = performance.now() - requestReceivedAt
 
     const measurement = isGateway ? 'gateway_bandwidth' : 'cache_bandwidth'
     const tag = config.monitoring.metricEnvironmentTag
