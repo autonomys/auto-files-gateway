@@ -269,23 +269,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@keyvhq/sql@npm:^2.1.6":
-  version: 2.1.6
-  resolution: "@keyvhq/sql@npm:2.1.6"
+"@keyvhq/sql@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@keyvhq/sql@npm:2.1.7"
   dependencies:
     sql-ts: "npm:7"
-  checksum: 10c0/7d889e810566493f4076abda72a2899bdcfee7cd3e39be6e8679a2f8eb184f4874524c7457e57e7a24946f70d0f50eb94178901ad2abf0a91c368306f52e2ca4
+  checksum: 10c0/1cee6e9695319295285f4f80c38ef957aafe18906f92ba2ce37f0ca481d5734ab43bd1f3ac060c4f0422e2a2ced8a45042c4df50390bb488e38704fe0f8b3dcf
   languageName: node
   linkType: hard
 
 "@keyvhq/sqlite@npm:^2.1.6":
-  version: 2.1.6
-  resolution: "@keyvhq/sqlite@npm:2.1.6"
+  version: 2.1.7
+  resolution: "@keyvhq/sqlite@npm:2.1.7"
   dependencies:
-    "@keyvhq/sql": "npm:^2.1.6"
-    "@vscode/sqlite3": "npm:~5.1.2"
+    "@keyvhq/sql": "npm:2.1.7"
+    "@vscode/sqlite3": "npm:5.1.8-vscode"
     pify: "npm:~5.0.0"
-  checksum: 10c0/28f152fbf2a03cf9d595ec1b90faae89f705874b90b734559c268bee500144f5f5e59ffa6d90e69300e12ce77fbba3883525f099093a5c30479bb666c5420c7b
+  checksum: 10c0/67b15dcaf09d1860077c9b621370e1e406ef531b0ed94486d5ec1fb794c04b97afb6f1e7aa7ec8496bd5ec7a7981d22a8ed45fa99714c6544131c0d1fb1340b7
   languageName: node
   linkType: hard
 
@@ -1748,13 +1748,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vscode/sqlite3@npm:~5.1.2":
-  version: 5.1.2
-  resolution: "@vscode/sqlite3@npm:5.1.2"
+"@vscode/sqlite3@npm:5.1.8-vscode":
+  version: 5.1.8-vscode
+  resolution: "@vscode/sqlite3@npm:5.1.8-vscode"
   dependencies:
-    node-addon-api: "npm:^4.2.0"
+    node-addon-api: "npm:^8.2.0"
     node-gyp: "npm:latest"
-  checksum: 10c0/7d7515b4ad82126c5fefa4f90a98164a0eeba83946591ef10a4b8db1daaede525a2dd9d29947ecc133a0d60728a3d674e0a6cbb9f7abea8dc945fdb04fbab68b
+    tar: "npm:^6.1.11"
+  checksum: 10c0/eb70c0e6588a4620ab06aa51fe519b6928611f362a4cdbf95e6330ff0ea1eee1b08c1f018c1e314c84454968c7c4a369d8b7266690a80d1d9eb71c00202fd248
   languageName: node
   linkType: hard
 
@@ -2296,6 +2297,13 @@ __metadata:
   version: 1.1.4
   resolution: "chownr@npm:1.1.4"
   checksum: 10c0/ed57952a84cc0c802af900cf7136de643d3aba2eecb59d29344bc2f3f9bf703a301b9d84cdc71f82c3ffc9ccde831b0d92f5b45f91727d6c9da62f23aef9d9db
+  languageName: node
+  linkType: hard
+
+"chownr@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "chownr@npm:2.0.0"
+  checksum: 10c0/594754e1303672171cc04e50f6c398ae16128eb134a88f801bf5354fd96f205320f23536a045d9abd8b51024a149696e51231565891d4efdab8846021ecf88e6
   languageName: node
   linkType: hard
 
@@ -3433,6 +3441,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fs-minipass@npm:^2.0.0":
+  version: 2.1.0
+  resolution: "fs-minipass@npm:2.1.0"
+  dependencies:
+    minipass: "npm:^3.0.0"
+  checksum: 10c0/703d16522b8282d7299337539c3ed6edddd1afe82435e4f5b76e34a79cd74e488a8a0e26a636afc2440e1a23b03878e2122e3a2cfe375a5cf63c37d92b86a004
+  languageName: node
+  linkType: hard
+
 "fs-minipass@npm:^3.0.0":
   version: 3.0.3
   resolution: "fs-minipass@npm:3.0.3"
@@ -4398,10 +4415,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"minipass@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "minipass@npm:5.0.0"
+  checksum: 10c0/a91d8043f691796a8ac88df039da19933ef0f633e3d7f0d35dcd5373af49131cf2399bfc355f41515dc495e3990369c3858cd319e5c2722b4753c90bf3152462
+  languageName: node
+  linkType: hard
+
 "minipass@npm:^5.0.0 || ^6.0.2 || ^7.0.0, minipass@npm:^7.0.2, minipass@npm:^7.0.3, minipass@npm:^7.0.4, minipass@npm:^7.1.2":
   version: 7.1.2
   resolution: "minipass@npm:7.1.2"
   checksum: 10c0/b0fd20bb9fb56e5fa9a8bfac539e8915ae07430a619e4b86ff71f5fc757ef3924b23b2c4230393af1eda647ed3d75739e4e0acb250a6b1eb277cf7f8fe449557
+  languageName: node
+  linkType: hard
+
+"minizlib@npm:^2.1.1":
+  version: 2.1.2
+  resolution: "minizlib@npm:2.1.2"
+  dependencies:
+    minipass: "npm:^3.0.0"
+    yallist: "npm:^4.0.0"
+  checksum: 10c0/64fae024e1a7d0346a1102bb670085b17b7f95bf6cfdf5b128772ec8faf9ea211464ea4add406a3a6384a7d87a0cd1a96263692134323477b4fb43659a6cab78
   languageName: node
   linkType: hard
 
@@ -4422,7 +4456,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mkdirp@npm:^1.0.4":
+"mkdirp@npm:^1.0.3, mkdirp@npm:^1.0.4":
   version: 1.0.4
   resolution: "mkdirp@npm:1.0.4"
   bin:
@@ -4564,12 +4598,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-addon-api@npm:^4.2.0":
-  version: 4.3.0
-  resolution: "node-addon-api@npm:4.3.0"
+"node-addon-api@npm:^8.2.0":
+  version: 8.3.1
+  resolution: "node-addon-api@npm:8.3.1"
   dependencies:
     node-gyp: "npm:latest"
-  checksum: 10c0/5febe94d58cdef319bc96a357b43d7a13776c93ee3f2edb374000f16454e65cec06035497947d5fdaa50db1cc7ab8e3a30ca8669bb07a1b159f0307dc2c1ccdf
+  checksum: 10c0/e28f1c5094130ecc3a0bf882e0385e74cac9c5112d35287dbce369959551ab7ca4d1f1a69af737107c894c14b4063dd5002e2b3c16a27035d025bb06eefee058
   languageName: node
   linkType: hard
 
@@ -5922,6 +5956,20 @@ __metadata:
     inherits: "npm:^2.0.3"
     readable-stream: "npm:^3.1.1"
   checksum: 10c0/2f4c910b3ee7196502e1ff015a7ba321ec6ea837667220d7bcb8d0852d51cb04b87f7ae471008a6fb8f5b1a1b5078f62f3a82d30c706f20ada1238ac797e7692
+  languageName: node
+  linkType: hard
+
+"tar@npm:^6.1.11":
+  version: 6.2.1
+  resolution: "tar@npm:6.2.1"
+  dependencies:
+    chownr: "npm:^2.0.0"
+    fs-minipass: "npm:^2.0.0"
+    minipass: "npm:^5.0.0"
+    minizlib: "npm:^2.1.1"
+    mkdirp: "npm:^1.0.3"
+    yallist: "npm:^4.0.0"
+  checksum: 10c0/a5eca3eb50bc11552d453488344e6507156b9193efd7635e98e867fab275d527af53d8866e2370cd09dfe74378a18111622ace35af6a608e5223a7d27fe99537
   languageName: node
   linkType: hard
 
