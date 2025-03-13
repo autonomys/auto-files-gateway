@@ -8,6 +8,7 @@ import {
   CompressionAlgorithm,
   cidOfNode,
 } from '@autonomys/auto-dag-data'
+import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
 import { safeIPLDDecode } from '../utils/dagData.js'
@@ -15,14 +16,21 @@ import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 import axios from 'axios'
-import pLimit from 'p-limit'
+import {
+  fetchObjectMapping,
+  GlobalObjectMappingRequest,
+  ObjectMapping,
+} from './objectMappingIndexer.js'
+import { fromEntries, groupBy, promiseAll, values } from '../utils/array.js'
+
+const fetchNodesSchema = z.object({
+  jsonrpc: z.string(),
+  id: z.number(),
+  result: z.array(z.string()),
+})
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
 let gatewayIndex = 0
-
-const concurrencyLimits = gatewayUrls.map(() =>
-  pLimit(config.maxSimultaneousFetches),
-)
 
 const getObjectMappingHash = (cid: string) => {
   try {
@@ -32,44 +40,48 @@ const getObjectMappingHash = (cid: string) => {
   }
 }
 
-const fetchNode = async (
-  cid: string,
-  ignoreCidCheck = false,
-): Promise<PBNode> => {
-  try {
-    const start = performance.now()
-    const objectMappingHash = getObjectMappingHash(cid)
-
-    const concurrencyLimit = concurrencyLimits[gatewayIndex]
-    const url = gatewayUrls[gatewayIndex]
-    gatewayIndex = (gatewayIndex + 1) % gatewayUrls.length
-
-    const response = await concurrencyLimit(() =>
-      axios.get(`${url}/data/${objectMappingHash}`, {
-        timeout: 3600_000,
-        responseType: 'arraybuffer',
-      }),
-    )
-    if (response.status !== 200) {
-      console.error('Failed to fetch node', response)
-      throw new HttpError(500, 'Internal server error: Failed to fetch node')
-    }
-
-    const node = decodeNode(response.data)
-
-    if (!ignoreCidCheck && cidToString(cidOfNode(node)) !== cid) {
-      throw new Error(
-        `Cid mismatch: ${cid} !== ${cidToString(cidOfNode(node))}`,
-      )
-    }
-
-    const end = performance.now()
-    logger.debug(`Fetching node ${cid} took ${end - start}ms`)
-    return node
-  } catch (error) {
-    logger.error(`Error fetching node ${cid}: ${error}`)
-    throw error
+/**
+ * Fetches the nodes for a given list of cids
+ *
+ * @param cids - The list of cids to fetch the nodes for
+ * @returns The list of nodes
+ */
+const retrieveObjectMappings = async (objects: ObjectMapping[]) => {
+  const mappings: GlobalObjectMappingRequest = {
+    v0: {
+      objects,
+    },
   }
+
+  const gatewayUrl = gatewayUrls[gatewayIndex++ % gatewayUrls.length]
+
+  const response = await axios.post(
+    gatewayUrl,
+    {
+      jsonrpc: '2.0',
+      method: 'subspace_fetchObject',
+      params: { mappings },
+    },
+    {
+      timeout: 3600_000,
+      responseType: 'json',
+    },
+  )
+  if (response.status !== 200) {
+    console.error('Failed to fetch nodes', response.status, response.data)
+    throw new HttpError(500, 'Internal server error: Failed to fetch nodes')
+  }
+
+  const data = fetchNodesSchema.safeParse(response.data)
+  if (!data.success) {
+    console.error('Failed to parse fetch nodes response', data.error)
+    throw new HttpError(
+      500,
+      'Internal server error: Failed to parse fetch nodes response',
+    )
+  }
+
+  return data.data.result.map((hex) => decodeNode(Buffer.from(hex, 'hex')))
 }
 
 /**
@@ -107,23 +119,36 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
     start: async (controller) => {
       logger.debug('Starting to fetch file')
       // for the first iteration, we need to fetch all the links from the root node
-      let requestsPending = node.Links.map(({ Hash }) => cidToString(Hash))
+      let requestsPending = node.Links.map(({ Hash }) =>
+        getObjectMappingHash(cidToString(Hash)),
+      )
       while (requestsPending.length > 0) {
         // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
         const requestingNodes = requestsPending
 
         const start = performance.now()
-        // we fetch the nodes in parallel
-        const nodes = await Promise.all(
-          requestingNodes.map(
-            async (e) => await fetchNode(e).catch(() => null),
-          ),
+        // we fetch the object mappings in parallel
+        const objectMappings = await Promise.all(
+          requestingNodes.map(async (hash) => await fetchObjectMapping(hash)),
         )
-        if (nodes.some((e) => e === null)) {
-          controller.error(new Error('Failed to fetch nodes'))
-          return
-        }
-        const verifiedNodes = nodes as PBNode[]
+
+        // we group the object mapping by the piece index
+        const PIECE_INDEX_KEY = 1
+        const nodes = groupBy(objectMappings, PIECE_INDEX_KEY)
+
+        // we fetch the nodes in parallel grouped by the piece index
+        const objectsByHash = fromEntries(
+          await promiseAll(
+            values(nodes).map((list) =>
+              retrieveObjectMappings(list).then((nodes) =>
+                list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
+              ),
+            ),
+          ).then((array) => array.flat()),
+        )
+
+        // we map the object mappings to the nodes
+        const retrievedNodes = objectMappings.map((e) => objectsByHash[e[0]])
 
         const end = performance.now()
         logger.debug(
@@ -131,7 +156,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
         )
 
         let newLinks: string[] = []
-        for (const node of verifiedNodes) {
+        for (const node of retrievedNodes) {
           const ipldMetadata = safeIPLDDecode(node)
           // if the node has no links or has data (is the same thing), we write into the stream
           if (ipldMetadata?.data) {
@@ -139,7 +164,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
           } else {
             // if the node has links, we need to fetch them in the next iteration
             newLinks = newLinks.concat(
-              node.Links.map((e) => cidToString(e.Hash)),
+              node.Links.map((e) => getObjectMappingHash(cidToString(e.Hash))),
             )
           }
         }
@@ -153,7 +178,10 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
 }
 
 const fetchFile = async (cid: string): Promise<FileResponse> => {
-  const head = await fetchNode(cid)
+  const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
+  const head = await retrieveObjectMappings([objectMapping]).then(
+    (nodes) => nodes[0],
+  )
   const nodeMetadata = safeIPLDDecode(head)
 
   if (!nodeMetadata) {
@@ -184,5 +212,5 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
 
 export const dsnFetcher = {
   fetchFile,
-  fetchNode,
+  fetchNodes: retrieveObjectMappings,
 }
