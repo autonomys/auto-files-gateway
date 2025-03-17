@@ -1,5 +1,3 @@
-import { sum } from './number'
-
 export type Job<T> = () => Promise<T>
 
 type ConcurrencyController = <T>(job: Job<T>, concurrency: number) => Promise<T>

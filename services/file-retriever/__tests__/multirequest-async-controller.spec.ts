@@ -1,4 +1,4 @@
-import { multiRequestConcurrencyController } from '../src/utils/concurrency'
+import { multiRequestConcurrencyController } from '../src/utils/concurrency.js'
 
 const mockRequest = async (id: number) => {
   return new Promise((resolve) => {

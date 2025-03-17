@@ -50,7 +50,7 @@ const getObjectMappingHash = (cid: string) => {
  * @param cids - The list of cids to fetch the nodes for
  * @returns The list of nodes
  */
-const retrieveObjectMappings = async (objects: ObjectMapping[]) => {
+const fetchObjects = async (objects: ObjectMapping[]) => {
   const mappings: GlobalObjectMappingRequest = {
     v0: {
       objects,
@@ -148,7 +148,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
         const objectsByHash = fromEntries(
           await promiseAll(
             values(nodes).map((list) =>
-              retrieveObjectMappings(list).then((nodes) =>
+              fetchObjects(list).then((nodes) =>
                 list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
               ),
             ),
@@ -187,9 +187,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
 
 const fetchFile = async (cid: string): Promise<FileResponse> => {
   const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
-  const head = await retrieveObjectMappings([objectMapping]).then(
-    (nodes) => nodes[0],
-  )
+  const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
   const nodeMetadata = safeIPLDDecode(head)
 
   if (!nodeMetadata) {
@@ -218,7 +216,14 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
   }
 }
 
+const fetchNode = async (cid: string) => {
+  const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
+  const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
+  return head
+}
+
 export const dsnFetcher = {
   fetchFile,
-  fetchNodes: retrieveObjectMappings,
+  fetchNode,
+  fetchObjects,
 }
