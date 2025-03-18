@@ -18,7 +18,7 @@
     "yocto-queue": "^1.2.0"
   },
   "devDependencies": {
-    "@types/k6": "^0.54.2",
+    "@types/k6": "^0.57.0",
     "@types/node": "^22.10.2",
     "bun": "^1.1.39",
     "eslint": "^8.57.1",
