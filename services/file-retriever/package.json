@@ -3,6 +3,7 @@
   "packageManager": "yarn@4.2.2",
   "type": "module",
   "dependencies": {
+    "@autonomys/asynchronous": "^1.4.1",
     "@autonomys/auto-dag-data": "^1.0.12",
     "@autonomys/auto-utils": "^1.0.12",
     "@ipld/dag-pb": "^4.1.3",

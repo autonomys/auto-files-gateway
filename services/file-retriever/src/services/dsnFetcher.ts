@@ -22,7 +22,7 @@ import {
   ObjectMapping,
 } from './objectMappingIndexer.js'
 import { fromEntries, groupBy, promiseAll, values } from '../utils/array.js'
-import { multiRequestConcurrencyController } from '../utils/concurrency.js'
+import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -32,7 +32,7 @@ const fetchNodesSchema = z.object({
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
 const concurrencyControllerByGateway = gatewayUrls.map(() =>
-  multiRequestConcurrencyController(config.maxSimultaneousFetches),
+  weightedRequestConcurrencyController(config.maxSimultaneousFetches),
 )
 let gatewayIndex = 0
 
