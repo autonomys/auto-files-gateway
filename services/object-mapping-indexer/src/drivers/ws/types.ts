@@ -1,6 +1,6 @@
-import { Message } from '../../models/message'
+import { Message } from '../../models/message.js'
 import Websocket from 'websocket'
-import { Serializable } from '../../utils/types'
+import { Serializable } from '../../utils/types.js'
 
 export interface WsServer {
   broadcastMessage: (message: Serializable) => void

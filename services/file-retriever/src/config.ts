@@ -27,6 +27,7 @@ export const config = {
     }),
   ),
   cacheTtl: Number(env('CACHE_TTL', { defaultValue: ONE_DAY })),
+  objectMappingIndexerUrl: env<string>('OBJECT_MAPPING_INDEXER_URL'),
   monitoring: {
     active: env('VICTORIA_ACTIVE', { defaultValue: 'false' }) === 'true',
     victoriaEndpoint: env<string>('VICTORIA_ENDPOINT'),

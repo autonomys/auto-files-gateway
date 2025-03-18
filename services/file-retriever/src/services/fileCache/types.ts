@@ -1,6 +1,6 @@
 import { Stream } from 'stream'
 import { Keyv } from 'keyv'
-import { FileResponse } from '../../models/file'
+import { FileResponse } from '../../models/file.js'
 
 export interface BaseCacheConfig {
   pathPartitions: number
