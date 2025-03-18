@@ -5,21 +5,29 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@autonomys/asynchronous@npm:1.4.1":
+  version: 1.4.1
+  resolution: "@autonomys/asynchronous@npm:1.4.1"
+  checksum: 10c0/f16f8f936e08a3ae38645eea0a1b01ee8ca4c8f9fcceebc4ecde3ec7ede3cb18c8f86fa41d5f7c9e3879448597980a0e829d00a9928375a21eed04f8d61134a1
+  languageName: node
+  linkType: hard
+
 "@autonomys/auto-dag-data@npm:^1.0.12, @autonomys/auto-dag-data@npm:^1.0.5":
-  version: 1.0.12
-  resolution: "@autonomys/auto-dag-data@npm:1.0.12"
+  version: 1.4.1
+  resolution: "@autonomys/auto-dag-data@npm:1.4.1"
   dependencies:
-    "@ipld/dag-pb": "npm:^4.1.2"
+    "@autonomys/asynchronous": "npm:1.4.1"
+    "@ipld/dag-pb": "npm:^4.1.3"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@webbuf/blake3": "npm:^3.0.26"
     "@webbuf/fixedbuf": "npm:^3.0.26"
     "@webbuf/webbuf": "npm:^3.0.26"
     fflate: "npm:^0.8.2"
-    multiformats: "npm:^13.2.2"
+    multiformats: "npm:^13.3.2"
     protobufjs: "npm:^7.4.0"
     protons: "npm:^7.6.0"
     protons-runtime: "npm:^5.5.0"
-  checksum: 10c0/b0bed5c2e8af5aef3f0697b207c37ba6aaa72d02b4dc51973a09e4411a8b9b0ff36e490ffc402cd56599803352cc1c63c22b8dfdea6da4aa7eb852322e2ba933
+  checksum: 10c0/191141299cd038669056bcad233a88630410041fb5a6d8bcc5848a4183d59ce7e3d7300be070d12d3a31166effd730377c47bdf1d3a0f00651f3aed98b95683b
   languageName: node
   linkType: hard
 
@@ -186,7 +194,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ipld/dag-pb@npm:^4.1.2, @ipld/dag-pb@npm:^4.1.3":
+"@ipld/dag-pb@npm:^4.1.3":
   version: 4.1.3
   resolution: "@ipld/dag-pb@npm:4.1.3"
   dependencies:
@@ -4486,10 +4494,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"multiformats@npm:^13.0.0, multiformats@npm:^13.1.0, multiformats@npm:^13.2.2, multiformats@npm:^13.2.3":
+"multiformats@npm:^13.0.0, multiformats@npm:^13.1.0, multiformats@npm:^13.2.3":
   version: 13.3.1
   resolution: "multiformats@npm:13.3.1"
   checksum: 10c0/12a68569a2b74b0b3ed554af866149300ed587aa46ce65ef6539c522fc8d7deb5d38d38e41e004b50bc1109566e2c04bf848f1909c9e687e86f504c6cf586eac
+  languageName: node
+  linkType: hard
+
+"multiformats@npm:^13.3.2":
+  version: 13.3.2
+  resolution: "multiformats@npm:13.3.2"
+  checksum: 10c0/a2c6f17b04d6a9cd5d0cb7d07e32dc4f3be82804d44fc056357a98e449340a7ad37d0789da41186ccd8c953e0cf783be3b71f03a00b0a84788689f544ecade46
   languageName: node
   linkType: hard
 
