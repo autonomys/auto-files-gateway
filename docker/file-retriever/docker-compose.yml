@@ -36,12 +36,15 @@ services:
       subspace-node:
         condition: service_healthy
     ports:
-      - '8080:8080'
+      - '9955:9955'
       - '30334:30333'
       - '30434:30433'
     restart: unless-stopped
     stop_grace_period: 30s
-    command: rpc --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
+    command: rpc --node-rpc-url ws://subspace-node:9944/ws --rpc-listen-on 0.0.0.0:9955 --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
+    environment:
+      - RUST_LOG=debug
+      
   file-retriever:
     build:
       context: ../..
@@ -66,6 +69,7 @@ services:
       - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
       - VICTORIA_USERNAME=${VICTORIA_USERNAME}
       - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
+      - OBJECT_MAPPING_INDEXER_URL=http://object-mapping-app:3000
     depends_on:
       subspace-node:
         condition: service_healthy
