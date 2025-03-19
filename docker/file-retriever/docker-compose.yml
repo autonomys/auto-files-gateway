@@ -44,7 +44,6 @@ services:
     command: rpc --node-rpc-url ws://subspace-node:9944/ws --rpc-listen-on 0.0.0.0:9955 --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
     environment:
       - RUST_LOG=debug
-      
   file-retriever:
     build:
       context: ../..
@@ -76,6 +75,8 @@ services:
     restart: unless-stopped
 
   agent:
+    profiles:
+      - production
     container_name: newrelic-infra
     image: newrelic/infrastructure:latest
     cap_add:
