@@ -11,6 +11,7 @@ const events: Record<string, (event: unknown) => void> = {
       logger.error(`Invalid event: ${JSON.stringify(event)}`)
       return
     }
+    logger.debug(`Processing object mapping: ${JSON.stringify(parsed.data)}`)
     await objectMappingUseCase.processObjectMapping(parsed.data)
   },
 }
@@ -18,11 +19,18 @@ const events: Record<string, (event: unknown) => void> = {
 export const createObjectMappingListener = (): ObjectMappingListener => {
   return {
     start: () => {
-      const substrateListener = createSubstrateEventListener()
-
-      for (const [event, handler] of Object.entries(events)) {
-        substrateListener.subscribe(event, handler)
+      const reboot = async () => {
+        substrateListener.wipe()
+        for (const [event, handler] of Object.entries(events)) {
+          substrateListener.subscribe(event, handler)
+        }
       }
+
+      const substrateListener = createSubstrateEventListener({
+        onReconnection: reboot,
+      })
+
+      reboot()
     },
   }
 }
