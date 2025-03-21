@@ -3,33 +3,6 @@ volumes:
   file-retriever-data: {}
 
 services:
-  subspace-node:
-    image: ${NODE_DOCKER_TAG}
-    volumes:
-      - subspace-node-data:/var/subspace:rw
-    ports:
-      - '30333:30333'
-      - '30433:30433'
-      - '127.0.0.1:9944:9944'
-    restart: unless-stopped
-    command: >
-      run
-      --chain ${NETWORK_ID}
-      --base-path /var/subspace
-      --listen-on /ip4/0.0.0.0/tcp/30333
-      --dsn-listen-on /ip4/0.0.0.0/tcp/30433
-      --rpc-cors all
-      --rpc-methods unsafe
-      --rpc-listen-on 0.0.0.0:9944
-      --rpc-max-subscriptions-per-connection 1000
-      --rpc-max-connections 20000
-      --name object-mapping-node
-      --sync full
-    healthcheck:
-      timeout: 5s
-      interval: 30s
-      retries: 60
-    stop_grace_period: 30s
   subspace-http-gateway:
     image: ${GATEWAY_DOCKER_TAG}
     depends_on:

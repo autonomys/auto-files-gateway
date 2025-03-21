@@ -13,10 +13,17 @@ type SubstrateEventListenerState = {
   ws: WS
 }
 
-export const createSubstrateEventListener = () => {
+export const createSubstrateEventListener = ({
+  onReconnection,
+}: {
+  onReconnection?: () => void
+}) => {
   const state: SubstrateEventListenerState = {
     subscriptions: {},
-    ws: createWS(config.nodeRpcUrl),
+    ws: createWS({
+      endpoint: config.nodeRpcUrl,
+      onReconnection,
+    }),
   }
 
   const subscribe = async (
@@ -92,5 +99,9 @@ export const createSubstrateEventListener = () => {
     subscription.callbacks.forEach((callback) => callback(data.params.result))
   })
 
-  return { subscribe }
+  const wipe = () => {
+    state.subscriptions = {}
+  }
+
+  return { subscribe, wipe }
 }

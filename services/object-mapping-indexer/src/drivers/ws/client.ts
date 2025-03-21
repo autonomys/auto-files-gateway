@@ -1,5 +1,7 @@
 import Websocket from 'websocket'
 import { logger } from '../logger.js'
+import { schedule } from '../../utils/timeout.js'
+import { unresolvablePromise } from '../../utils/promise.js'
 
 type RPCMessage = {
   jsonrpc: string
@@ -14,12 +16,37 @@ export type WS = {
   off: (callback: (event: RPCMessage) => void) => void
 }
 
-export const createWS = (endpoint: string): WS => {
+export const createWS = ({
+  endpoint,
+  onReconnection,
+  reconnectInterval = 10_000,
+}: {
+  endpoint: string
+  onReconnection?: () => void
+  reconnectInterval?: number
+}): WS => {
   let ws: Websocket.w3cwebsocket
   let onMessageCallbacks: ((event: RPCMessage) => void)[] = []
+  let connected: Promise<void> = unresolvablePromise
 
   const handleConnection = () => {
     ws = new Websocket.w3cwebsocket(endpoint)
+    connected = new Promise((resolve) => {
+      ws.onopen = () => {
+        logger.info(`Connected to RPC Web Socket (${endpoint})`)
+        resolve()
+      }
+    })
+
+    const handleErrorOrClose = () => {
+      schedule(() => {
+        logger.info(`Reconnecting to RPC Web Socket (${endpoint})`)
+        handleConnection()
+        if (onReconnection) {
+          onReconnection()
+        }
+      }, reconnectInterval)
+    }
 
     ws.onerror = (event) => {
       const errorDetails = {
@@ -30,11 +57,7 @@ export const createWS = (endpoint: string): WS => {
       logger.error(
         `WebSocket connection error: ${JSON.stringify(errorDetails)}`,
       )
-
-      setTimeout(() => {
-        logger.info(`Reconnecting to RPC Web Socket (${endpoint})`)
-        handleConnection()
-      }, 10_000)
+      handleErrorOrClose()
     }
 
     ws.onmessage = (event) => {
@@ -48,17 +71,11 @@ export const createWS = (endpoint: string): WS => {
       logger.info(
         `WebSocket connection closed (${event.code}) due to ${event.reason}.`,
       )
+      handleErrorOrClose
     }
   }
 
   handleConnection()
-
-  const connected: Promise<void> = new Promise((resolve) => {
-    ws.onopen = () => {
-      logger.info(`Connected to RPC Web Socket (${endpoint})`)
-      resolve()
-    }
-  })
 
   const send = async (message: Omit<RPCMessage, 'id'>) => {
     await connected
