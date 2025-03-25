@@ -343,27 +343,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@keyvhq/sql@npm:^2.1.6":
-  version: 2.1.6
-  resolution: "@keyvhq/sql@npm:2.1.6"
-  dependencies:
-    sql-ts: "npm:7"
-  checksum: 10c0/7d889e810566493f4076abda72a2899bdcfee7cd3e39be6e8679a2f8eb184f4874524c7457e57e7a24946f70d0f50eb94178901ad2abf0a91c368306f52e2ca4
-  languageName: node
-  linkType: hard
-
-"@keyvhq/sqlite@npm:^2.1.6":
-  version: 2.1.6
-  resolution: "@keyvhq/sqlite@npm:2.1.6"
-  dependencies:
-    "@keyvhq/sql": "npm:^2.1.6"
-    "@vscode/sqlite3": "npm:~5.1.2"
-    pify: "npm:~5.0.0"
-  checksum: 10c0/28f152fbf2a03cf9d595ec1b90faae89f705874b90b734559c268bee500144f5f5e59ffa6d90e69300e12ce77fbba3883525f099093a5c30479bb666c5420c7b
-  languageName: node
-  linkType: hard
-
-"@keyvhq/sqlite@npm:^2.1.7":
+"@keyvhq/sqlite@npm:^2.1.6, @keyvhq/sqlite@npm:^2.1.7":
   version: 2.1.7
   resolution: "@keyvhq/sqlite@npm:2.1.7"
   dependencies:
@@ -2205,16 +2185,6 @@ __metadata:
     node-gyp: "npm:latest"
     tar: "npm:^6.1.11"
   checksum: 10c0/eb70c0e6588a4620ab06aa51fe519b6928611f362a4cdbf95e6330ff0ea1eee1b08c1f018c1e314c84454968c7c4a369d8b7266690a80d1d9eb71c00202fd248
-  languageName: node
-  linkType: hard
-
-"@vscode/sqlite3@npm:~5.1.2":
-  version: 5.1.2
-  resolution: "@vscode/sqlite3@npm:5.1.2"
-  dependencies:
-    node-addon-api: "npm:^4.2.0"
-    node-gyp: "npm:latest"
-  checksum: 10c0/7d7515b4ad82126c5fefa4f90a98164a0eeba83946591ef10a4b8db1daaede525a2dd9d29947ecc133a0d60728a3d674e0a6cbb9f7abea8dc945fdb04fbab68b
   languageName: node
   linkType: hard
 
@@ -5129,15 +5099,6 @@ __metadata:
   dependencies:
     semver: "npm:^7.3.5"
   checksum: 10c0/dbd0792ea729329cd9d099f28a5681ff9e8a6db48cf64e1437bf6a7fd669009d1e758a784619a1c4cc8bfd1ed17162f042c787654edf19a1f64b5018457c9c1f
-  languageName: node
-  linkType: hard
-
-"node-addon-api@npm:^4.2.0":
-  version: 4.3.0
-  resolution: "node-addon-api@npm:4.3.0"
-  dependencies:
-    node-gyp: "npm:latest"
-  checksum: 10c0/5febe94d58cdef319bc96a357b43d7a13776c93ee3f2edb374000f16454e65cec06035497947d5fdaa50db1cc7ab8e3a30ca8669bb07a1b159f0307dc2c1ccdf
   languageName: node
   linkType: hard
 
