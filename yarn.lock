@@ -1446,7 +1446,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/util@npm:13.2.3, @polkadot/util@npm:^13.2.3":
+"@polkadot/util@npm:13.2.3":
   version: 13.2.3
   resolution: "@polkadot/util@npm:13.2.3"
   dependencies:
@@ -1461,7 +1461,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/util@npm:13.4.3, @polkadot/util@npm:^13.4.3":
+"@polkadot/util@npm:13.4.3, @polkadot/util@npm:^13.2.3, @polkadot/util@npm:^13.4.3":
   version: 13.4.3
   resolution: "@polkadot/util@npm:13.4.3"
   dependencies:
