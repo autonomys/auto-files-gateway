@@ -1,5 +1,5 @@
 import express from 'express'
-import { rpcServer } from '../drivers/rpcServer/index.js'
+import { rpcServer } from '../server.js'
 import { objectMappingUseCase } from '../useCases/objectMapping.js'
 import z from 'zod'
 import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
@@ -54,61 +54,65 @@ rpcServer.addRpcHandler({
   handler: async (params, { connection, messageId }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Missing blockNumber',
-          success: false,
-          id: messageId,
-        }),
-      )
-      return
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Missing blockNumber',
+        },
+        success: false,
+      }
     }
 
     try {
       const subscriptionId =
         objectMappingRouter.subscribeObjectMappings(connection)
 
-      connection.sendUTF(
-        JSON.stringify({ success: true, id: messageId, subscriptionId }),
-      )
+      return {
+        jsonrpc: '2.0',
+        success: true,
+        id: messageId,
+        subscriptionId,
+      }
     } catch {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Failed to subscribe to object mappings',
-          success: false,
-          id: messageId,
-        }),
-      )
+      return {
+        jsonrpc: '2.0',
+        success: false,
+      }
     }
   },
 })
 
 rpcServer.addRpcHandler({
   method: 'unsubscribe_object_mappings',
-  handler: async (params, { connection, messageId }) => {
+  handler: async (params) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
     if (!data) {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Missing subscriptionId',
-          success: false,
-          id: messageId,
-        }),
-      )
-      return
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Missing subscriptionId',
+        },
+        success: false,
+      }
     }
 
     try {
       objectMappingRouter.unsubscribeObjectMappings(data.subscriptionId)
-      connection.sendUTF(JSON.stringify({ success: true, id: messageId }))
+      return {
+        jsonrpc: '2.0',
+        success: true,
+      }
     } catch {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Invalid subscriptionId',
-          success: false,
-          id: messageId,
-        }),
-      )
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Invalid subscriptionId',
+        },
+        success: false,
+      }
     }
   },
 })
@@ -118,14 +122,14 @@ rpcServer.addRpcHandler({
   handler: async (params, { connection, messageId }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Missing blockNumber',
-          success: false,
-          id: messageId,
-        }),
-      )
-      return
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Missing blockNumber',
+        },
+        success: false,
+      }
     }
     try {
       const subscriptionId = objectMappingRouter.subscribeRecoverObjectMappings(
@@ -133,17 +137,16 @@ rpcServer.addRpcHandler({
         data.blockNumber,
       )
 
-      connection.sendUTF(
-        JSON.stringify({ success: true, id: messageId, subscriptionId }),
-      )
+      return { success: true, subscriptionId }
     } catch {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Failed to subscribe to recover object mappings',
-          success: false,
-          id: messageId,
-        }),
-      )
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Failed to subscribe to recover object mappings',
+        },
+        success: false,
+      }
     }
   },
 })
@@ -153,27 +156,29 @@ rpcServer.addRpcHandler({
   handler: async (params, { connection, messageId }) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
     if (!data) {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Missing subscriptionId',
-          success: false,
-          id: messageId,
-        }),
-      )
-      return
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Missing subscriptionId',
+        },
+        success: false,
+      }
     }
 
     try {
       objectMappingRouter.unsubscribeRecoverObjectMappings(data.subscriptionId)
       connection.sendUTF(JSON.stringify({ success: true, id: messageId }))
     } catch {
-      connection.sendUTF(
-        JSON.stringify({
-          error: 'Invalid subscriptionId',
-          success: false,
-          id: messageId,
-        }),
-      )
+      return {
+        jsonrpc: '2.0',
+        error: {
+          code: 1,
+          message: 'Invalid subscriptionId',
+        },
+        success: false,
+        id: messageId,
+      }
     }
   },
 })

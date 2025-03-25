@@ -3,10 +3,10 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { config } from './config.js'
 import { objectsController } from './controllers/objects.js'
-import { createWsServer } from './drivers/ws/server.js'
-import { rpcServer } from './drivers/rpcServer/index.js'
 import { createObjectMappingListener } from './services/objectMappingListener/index.js'
 import { healthController } from './controllers/health.js'
+import { createRpcServer, createWsServer } from '@autonomys/rpc'
+import http from 'http'
 
 const createServer = () => {
   const app = express()
@@ -34,7 +34,13 @@ const createServer = () => {
 
 const expressServer = createServer()
 const objectMappingListener = createObjectMappingListener()
-const websocketServer = createWsServer(expressServer)
 
 objectMappingListener.start()
-rpcServer.init(websocketServer)
+
+export const rpcServer = createRpcServer({
+  server: createWsServer({
+    httpServer: http.createServer(expressServer),
+    callbacks: {},
+  }),
+  initialHandlers: [],
+})
