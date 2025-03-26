@@ -1,55 +1,10 @@
-import express from 'express'
-import { rpcServer } from '../server.js'
-import { objectMappingUseCase } from '../useCases/objectMapping.js'
+import { RpcHandler } from '@autonomys/rpc'
 import z from 'zod'
-import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
+import { objectMappingRouter } from '../../services/objectMappingRouter/index.js'
 
-export const objectsController = express.Router()
+export const objectsRPCHandlers: RpcHandler[] = []
 
-objectsController.get('/:hash', async (req, res, next) => {
-  try {
-    const { hash } = req.params
-
-    if (!hash) {
-      res.status(400).json({ error: 'Missing hash' })
-      return
-    }
-
-    const object = await objectMappingUseCase.getObject(hash)
-
-    if (!object) {
-      res.status(404).json({ error: 'Object not found' })
-      return
-    }
-
-    res.json(object)
-
-    return
-  } catch (err) {
-    next(err)
-  }
-})
-
-objectsController.get('/by-block/:blockNumber', async (req, res, next) => {
-  try {
-    const { blockNumber } = req.params
-
-    const parsedBlockNumber = parseInt(blockNumber)
-    if (!blockNumber || isNaN(parsedBlockNumber)) {
-      res.status(400).json({ error: 'Missing or invalid blockNumber' })
-      return
-    }
-
-    const objects =
-      await objectMappingUseCase.getObjectByBlock(parsedBlockNumber)
-
-    res.json(objects)
-  } catch (err) {
-    next(err)
-  }
-})
-
-rpcServer.addRpcHandler({
+objectsRPCHandlers.push({
   method: 'subscribe_object_mappings',
   handler: async (params, { connection, messageId }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
@@ -83,7 +38,7 @@ rpcServer.addRpcHandler({
   },
 })
 
-rpcServer.addRpcHandler({
+objectsRPCHandlers.push({
   method: 'unsubscribe_object_mappings',
   handler: async (params) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
@@ -117,9 +72,9 @@ rpcServer.addRpcHandler({
   },
 })
 
-rpcServer.addRpcHandler({
+objectsRPCHandlers.push({
   method: 'subscribe_recover_object_mappings',
-  handler: async (params, { connection, messageId }) => {
+  handler: async (params, { connection }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
       return {
@@ -151,7 +106,7 @@ rpcServer.addRpcHandler({
   },
 })
 
-rpcServer.addRpcHandler({
+objectsRPCHandlers.push({
   method: 'unsubscribe_recover_object_mappings',
   handler: async (params, { connection, messageId }) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)

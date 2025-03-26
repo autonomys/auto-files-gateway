@@ -2,11 +2,12 @@ import 'dotenv/config.js'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { config } from './config.js'
-import { objectsController } from './controllers/objects.js'
+import { objectsController } from './controllers/objects/http.js'
 import { createObjectMappingListener } from './services/objectMappingListener/index.js'
 import { healthController } from './controllers/health.js'
 import { createRpcServer, createWsServer } from '@autonomys/rpc'
 import http from 'http'
+import { objectsRPCHandlers } from './controllers/objects/rpc.js'
 
 const createServer = () => {
   const app = express()
@@ -42,5 +43,5 @@ export const rpcServer = createRpcServer({
     httpServer: http.createServer(expressServer),
     callbacks: {},
   }),
-  initialHandlers: [],
+  initialHandlers: objectsRPCHandlers,
 })
