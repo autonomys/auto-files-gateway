@@ -6,7 +6,7 @@ export const objectsRPCHandlers: RpcHandler[] = []
 
 objectsRPCHandlers.push({
   method: 'subscribe_object_mappings',
-  handler: async (params, { connection, messageId }) => {
+  handler: async (params, { connection }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
       return {
@@ -26,7 +26,6 @@ objectsRPCHandlers.push({
       return {
         jsonrpc: '2.0',
         success: true,
-        id: messageId,
         subscriptionId,
       }
     } catch {
@@ -108,7 +107,7 @@ objectsRPCHandlers.push({
 
 objectsRPCHandlers.push({
   method: 'unsubscribe_recover_object_mappings',
-  handler: async (params, { connection, messageId }) => {
+  handler: async (params) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
     if (!data) {
       return {
@@ -123,7 +122,7 @@ objectsRPCHandlers.push({
 
     try {
       objectMappingRouter.unsubscribeRecoverObjectMappings(data.subscriptionId)
-      connection.sendUTF(JSON.stringify({ success: true, id: messageId }))
+      return { success: true }
     } catch {
       return {
         jsonrpc: '2.0',
@@ -132,7 +131,6 @@ objectsRPCHandlers.push({
           message: 'Invalid subscriptionId',
         },
         success: false,
-        id: messageId,
       }
     }
   },
