@@ -1330,10 +1330,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/k6@npm:^0.57.0":
-  version: 0.57.1
-  resolution: "@types/k6@npm:0.57.1"
-  checksum: 10c0/4deea4f2f7c251dcf39b033001809ad174236b15ba9a59302caa69453f82d346f74209d6446b7674da7cc2ccaa5937469c2afb1a84fd1f5d9cebe0532ad21be3
+"@types/k6@npm:^1.0.0":
+  version: 1.0.2
+  resolution: "@types/k6@npm:1.0.2"
+  checksum: 10c0/c4207863155f14a676e1b50b9708c4b46c69f60346a6bd9c2f49acbe5d7dad654b0c24407d136ebe153cb6fde80c4d05522c00077da75dcfd681a62a6f54dd3c
   languageName: node
   linkType: hard
 
@@ -1784,7 +1784,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "auto-files-gateway@workspace:."
   dependencies:
-    "@types/k6": "npm:^0.57.0"
+    "@types/k6": "npm:^1.0.0"
     "@types/node": "npm:^22.10.2"
     axios: "npm:^1.7.9"
     bun: "npm:^1.1.39"
