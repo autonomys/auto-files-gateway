@@ -32,13 +32,13 @@ __metadata:
   linkType: hard
 
 "@autonomys/auto-utils@npm:^1.0.12, @autonomys/auto-utils@npm:^1.4.6":
-  version: 1.4.6
-  resolution: "@autonomys/auto-utils@npm:1.4.6"
+  version: 1.4.8
+  resolution: "@autonomys/auto-utils@npm:1.4.8"
   dependencies:
     "@polkadot/api": "npm:^15.8.1"
     "@polkadot/extension-dapp": "npm:^0.58.5"
     fs: "npm:^0.0.1-security"
-  checksum: 10c0/ea70fc7b792ae1b842a922415b7da6e09a93d9d18e3613dfbe9ec3e0841230ad3314fe6c47671e66ec2d4f6ebb378784470f37c963f40cda6bdaaf402085d493
+  checksum: 10c0/f627b9fd50680e70a07129241e9dc263e13cebbe5fc4d2ffaad62f59bcdac6725cda2101728e990fb4e0d27dc6dcc57318dc66491ed34ea1d5f5530f24a17aff
   languageName: node
   linkType: hard
 
