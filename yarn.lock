@@ -62,12 +62,12 @@ __metadata:
   linkType: hard
 
 "@autonomys/rpc@npm:^1.4.6":
-  version: 1.4.6
-  resolution: "@autonomys/rpc@npm:1.4.6"
+  version: 1.4.9
+  resolution: "@autonomys/rpc@npm:1.4.9"
   dependencies:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
-  checksum: 10c0/c6920c3b6c0d6c1b702831086d7189a7b2e19387d5fa9de3d527edbb7c23c2a113008a3edcf007d950fc9cd983a83d4012a1c6be8dfaec100a8a4f1c41075793
+  checksum: 10c0/66ab6c05b161d1a1d20fa5be75e619f95431bcd198fca0642383d019fae8f3fe13201af7477602b0fff31ddd3658c9a1d951e6a3252c61baf3f51d6ec30f1b3c
   languageName: node
   linkType: hard
 
