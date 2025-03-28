@@ -6,7 +6,7 @@ export const objectsRPCHandlers: RpcHandler[] = []
 
 objectsRPCHandlers.push({
   method: 'subscribe_object_mappings',
-  handler: async (params, { connection }) => {
+  handler: async ({ params }, { connection }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
       return {
@@ -39,7 +39,7 @@ objectsRPCHandlers.push({
 
 objectsRPCHandlers.push({
   method: 'unsubscribe_object_mappings',
-  handler: async (params) => {
+  handler: async ({ params }) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
     if (!data) {
       return {
@@ -73,7 +73,7 @@ objectsRPCHandlers.push({
 
 objectsRPCHandlers.push({
   method: 'subscribe_recover_object_mappings',
-  handler: async (params, { connection }) => {
+  handler: async ({ params }, { connection }) => {
     const { data } = z.object({ blockNumber: z.number() }).safeParse(params)
     if (!data) {
       return {
@@ -107,7 +107,7 @@ objectsRPCHandlers.push({
 
 objectsRPCHandlers.push({
   method: 'unsubscribe_recover_object_mappings',
-  handler: async (params) => {
+  handler: async ({ params }) => {
     const { data } = z.object({ subscriptionId: z.string() }).safeParse(params)
     if (!data) {
       return {

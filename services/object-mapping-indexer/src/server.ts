@@ -38,10 +38,15 @@ const objectMappingListener = createObjectMappingListener()
 
 objectMappingListener.start()
 
+const httpServer = http.createServer(expressServer)
 export const rpcServer = createRpcServer({
   server: createWsServer({
-    httpServer: http.createServer(expressServer),
+    httpServer,
     callbacks: {},
   }),
   initialHandlers: objectsRPCHandlers,
+})
+
+httpServer.listen(config.port, () => {
+  console.log(`Server is running on port ${config.port}`)
 })
