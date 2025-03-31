@@ -2,14 +2,12 @@ import 'dotenv/config.js'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { config } from './config.js'
-import { objectsController } from './controllers/objects/http.js'
+import { objectsController } from './controllers/objects.js'
 import { createObjectMappingListener } from './services/objectMappingListener/index.js'
 import { healthController } from './controllers/health.js'
-import { createRpcServer, createWsServer } from '@autonomys/rpc'
-import http from 'http'
-import { objectsRPCHandlers } from './controllers/objects/rpc.js'
+import { createObjectMappingsRPCServer } from './rpc/server.js'
 
-const createServer = () => {
+const createApp = () => {
   const app = express()
 
   // Increase the limit to 10MB (adjust as needed)
@@ -33,20 +31,11 @@ const createServer = () => {
   return app
 }
 
-const expressServer = createServer()
+const expressApp = createApp()
 const objectMappingListener = createObjectMappingListener()
 
 objectMappingListener.start()
 
-const httpServer = http.createServer(expressServer)
-export const rpcServer = createRpcServer({
-  server: createWsServer({
-    httpServer,
-    callbacks: {},
-  }),
-  initialHandlers: objectsRPCHandlers,
-})
-
-httpServer.listen(config.port, () => {
+createObjectMappingsRPCServer(expressApp).listen(config.port, () => {
   console.log(`Server is running on port ${config.port}`)
 })

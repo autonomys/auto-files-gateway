@@ -73,6 +73,7 @@ const subscribeRecoverObjectMappings = (
   connection: Websocket.connection,
   blockNumber: number,
 ) => {
+  throw new Error('Not implemented: Update to use pieceIndex')
   logger.info(
     `IP (${connection.remoteAddress}) subscribing to recover object mappings`,
   )

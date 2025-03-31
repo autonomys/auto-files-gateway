@@ -3,7 +3,8 @@
   "packageManager": "yarn@4.2.2",
   "type": "module",
   "workspaces": [
-    "services/*"
+    "services/*",
+    "common/*"
   ],
   "scripts": {
     "indexer": "yarn workspace object-mapping-indexer",
@@ -12,13 +13,13 @@
     "build": "yarn workspaces foreach --all run build"
   },
   "dependencies": {
+    "@autonomys/rpc": "^1.4.10",
     "axios": "^1.7.9",
     "ts-node": "^10.9.2",
     "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/k6": "^0.57.0",
-    "@types/node": "^22.10.2",
-    "bun": "^1.1.39"
+    "@types/node": "^22.10.2"
   }
 }

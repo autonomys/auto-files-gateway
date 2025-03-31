@@ -1,5 +1,5 @@
 import express from 'express'
-import { objectMappingUseCase } from '../../useCases/objectMapping.js'
+import { objectMappingUseCase } from '../useCases/objectMapping.js'
 
 export const objectsController = express.Router()
 
