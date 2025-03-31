@@ -1,6 +1,6 @@
 import {
-  constructListFromObjectMapping,
   GlobalObjectMapping,
+  ObjectMapping,
   ObjectMappingListEntry,
 } from '../models/mapping.js'
 import { objectMappingRepository } from '../repositories/objectMapping.js'
@@ -41,20 +41,17 @@ const getObject = async (hash: string): Promise<GlobalObjectMapping> => {
   }
 }
 
-const getObjectByBlock = async (
-  blockNumber: number,
-): Promise<GlobalObjectMapping> => {
+const getObjectByPieceIndex = async (
+  pieceIndex: number,
+): Promise<ObjectMapping[]> => {
   const objectMappings =
-    await objectMappingRepository.getByBlockNumber(blockNumber)
+    await objectMappingRepository.getByPieceIndex(pieceIndex)
 
-  return constructListFromObjectMapping(
-    objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset]),
-    blockNumber,
-  )
+  return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
 }
 
 export const objectMappingUseCase = {
   processObjectMapping,
   getObject,
-  getObjectByBlock,
+  getObjectByPieceIndex,
 }

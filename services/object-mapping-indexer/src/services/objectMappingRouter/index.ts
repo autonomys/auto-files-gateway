@@ -10,7 +10,7 @@ type RouterState = {
   objectMappingsSubscriptions: Map<string, Websocket.connection>
   recoverObjectMappingsSubscriptions: Map<
     string,
-    { connection: Websocket.connection; blockNumber: number }
+    { connection: Websocket.connection; pieceIndex: number }
   >
   lastRealtimeBlockNumber: number
 }
@@ -71,16 +71,16 @@ const emitObjectMappings = (event: ObjectMappingListEntry) => {
 
 const subscribeRecoverObjectMappings = (
   connection: Websocket.connection,
-  blockNumber: number,
+  startingPieceIndex: number,
 ) => {
-  throw new Error('Not implemented: Update to use pieceIndex')
   logger.info(
     `IP (${connection.remoteAddress}) subscribing to recover object mappings`,
   )
   const subscriptionId = v4()
+  const pieceIndex = startingPieceIndex - 1
   state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
     connection,
-    blockNumber: blockNumber - 1,
+    pieceIndex,
   })
 
   return subscriptionId
@@ -105,16 +105,16 @@ const emitRecoverObjectMappings = async () => {
   )
 
   const promises = recovering.map(
-    async ([subscriptionId, { connection, blockNumber }]) => {
-      logger.debug(`Emitting recover object mappings for ${subscriptionId}`)
-      const result = await objectMappingUseCase.getObjectByBlock(blockNumber)
+    async ([subscriptionId, { connection, pieceIndex }]) => {
+      const result =
+        await objectMappingUseCase.getObjectByPieceIndex(pieceIndex)
 
       state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
         connection,
-        blockNumber: blockNumber + 1,
+        pieceIndex: pieceIndex + 1,
       })
 
-      if (blockNumber >= state.lastRealtimeBlockNumber) {
+      if (pieceIndex >= state.lastRealtimeBlockNumber) {
         unsubscribeRecoverObjectMappings(subscriptionId)
         subscribeObjectMappings(connection, subscriptionId)
       }
