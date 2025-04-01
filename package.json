@@ -10,6 +10,7 @@
     "indexer": "yarn workspace object-mapping-indexer",
     "file-retriever": "yarn workspace file-retriever",
     "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts",
+    "rpc": "yarn workspace @auto-files/rpc-apis",
     "build": "yarn workspaces foreach --all run build"
   },
   "dependencies": {

@@ -3,6 +3,8 @@ import { createSubstrateEventListener } from '../../drivers/substrateEvents.js'
 import { ObjectMappingListEntrySchema } from '@auto-files/models'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { ObjectMappingListener } from './types.js'
+import { SubspaceObjectListenerAPI } from '@auto-files/rpc-apis'
+import { config } from '../../config.js'
 
 const events: Record<string, (event: unknown) => void> = {
   subspace_subscribeObjectMappings: async (event: unknown) => {
@@ -19,18 +21,21 @@ const events: Record<string, (event: unknown) => void> = {
 export const createObjectMappingListener = (): ObjectMappingListener => {
   return {
     start: () => {
-      const reboot = async () => {
-        substrateListener.wipe()
-        for (const [event, handler] of Object.entries(events)) {
-          substrateListener.subscribe(event, handler)
-        }
+      const init = async () => {
+        await client.api.subspace_subscribeObjectMappings()
+
+        client.onNotification('subspace_object_mappings', async (event) => {
+          await objectMappingUseCase.processObjectMapping(event)
+        })
       }
 
-      const substrateListener = createSubstrateEventListener({
-        onReconnection: reboot,
+      const client = SubspaceObjectListenerAPI.createClient({
+        endpoint: config.nodeRpcUrl,
+        callbacks: {
+          onOpen: init,
+          onReconnection: init,
+        },
       })
-
-      reboot()
     },
   }
 }
