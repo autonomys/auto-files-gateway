@@ -10,11 +10,12 @@
     "indexer": "yarn workspace object-mapping-indexer",
     "file-retriever": "yarn workspace file-retriever",
     "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts",
+    "models": "yarn workspace @auto-files/models",
     "rpc": "yarn workspace @auto-files/rpc-apis",
-    "build": "yarn workspaces foreach --all run build"
+    "build": "yarn workspaces foreach --topological --verbose --all run build"
   },
   "dependencies": {
-    "@autonomys/rpc": "^1.4.10",
+    "@autonomys/rpc": "^1.4.11",
     "axios": "^1.7.9",
     "ts-node": "^10.9.2",
     "winston": "^3.17.0"
@@ -22,8 +23,5 @@
   "devDependencies": {
     "@types/k6": "^0.57.0",
     "@types/node": "^22.10.2"
-  },
-  "resolutions": {
-    "@autonomys/rpc": "portal:/Users/carloslostao/Autonomys/auto-sdk/packages/rpc"
   }
 }

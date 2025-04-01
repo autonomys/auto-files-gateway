@@ -1,6 +1,11 @@
 import { ObjectMappingListEntry } from '@auto-files/models'
 import { createApiDefinition, defineUnvalidatedType } from '@autonomys/rpc'
 
+type SubscriptionResult<T> = {
+  subscriptionId: string
+  result: T
+}
+
 export const SubspaceObjectListenerAPI = createApiDefinition({
   methods: {
     subspace_subscribeObjectMappings: {
@@ -10,7 +15,8 @@ export const SubspaceObjectListenerAPI = createApiDefinition({
   },
   notifications: {
     subspace_object_mappings: {
-      content: defineUnvalidatedType<ObjectMappingListEntry>(),
+      content:
+        defineUnvalidatedType<SubscriptionResult<ObjectMappingListEntry>>(),
     },
   },
 })

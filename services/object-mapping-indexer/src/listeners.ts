@@ -1,3 +1,3 @@
-import { createObjectMappingListener } from './services/objectMappingListener'
+import { createObjectMappingListener } from './services/objectMappingListener/index.js'
 
 createObjectMappingListener().start()

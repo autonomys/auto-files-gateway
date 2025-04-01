@@ -2,6 +2,7 @@
   "name": "@auto-files/models",
   "version": "0.0.1",
   "packageManager": "yarn@4.2.2",
+  "type": "module",
   "dependencies": {
     "@autonomys/rpc": "^1.4.9",
     "zod": "^3.24.2"

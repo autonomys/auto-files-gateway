@@ -1,7 +1,7 @@
-import { healthController } from './controllers/health'
+import { healthController } from './controllers/health.js'
 import express, { Request, Response } from 'express'
-import { objectsController } from './controllers/objects'
-import { config } from '../config'
+import { objectsController } from './controllers/objects.js'
+import { config } from '../config.js'
 import cors from 'cors'
 
 export const expressApp = express()
