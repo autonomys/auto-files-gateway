@@ -1,6 +1,6 @@
 import { logger } from '../../drivers/logger.js'
 import { createSubstrateEventListener } from '../../drivers/substrateEvents.js'
-import { ObjectMappingListEntrySchema } from '../../models/mapping.js'
+import { ObjectMappingListEntrySchema } from '@auto-files/models'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { ObjectMappingListener } from './types.js'
 

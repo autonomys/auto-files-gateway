@@ -1,8 +1,9 @@
 import http from 'http'
 import { objectMappingRouter } from '../services/objectMappingRouter'
 import { ObjectMappingIndexerRPCApi } from '@auto-files/rpc-apis'
+import { expressApp } from '../http/api'
 
-export const createObjectMappingsRPCServer = (app: Express.Application) => {
+const createObjectMappingsRPCServer = (app: Express.Application) => {
   return ObjectMappingIndexerRPCApi.createServer(
     {
       subscribe_object_mappings: async (_, { connection }) => {
@@ -45,3 +46,5 @@ export const createObjectMappingsRPCServer = (app: Express.Application) => {
     },
   )
 }
+
+export const server = createObjectMappingsRPCServer(expressApp)

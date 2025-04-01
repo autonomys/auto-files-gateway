@@ -21,5 +21,8 @@
   "devDependencies": {
     "@types/k6": "^0.57.0",
     "@types/node": "^22.10.2"
+  },
+  "resolutions": {
+    "@autonomys/rpc": "portal:/Users/carloslostao/Autonomys/auto-sdk/packages/rpc"
   }
 }

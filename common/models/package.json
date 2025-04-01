@@ -1,9 +1,8 @@
 {
-  "name": "@auto-files/rpc-apis",
+  "name": "@auto-files/models",
   "version": "0.0.1",
   "packageManager": "yarn@4.2.2",
   "dependencies": {
-    "@auto-files/models": "workspace:*",
     "@autonomys/rpc": "^1.4.9",
     "zod": "^3.24.2"
   },

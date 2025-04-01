@@ -1,10 +1,11 @@
 import { v4 } from 'uuid'
 import Websocket from 'websocket'
-import { ObjectMappingListEntry } from '../../models/mapping.js'
+import { ObjectMappingListEntry } from '@auto-files/models'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { config } from '../../config.js'
 import { logger } from '../../drivers/logger.js'
 import { objectMappingRepository } from '../../repositories/objectMapping.js'
+import { server } from '../../rpc/server.js'
 
 type RouterState = {
   objectMappingsSubscriptions: Map<string, Websocket.connection>
@@ -50,11 +51,9 @@ const emitObjectMappings = (event: ObjectMappingListEntry) => {
   Array.from(state.objectMappingsSubscriptions.entries()).forEach(
     ([subscriptionId, connection]) => {
       if (connection.socket.readyState === 'open') {
-        connection.sendUTF(
-          JSON.stringify({
-            subscriptionId,
-            result: event,
-          }),
+        server.notificationClient.object_mapping_list(
+          connection,
+          event.v0.objects,
         )
       } else {
         logger.warn(
@@ -119,7 +118,7 @@ const emitRecoverObjectMappings = async () => {
         subscribeObjectMappings(connection, subscriptionId)
       }
 
-      connection.sendUTF(JSON.stringify({ subscriptionId, result }))
+      server.notificationClient.object_mapping_list(connection, result)
     },
   )
 

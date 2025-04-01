@@ -5,10 +5,21 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@auto-files/models@workspace:*, @auto-files/models@workspace:common/models":
+  version: 0.0.0-use.local
+  resolution: "@auto-files/models@workspace:common/models"
+  dependencies:
+    "@autonomys/rpc": "npm:^1.4.9"
+    typescript: "npm:^5.6.3"
+    zod: "npm:^3.24.2"
+  languageName: unknown
+  linkType: soft
+
 "@auto-files/rpc-apis@workspace:*, @auto-files/rpc-apis@workspace:common/rpc-apis":
   version: 0.0.0-use.local
   resolution: "@auto-files/rpc-apis@workspace:common/rpc-apis"
   dependencies:
+    "@auto-files/models": "workspace:*"
     "@autonomys/rpc": "npm:^1.4.9"
     typescript: "npm:^5.6.3"
     zod: "npm:^3.24.2"
@@ -71,15 +82,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/rpc@npm:^1.4.10, @autonomys/rpc@npm:^1.4.9":
-  version: 1.4.10
-  resolution: "@autonomys/rpc@npm:1.4.10"
+"@autonomys/rpc@portal:/Users/carloslostao/Autonomys/auto-sdk/packages/rpc::locator=auto-files-gateway%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@autonomys/rpc@portal:/Users/carloslostao/Autonomys/auto-sdk/packages/rpc::locator=auto-files-gateway%40workspace%3A."
   dependencies:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
-  checksum: 10c0/34ace7c799a75afb8c946eab97e3cde5d4db103802a5f793191a88a5379bdbc662ec5fd653467328e9cafcdd3bb6ec4662458082b29646134530d6d08293cfbd
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@babel/helper-string-parser@npm:^7.25.9":
   version: 7.25.9
