@@ -45,3 +45,22 @@ objectsController.get('/by-block/:blockNumber', async (req, res, next) => {
     next(err)
   }
 })
+
+objectsController.get('/by-piece-index/:pieceIndex', async (req, res, next) => {
+  try {
+    const { pieceIndex } = req.params
+
+    const parsedPieceIndex = parseInt(pieceIndex)
+    if (!pieceIndex || isNaN(parsedPieceIndex)) {
+      res.status(400).json({ error: 'Missing or invalid pieceIndex' })
+      return
+    }
+
+    const objects =
+      await objectMappingUseCase.getObjectByPieceIndex(parsedPieceIndex)
+
+    res.json(objects)
+  } catch (err) {
+    next(err)
+  }
+})

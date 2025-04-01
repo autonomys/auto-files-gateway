@@ -8,14 +8,16 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/index.js",
     "dev": "node --loader ts-node/esm",
     "test": "jest"
   },
   "license": "MIT",
   "dependencies": {
+    "@auto-files/models": "workspace:*",
+    "@auto-files/rpc-apis": "workspace:*",
     "@autonomys/auto-dag-data": "^1.0.5",
-    "@autonomys/rpc": "^1.4.6",
+    "@autonomys/rpc": "^1.4.11",
     "@peculiar/webcrypto": "^1.5.0",
     "@types/node": "^22.10.2",
     "cors": "^2.8.5",

@@ -34,6 +34,16 @@ const getByBlockNumber = async (blockNumber: number) => {
   return result.rows
 }
 
+const getByPieceIndex = async (pieceIndex: number) => {
+  const db = await getDatabase()
+  const result = await db.query<DBObjectMapping>(
+    'SELECT * FROM object_mappings WHERE "pieceIndex" = $1',
+    [pieceIndex],
+  )
+
+  return result.rows
+}
+
 const getLatestBlockNumber = async () => {
   const db = await getDatabase()
   const result = await db.query<DBObjectMapping>(
@@ -57,5 +67,6 @@ export const objectMappingRepository = {
   saveObjectMappings,
   getByBlockNumber,
   getLatestBlockNumber,
+  getByPieceIndex,
   getByHash,
 }

@@ -1,6 +1,6 @@
 import { config } from '../config.js'
 import { logger } from './logger.js'
-import { createRpcClient } from '@autonomys/rpc'
+import { createRpcClient, Message } from '@autonomys/rpc'
 import z from 'zod'
 
 type SubstrateSubscription = {
@@ -66,7 +66,7 @@ export const createSubstrateEventListener = ({
     }
   }
 
-  state.ws.on((event) => {
+  state.ws.on((event: Message) => {
     logger.debug(
       `Received event for method ${event.method} (${JSON.stringify(event.params)}).`,
     )
