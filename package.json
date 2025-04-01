@@ -21,7 +21,8 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "@types/k6": "^0.57.0",
-    "@types/node": "^22.10.2"
+    "@types/k6": "^1.0.0",
+    "@types/node": "^22.10.2",
+    "bun": "^1.1.39"
   }
 }
