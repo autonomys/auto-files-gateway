@@ -3236,7 +3236,7 @@ __metadata:
     express-async-errors: "npm:^3.1.1"
     keyv: "npm:^5.2.1"
     lru-cache: "npm:^11.0.2"
-    mime-types: "npm:^2.1.35"
+    mime-types: "npm:^3.0.0"
     p-limit: "npm:^6.2.0"
     typescript: "npm:^5.7.2"
   languageName: unknown
@@ -4287,7 +4287,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime-types@npm:^2.1.12, mime-types@npm:^2.1.35, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34":
+"mime-types@npm:^2.1.12, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34":
   version: 2.1.35
   resolution: "mime-types@npm:2.1.35"
   dependencies:
@@ -4296,7 +4296,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime-types@npm:^3.0.1":
+"mime-types@npm:^3.0.0, mime-types@npm:^3.0.1":
   version: 3.0.1
   resolution: "mime-types@npm:3.0.1"
   dependencies:
