@@ -3,6 +3,7 @@
   "packageManager": "yarn@4.2.2",
   "type": "module",
   "dependencies": {
+    "@autonomys/asynchronous": "^1.4.1",
     "@autonomys/auto-dag-data": "^1.0.12",
     "@autonomys/auto-utils": "^1.0.12",
     "@autonomys/file-caching": "^1.4.3",
@@ -32,9 +33,14 @@
     "dev": "node --loader ts-node/esm src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "devrun": "node --loader ts-node/esm"
+    "devrun": "node --loader ts-node/esm",
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand --coverage"
   },
   "devDependencies": {
-    "@types/cpu-features": "^0"
+    "@types/cpu-features": "^0",
+    "@types/jest": "^29.5.14",
+    "eslint-plugin-require-extensions": "^0.1.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6"
   }
 }
