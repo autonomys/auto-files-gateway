@@ -1,18 +1,4 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const groupBy = <T extends Record<string, any>, K extends keyof T>(
-  array: T[],
-  key: K,
-) => {
-  return array.reduce(
-    (acc, item) => {
-      acc[item[key]] = [...(acc[item[key]] || []), item]
-      return acc
-    },
-    {} as Record<T[K], T[]>,
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const values = <T extends Record<string, any>>(
   obj: Record<string, T>,
 ): T[] => {

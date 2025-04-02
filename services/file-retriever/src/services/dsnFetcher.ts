@@ -21,7 +21,7 @@ import {
   GlobalObjectMappingRequest,
   ObjectMapping,
 } from './objectMappingIndexer.js'
-import { fromEntries, groupBy, promiseAll, values } from '../utils/array.js'
+import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 
 const fetchNodesSchema = z.object({
@@ -92,6 +92,47 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   }, objects.length)
 }
 
+const optimizeBatchFetch = (objects: ObjectMapping[]): ObjectMapping[][] => {
+  let currentBatch: ObjectMapping[] = []
+  let lastPieceIndex = null
+  const sortedObjects = objects.sort((a, b) => a[1] - b[1])
+  const optimizedObjects: ObjectMapping[][] = []
+
+  for (const object of sortedObjects) {
+    const pieceIndex = object[1]
+
+    const safePieceIndex = pieceIndex ?? 0
+    // if the piece index is the at the same piece or next one, pieces maybe reusable
+    const isSameOrConsecutive =
+      pieceIndex === safePieceIndex ||
+      pieceIndex === safePieceIndex + 1 ||
+      lastPieceIndex === null
+    const isFull = currentBatch.length === config.maxObjectsPerFetch
+
+    // if pieces are not consecutive, they're not sharing the same piece
+    if (isSameOrConsecutive && !isFull) {
+      currentBatch.push(object)
+    } else {
+      optimizedObjects.push(currentBatch)
+      currentBatch = [object]
+    }
+
+    lastPieceIndex = pieceIndex
+  }
+
+  // Once we have optimized the list of objects we
+  // merge the batches unless they exceed the max objects per fetch
+  return optimizedObjects.reduce((acc, curr) => {
+    const lastBatch = acc[acc.length - 1]
+    if (lastBatch.length + curr.length <= config.maxObjectsPerFetch) {
+      acc[acc.length - 1] = lastBatch.concat(curr)
+    } else {
+      acc.push(curr)
+    }
+    return acc
+  }, [] as ObjectMapping[][])
+}
+
 /**
  * Fetches a file as a stream
  *
@@ -141,13 +182,12 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
         )
 
         // we group the object mapping by the piece index
-        const PIECE_INDEX_KEY = 1
-        const nodes = groupBy(objectMappings, PIECE_INDEX_KEY)
+        const nodes = optimizeBatchFetch(objectMappings)
 
         // we fetch the nodes in parallel grouped by the piece index
         const objectsByHash = fromEntries(
           await promiseAll(
-            values(nodes).map((list) =>
+            nodes.map((list) =>
               fetchObjects(list).then((nodes) =>
                 list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
               ),
