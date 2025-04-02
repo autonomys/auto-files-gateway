@@ -1,6 +1,6 @@
 import { config } from '../config.js'
 import { logger } from './logger.js'
-import { createWS, WS } from './ws/client.js'
+import { createRpcClient, Message } from '@autonomys/rpc'
 import z from 'zod'
 
 type SubstrateSubscription = {
@@ -10,13 +10,22 @@ type SubstrateSubscription = {
 
 type SubstrateEventListenerState = {
   subscriptions: Record<string, SubstrateSubscription>
-  ws: WS
+  ws: ReturnType<typeof createRpcClient>
 }
 
-export const createSubstrateEventListener = () => {
+export const createSubstrateEventListener = ({
+  onReconnection,
+}: {
+  onReconnection?: () => void
+}) => {
   const state: SubstrateEventListenerState = {
     subscriptions: {},
-    ws: createWS(config.nodeRpcUrl),
+    ws: createRpcClient({
+      endpoint: config.nodeRpcUrl,
+      callbacks: {
+        onReconnection,
+      },
+    }),
   }
 
   const subscribe = async (
@@ -57,7 +66,7 @@ export const createSubstrateEventListener = () => {
     }
   }
 
-  state.ws.on((event) => {
+  state.ws.on((event: Message) => {
     logger.debug(
       `Received event for method ${event.method} (${JSON.stringify(event.params)}).`,
     )
@@ -92,5 +101,9 @@ export const createSubstrateEventListener = () => {
     subscription.callbacks.forEach((callback) => callback(data.params.result))
   })
 
-  return { subscribe }
+  const wipe = () => {
+    state.subscriptions = {}
+  }
+
+  return { subscribe, wipe }
 }

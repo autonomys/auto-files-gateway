@@ -8,13 +8,16 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/index.js",
     "dev": "node --loader ts-node/esm",
     "test": "jest"
   },
   "license": "MIT",
   "dependencies": {
+    "@auto-files/models": "workspace:*",
+    "@auto-files/rpc-apis": "workspace:*",
     "@autonomys/auto-dag-data": "^1.0.5",
+    "@autonomys/rpc": "^1.4.11",
     "@peculiar/webcrypto": "^1.5.0",
     "@types/node": "^22.10.2",
     "cors": "^2.8.5",
@@ -39,8 +42,8 @@
     "blockstore-core": "^5.0.2",
     "db-migrate": "^0.11.14",
     "db-migrate-pg": "^1.5.2",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-eslint-plugin": "^6.3.1",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.3.3",
