@@ -11,4 +11,11 @@ export const config = {
     process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   ),
   databaseUrl: env('DATABASE_URL'),
+  recoverObjectMappings: {
+    active: env('RECOVER_OBJECT_MAPPINGS', 'false'),
+    endpoint:
+      env('RECOVER_OBJECT_MAPPINGS', 'false') === 'true'
+        ? env('RECOVER_OBJECT_MAPPINGS_ENDPOINT')
+        : undefined,
+  },
 }

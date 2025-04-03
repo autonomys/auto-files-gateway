@@ -63,10 +63,19 @@ const getByHash = async (hash: string) => {
   return result.rows.at(0)
 }
 
+const getLastPieceIndex = async () => {
+  const db = await getDatabase()
+  const result = await db.query<DBObjectMapping>(
+    'SELECT MAX("pieceIndex") as "pieceIndex" FROM object_mappings',
+  )
+  return result.rows[0]?.pieceIndex ?? 0
+}
+
 export const objectMappingRepository = {
   saveObjectMappings,
   getByBlockNumber,
   getLatestBlockNumber,
   getByPieceIndex,
   getByHash,
+  getLastPieceIndex,
 }
