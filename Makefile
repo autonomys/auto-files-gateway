@@ -1,5 +1,4 @@
-build:
-	yarn build
+build: all
 
 models:
 	yarn models build
@@ -14,3 +13,4 @@ indexer: common
 file-retriever: common
 	yarn file-retriever build
 
+all: models rpc indexer file-retriever
