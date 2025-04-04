@@ -2,8 +2,11 @@ import http from 'http'
 import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
 import { ObjectMappingIndexerRPCApi } from '@auto-files/rpc-apis'
 import { expressApp } from '../http/api.js'
+import { Application } from 'express'
+import { config } from '../config.js'
+import { logger } from '../drivers/logger.js'
 
-const createObjectMappingsRPCServer = (app: Express.Application) => {
+const createObjectMappingsRPCServer = (app: Application) => {
   return ObjectMappingIndexerRPCApi.createServer(
     {
       subscribe_object_mappings: async (_, { connection }) => {
@@ -40,7 +43,9 @@ const createObjectMappingsRPCServer = (app: Express.Application) => {
     },
     {
       server: {
-        httpServer: http.createServer(app),
+        httpServer: app.listen(config.port, () => {
+          logger.info(`Server is running on port ${config.port}`)
+        }),
         callbacks: {},
       },
     },

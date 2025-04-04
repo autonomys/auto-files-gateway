@@ -1,2 +1,2 @@
-import './server.js'
+import './rpc/server.js'
 import './listeners.js'
