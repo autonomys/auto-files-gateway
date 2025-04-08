@@ -33,11 +33,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@autonomys/asynchronous@npm:^1.4.15":
+  version: 1.4.15
+  resolution: "@autonomys/asynchronous@npm:1.4.15"
+  checksum: 10c0/56e6737a6ba7bdde6dbd5e15626d93cbf8d6fc0446e5fb0794514c564ade04efed08603f74fe4fe792bd1adc953a77a4cb4d1d79f8a2a0037414f07fa55d9fec
+  languageName: node
+  linkType: hard
+
 "@autonomys/auto-dag-data@npm:^1.0.12, @autonomys/auto-dag-data@npm:^1.0.5, @autonomys/auto-dag-data@npm:^1.4.11":
-  version: 1.4.11
-  resolution: "@autonomys/auto-dag-data@npm:1.4.11"
+  version: 1.4.15
+  resolution: "@autonomys/auto-dag-data@npm:1.4.15"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.4.11"
+    "@autonomys/asynchronous": "npm:^1.4.15"
     "@ipld/dag-pb": "npm:^4.1.3"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@webbuf/blake3": "npm:^3.0.26"
@@ -48,7 +55,7 @@ __metadata:
     protobufjs: "npm:^7.4.0"
     protons: "npm:^7.6.0"
     protons-runtime: "npm:^5.5.0"
-  checksum: 10c0/329e37225ddae62c01838d1f26529a2883f2fa78256846056794c36f375aa68c97ce6c7b0b5313c97cec8fdb35c8bdc1e55df1c407711bb9fecd88a864a23a5c
+  checksum: 10c0/452c6f33af693fa150964e18ca61f5ad41a94d48a1ec4de6196eda8921f14156204470d00a966b1c1977dd0ed25136e864eb46e744ef9d02e11d35bfc6ea0dbf
   languageName: node
   linkType: hard
 
