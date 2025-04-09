@@ -15,7 +15,7 @@
     "build": "yarn workspaces foreach --topological --verbose --all run build"
   },
   "dependencies": {
-    "@autonomys/rpc": "^1.4.11",
+    "@autonomys/rpc": "^1.4.14",
     "axios": "^1.7.9",
     "ts-node": "^10.9.2",
     "winston": "^3.17.0",
