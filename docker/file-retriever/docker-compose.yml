@@ -55,6 +55,6 @@ services:
       - '/:/host:ro'
       - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      NRIA_LICENSE_KEY: '${NR_API_KEY}'
-      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
+      NRIA_LICENSE_KEY: ${NR_API_KEY}
+      NRIA_DISPLAY_NAME: ${NR_AGENT_IDENTIFIER}
     restart: unless-stopped
