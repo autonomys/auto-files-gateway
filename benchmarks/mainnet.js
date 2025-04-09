@@ -13,6 +13,14 @@ export default async function () {
       })),
     )
   })
+
+  group('Big files', function () {
+    return http.batch(
+      mainnetFiles.map((file) => ({
+        url: `${global.MAINNET_FILES_GATEWAY_URL}/files/${file}?api_key=${global.MAINNET_FILES_GATEWAY_API_KEY}`,
+      })),
+    )
+  })
 }
 
 export const options = {
