@@ -30,10 +30,6 @@ services:
       interval: 30s
       retries: 60
     stop_grace_period: 30s
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   object-mapping-app:
     build:
       context: ../..
@@ -62,10 +58,6 @@ services:
       subspace-node:
         condition: service_healthy
     restart: unless-stopped
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   agent:
     container_name: newrelic-infra
     image: newrelic/infrastructure:latest
@@ -81,7 +73,3 @@ services:
       NRIA_LICENSE_KEY: '${NR_API_KEY}'
       NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
     restart: unless-stopped
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
