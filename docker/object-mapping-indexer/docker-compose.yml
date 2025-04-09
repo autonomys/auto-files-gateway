@@ -1,0 +1,74 @@
+volumes:
+  subspace-node-data: {}
+
+services:
+  subspace-node:
+    image: ${NODE_DOCKER_TAG}
+    volumes:
+      - subspace-node-data:/var/subspace:rw
+    container_name: subspace-node
+    ports:
+      - '30333:30333'
+      - '30433:30433'
+      - '127.0.0.1:9944:9944'
+    restart: unless-stopped
+    command: >
+      run
+      --chain ${NETWORK_ID}
+      --base-path /var/subspace
+      --listen-on /ip4/0.0.0.0/tcp/30333
+      --dsn-listen-on /ip4/0.0.0.0/tcp/30433
+      --rpc-cors all
+      --rpc-methods unsafe
+      --rpc-listen-on 0.0.0.0:9944
+      --rpc-max-subscriptions-per-connection 1000
+      --rpc-max-connections 20000
+      --name object-mapping-node
+      --sync full
+      --create-object-mappings ${BLOCK_NUMBER_TO_START_FROM}
+    healthcheck:
+      timeout: 5s
+      interval: 30s
+      retries: 60
+    stop_grace_period: 30s
+  object-mapping-app:
+    container_name: object-mapping-app
+    image: ${OBJECT_MAPPING_INDEXER_DOCKER_TAG}
+    working_dir: /app
+    ports:
+      - '3000:3000'
+    environment:
+      # constants
+      - NODE_ENV=production
+      - OBJECT_MAPPING_INDEXER_PORT=3000
+      - NODE_RPC_URL=ws://subspace-node:9944/ws
+
+      # variables
+      - REQUEST_SIZE_LIMIT=${REQUEST_SIZE_LIMIT}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - RECOVERY_INTERVAL=${RECOVERY_INTERVAL}
+      - DATABASE_URL=${DATABASE_URL}
+      - CACHE_DIR=${CACHE_DIR}
+      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
+      - CACHE_TTL=${CACHE_TTL}
+      - ACCEPT_UNAUTHORIZED_CERTS=${ACCEPT_UNAUTHORIZED_CERTS}
+    depends_on:
+      subspace-node:
+        condition: service_healthy
+    restart: unless-stopped
+  agent:
+    container_name: newrelic-infra
+    image: newrelic/infrastructure:latest
+    cap_add:
+      - SYS_PTRACE
+    network_mode: bridge
+    pid: host
+    privileged: true
+    volumes:
+      - '/:/host:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    environment:
+      NRIA_LICENSE_KEY: '${NR_API_KEY}'
+      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
+    restart: unless-stopped
