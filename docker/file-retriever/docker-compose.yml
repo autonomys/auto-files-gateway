@@ -20,9 +20,7 @@ services:
       options:
         loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   file-retriever:
-    build:
-      context: ../..
-      dockerfile: docker/file-retriever/Dockerfile
+    image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
     volumes:
       - file-retriever-data:/app/.cache
