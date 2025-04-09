@@ -1,12 +1,15 @@
 import http from 'k6/http'
 import { group } from 'k6'
 import { taurusFiles } from './files/taurus.js'
+import { loadEnv } from './utils/loadEnv.js'
+
+loadEnv()
 
 export default async function () {
   group('Concurrent Requests', function () {
     return http.batch(
       taurusFiles.map((file) => ({
-        url: `http://localhost:8090/files/${file}?api_key=random-secret`,
+        url: `${global.TAURUS_FILES_GATEWAY_URL}/files/${file}?api_key=${global.TAURUS_FILES_GATEWAY_API_KEY}`,
         params: {
           timeout: '1h',
         },
