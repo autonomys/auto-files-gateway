@@ -9,6 +9,7 @@
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
+    "plugin:require-extensions/recommended",
     "prettier"
   ],
   "parserOptions": {
@@ -26,10 +27,10 @@
     "no-duplicate-imports": "error"
   },
   "ignorePatterns": [
-    "dist/**/*",
+    "**/dist/**/*",
     "node_modules/**/*",
-    "migrations/**/*",
-    "jest.config.ts"
+    "**/migrations/**/*",
+    "**/jest.config.ts"
   ],
   "settings": {
     "import/resolver": {
