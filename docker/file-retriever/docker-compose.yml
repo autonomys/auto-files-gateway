@@ -16,9 +16,7 @@ services:
     stop_grace_period: 30s
     command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
   file-retriever:
-    build:
-      context: ../..
-      dockerfile: docker/file-retriever/Dockerfile
+    image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
     volumes:
       - file-retriever-data:/app/.cache
