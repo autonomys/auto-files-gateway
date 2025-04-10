@@ -3,7 +3,7 @@ import {} from 'k6'
 export const loadEnv = () => {
   try {
     // Use a relative path that k6 can understand
-    const fileContent = open(`${__ENV.PWD}/../.env.benchmarks`)
+    const fileContent = open(`${__ENV.PWD}/.env.benchmarks`)
 
     if (!fileContent) {
       console.error('Failed to open .env.benchmarks file')
