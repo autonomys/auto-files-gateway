@@ -15,10 +15,6 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   file-retriever:
     build:
       context: ../..
@@ -47,10 +43,6 @@ services:
       subspace-node:
         condition: service_healthy
     restart: unless-stopped
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   agent:
     container_name: newrelic-infra
     image: newrelic/infrastructure:latest
@@ -63,10 +55,6 @@ services:
       - '/:/host:ro'
       - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      NRIA_LICENSE_KEY: '${NR_API_KEY}'
-      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
+      NRIA_LICENSE_KEY: ${NR_API_KEY}
+      NRIA_DISPLAY_NAME: ${NR_AGENT_IDENTIFIER}
     restart: unless-stopped
-    logging:
-      driver: loki
-      options:
-        loki-url: 'https://logging.subspace.network/loki/api/v1/push'
