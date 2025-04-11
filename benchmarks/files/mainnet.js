@@ -60,3 +60,8 @@ export const mainnetFiles = [
   'bafkr6ihlldl3h7m4akl2xgxojcq7i2zjii66473okvdvs62j2x7maqluva',
   'bafkr6id2g5xvyebn2yaw6thjl3fh7hlalfccaabg4ks2ufmzop2wipczxq',
 ]
+
+export const bigFiles = [
+  'bafkr6idrzb7n6yq25lq4vrf3xybhnygukipp4ogk4m2646dlcsopbtufum',
+  'bafkr6ifyizgjriegryaebpjv7jbxuookaio7uetgie3logxcm3austf4xu',
+]
