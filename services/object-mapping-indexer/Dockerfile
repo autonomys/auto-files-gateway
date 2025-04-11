@@ -16,7 +16,7 @@ RUN corepack prepare yarn@4.2.2 --activate
 RUN rm -rf node_modules
 RUN yarn add tar
 RUN yarn
-RUN yarn indexer build
+RUN make indexer
 
 EXPOSE 3000
 
