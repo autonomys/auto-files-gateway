@@ -20,11 +20,14 @@ const cache = createFileCache(
 
 const get = async (
   cid: string,
+  ignoreCache = false,
 ): Promise<[fromCache: boolean, FileResponse]> => {
-  const cachedFile = await cache.get(cid)
-  if (cachedFile) {
-    logger.debug(`Cache hit for file ${cid}`)
-    return [true, cachedFile]
+  if (!ignoreCache) {
+    const cachedFile = await cache.get(cid)
+    if (cachedFile) {
+      logger.debug(`Cache hit for file ${cid}`)
+      return [true, cachedFile]
+    }
   }
 
   let start = performance.now()
