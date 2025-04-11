@@ -31,9 +31,7 @@ services:
       retries: 60
     stop_grace_period: 30s
   object-mapping-app:
-    build:
-      context: ../..
-      dockerfile: docker/object-mapping-indexer/Dockerfile
+    image: ${OBJECT_MAPPING_INDEXER_DOCKER_TAG}
     container_name: object-mapping-app
     working_dir: /app
     ports:
