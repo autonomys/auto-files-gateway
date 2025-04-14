@@ -9,8 +9,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "node --loader ts-node/esm",
-    "test": "jest"
+    "dev": "node --loader ts-node/esm"
   },
   "license": "MIT",
   "dependencies": {

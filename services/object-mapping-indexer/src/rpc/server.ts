@@ -1,4 +1,3 @@
-import http from 'http'
 import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
 import { ObjectMappingIndexerRPCApi } from '@auto-files/rpc-apis'
 import { expressApp } from '../http/api.js'
