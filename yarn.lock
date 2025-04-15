@@ -1874,6 +1874,10 @@ __metadata:
     "@types/node": "npm:^22.10.2"
     axios: "npm:^1.7.9"
     bun: "npm:^1.1.39"
+    eslint: "npm:^9.0.0"
+    eslint-config-prettier: "npm:^10.0.0"
+    eslint-plugin-eslint-plugin: "npm:^6.3.1"
+    eslint-plugin-prettier: "npm:^5.2.1"
     ts-node: "npm:^10.9.2"
     winston: "npm:^3.17.0"
   languageName: unknown

@@ -13,3 +13,9 @@ indexer: common
 file-retriever: common
 	yarn file-retriever build
 
+lint:
+	yarn lint
+
+test:
+	yarn test
+

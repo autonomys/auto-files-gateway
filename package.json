@@ -12,7 +12,9 @@
     "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts",
     "models": "yarn workspace @auto-files/models",
     "rpc": "yarn workspace @auto-files/rpc-apis",
-    "build": "yarn workspaces foreach --topological --verbose --all run build"
+    "build": "yarn workspaces foreach --topological --verbose --all run build",
+    "lint": "yarn workspaces foreach --topological --verbose --all run lint",
+    "test": "yarn workspaces foreach --topological --verbose --all run test"
   },
   "dependencies": {
     "@autonomys/rpc": "^1.4.14",
@@ -23,6 +25,10 @@
   "devDependencies": {
     "@types/k6": "^1.0.0",
     "@types/node": "^22.10.2",
-    "bun": "^1.1.39"
+    "bun": "^1.1.39",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-eslint-plugin": "^6.3.1",
+    "eslint-plugin-prettier": "^5.2.1"
   }
 }
