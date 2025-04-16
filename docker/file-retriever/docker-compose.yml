@@ -18,9 +18,7 @@ services:
     environment:
       - RUST_LOG=debug
   file-retriever:
-    build:
-      context: ../..
-      dockerfile: docker/file-retriever/Dockerfile
+    image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
     volumes:
       - file-retriever-data:/app/.cache
@@ -46,7 +44,6 @@ services:
       subspace-node:
         condition: service_healthy
     restart: unless-stopped
-
   agent:
     profiles:
       - production
@@ -61,6 +58,6 @@ services:
       - '/:/host:ro'
       - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      NRIA_LICENSE_KEY: '${NR_API_KEY}'
-      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
+      NRIA_LICENSE_KEY: ${NR_API_KEY}
+      NRIA_DISPLAY_NAME: ${NR_AGENT_IDENTIFIER}
     restart: unless-stopped

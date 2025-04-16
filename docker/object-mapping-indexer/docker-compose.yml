@@ -31,11 +31,8 @@ services:
       interval: 30s
       retries: 60
     stop_grace_period: 30s
-
   object-mapping-app:
-    build:
-      context: ../..
-      dockerfile: docker/object-mapping-indexer/Dockerfile
+    image: ${OBJECT_MAPPING_INDEXER_DOCKER_TAG}
     container_name: object-mapping-app
     working_dir: /app
     ports:
@@ -60,7 +57,6 @@ services:
       subspace-node:
         condition: service_healthy
     restart: unless-stopped
-
   agent:
     profiles:
       - production
@@ -75,8 +71,8 @@ services:
       - '/:/host:ro'
       - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      NRIA_LICENSE_KEY: '${NR_API_KEY}'
-      NRIA_DISPLAY_NAME: '${NR_AGENT_IDENTIFIER}'
+      NRIA_LICENSE_KEY: ${NR_API_KEY}
+      NRIA_DISPLAY_NAME: ${NR_AGENT_IDENTIFIER}
     restart: unless-stopped
   db:
     profiles:

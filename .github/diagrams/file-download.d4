@@ -1,0 +1,19 @@
+user: {
+  shape: person
+}
+user -> file-retriever: 1. Asks for a CID
+file-retriever -> indexer: |md
+  2. File retriever requests the indexer
+  the position of the object on the DSN.
+|
+file-retriever -> gateway: |md
+  3. File retriever fetches the object
+  using the subspace gateway.
+|
+indexer -> node: |md
+  Listens to every object upload
+  saving its position
+  in the DSN for using
+  during file download.
+|
+gateway -> node
