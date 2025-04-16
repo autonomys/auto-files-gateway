@@ -1,0 +1,40 @@
+volumes:
+  subspace-node-data: {}
+  file-retriever-data: {}
+
+services:
+  subspace-http-gateway:
+    image: ${GATEWAY_DOCKER_TAG}
+    volumes:
+      - ./certs:/etc/ssl/certs
+    ports:
+      - '8080:8080'
+      - '30334:30333'
+      - '30434:30433'
+    restart: unless-stopped
+    stop_grace_period: 30s
+    command: http --node-rpc-url ${NODE_RPC_URL} --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
+  file-retriever:
+    image: ${FILE_RETRIEVER_DOCKER_TAG}
+    platform: linux/amd64
+    container_name: file-retriever
+    volumes:
+      - file-retriever-data:/app/.cache
+    ports:
+      - '8090:8090'
+    environment:
+      - NODE_ENV=production
+      - SUBSPACE_GATEWAY_URLS=http://subspace-http-gateway:8080
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - MAX_SIMULTANEOUS_FETCHES=${MAX_SIMULTANEOUS_FETCHES}
+      - CACHE_DIR=${CACHE_DIR}
+      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE}
+      - CACHE_TTL=${CACHE_TTL}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - API_SECRET=${API_SECRET}
+      - VICTORIA_ACTIVE=${VICTORIA_ACTIVE}
+      - VICTORIA_ENDPOINT=${VICTORIA_ENDPOINT}
+      - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
+      - VICTORIA_USERNAME=${VICTORIA_USERNAME}
+      - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
+    restart: unless-stopped
