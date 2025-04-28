@@ -61,34 +61,41 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   const gatewayUrl = gatewayUrls[index]
   const concurrencyController = concurrencyControllerByGateway[index]
 
+  const body = {
+    jsonrpc: '2.0',
+    method: 'subspace_fetchObject',
+    params: { mappings },
+    id: Math.floor(Math.random() * 65535),
+  }
+
   return concurrencyController(async () => {
-    const response = await axios.post(
-      gatewayUrl,
-      {
-        jsonrpc: '2.0',
-        method: 'subspace_fetchObject',
-        params: { mappings },
-      },
-      {
-        timeout: 3600_000,
-        responseType: 'json',
-      },
+    logger.info(
+      `Fetching nodes: ${body.params.mappings.v0.objects.map((e) => e[0]).join(', ')}`,
     )
+    const response = await axios.post(gatewayUrl, body, {
+      timeout: 3600_000,
+      responseType: 'json',
+    })
     if (response.status !== 200) {
       console.error('Failed to fetch nodes', response.status, response.data)
       throw new HttpError(500, 'Internal server error: Failed to fetch nodes')
     }
 
-    const data = fetchNodesSchema.safeParse(response.data)
-    if (!data.success) {
-      console.error('Failed to parse fetch nodes response', data.error)
+    const validatedResponseData = fetchNodesSchema.safeParse(response.data)
+    if (!validatedResponseData.success) {
+      console.error(
+        'Failed to parse fetch nodes response',
+        validatedResponseData.error,
+      )
       throw new HttpError(
         500,
         'Internal server error: Failed to parse fetch nodes response',
       )
     }
 
-    return data.data.result.map((hex) => decodeNode(Buffer.from(hex, 'hex')))
+    return validatedResponseData.data.result.map((hex) =>
+      decodeNode(Buffer.from(hex, 'hex')),
+    )
   }, objects.length)
 }
 
