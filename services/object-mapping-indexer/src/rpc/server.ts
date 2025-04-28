@@ -23,13 +23,14 @@ const createObjectMappingsRPCServer = (app: Application) => {
         }
       },
       subscribe_recover_object_mappings: async (
-        { pieceIndex },
+        { pieceIndex, step },
         { connection },
       ) => {
         const subscriptionId =
           objectMappingRouter.subscribeRecoverObjectMappings(
             connection,
             pieceIndex,
+            step,
           )
 
         return { success: true, subscriptionId }

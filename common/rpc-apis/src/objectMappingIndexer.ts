@@ -21,6 +21,7 @@ export const ObjectMappingIndexerRPCApi = createApiDefinition({
     subscribe_recover_object_mappings: {
       params: z.object({
         pieceIndex: z.number(),
+        step: z.number().optional(),
       }),
       returns: z.object({
         subscriptionId: z.string(),
