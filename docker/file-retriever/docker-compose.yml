@@ -3,7 +3,7 @@ volumes:
   file-retriever-data: {}
 
 services:
-  subspace-http-gateway:
+  subspace-rpc-gateway:
     image: ${GATEWAY_DOCKER_TAG}
     depends_on:
       subspace-node:

@@ -3,10 +3,10 @@ volumes:
   file-retriever-data: {}
 
 services:
-  subspace-http-gateway:
+  subspace-rpc-gateway:
     extends:
       file: docker-compose.yml
-      service: subspace-http-gateway
+      service: subspace-rpc-gateway
     logging:
       driver: loki
       options:
