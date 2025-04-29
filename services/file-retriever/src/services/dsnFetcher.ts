@@ -23,6 +23,7 @@ import {
 } from './objectMappingIndexer.js'
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
+import { optimizeBatchFetch } from './batchOptimizer.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -99,47 +100,6 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   }, objects.length)
 }
 
-const optimizeBatchFetch = (objects: ObjectMapping[]): ObjectMapping[][] => {
-  let currentBatch: ObjectMapping[] = []
-  let lastPieceIndex = null
-  const sortedObjects = objects.sort((a, b) => a[1] - b[1])
-  const optimizedObjects: ObjectMapping[][] = []
-
-  for (const object of sortedObjects) {
-    const pieceIndex = object[1]
-
-    const safePieceIndex = pieceIndex ?? 0
-    // if the piece index is the at the same piece or next one, pieces maybe reusable
-    const isSameOrConsecutive =
-      pieceIndex === safePieceIndex ||
-      pieceIndex === safePieceIndex + 1 ||
-      lastPieceIndex === null
-    const isFull = currentBatch.length === config.maxObjectsPerFetch
-
-    // if pieces are not consecutive, they're not sharing the same piece
-    if (isSameOrConsecutive && !isFull) {
-      currentBatch.push(object)
-    } else {
-      optimizedObjects.push(currentBatch)
-      currentBatch = [object]
-    }
-
-    lastPieceIndex = pieceIndex
-  }
-
-  // Once we have optimized the list of objects we
-  // merge the batches unless they exceed the max objects per fetch
-  return optimizedObjects.reduce((acc, curr) => {
-    const lastBatch = acc[acc.length - 1]
-    if (lastBatch.length + curr.length <= config.maxObjectsPerFetch) {
-      acc[acc.length - 1] = lastBatch.concat(curr)
-    } else {
-      acc.push(curr)
-    }
-    return acc
-  }, [] as ObjectMapping[][])
-}
-
 /**
  * Fetches a file as a stream
  *
@@ -153,13 +113,13 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
   const metadata = safeIPLDDecode(node)
 
   // if a file is a single node (< 64KB) no additional fetching is needed
-  if (metadata?.data) {
+  if (node.Links.length === 0) {
     logger.debug(
-      `File resolved to single node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata.size})`,
+      `File resolved to single node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata?.size})`,
     )
     return new ReadableStream({
       start: async (controller) => {
-        controller.enqueue(Buffer.from(metadata.data!))
+        controller.enqueue(Buffer.from(metadata?.data ?? []))
         controller.close()
       },
     })
@@ -173,93 +133,118 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
   // all the links from the root node first and then continue with the next level
   return new ReadableStream({
     start: async (controller) => {
-      logger.debug('Starting to fetch file')
-      // for the first iteration, we need to fetch all the links from the root node
-      let requestsPending = node.Links.map(({ Hash }) =>
-        getObjectMappingHash(cidToString(Hash)),
-      )
-      while (requestsPending.length > 0) {
-        // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
-        const requestingNodes = requestsPending
-
-        const start = performance.now()
-        // we fetch the object mappings in parallel
-        const objectMappings = await Promise.all(
-          requestingNodes.map(async (hash) => await fetchObjectMapping(hash)),
+      try {
+        logger.debug('Starting to fetch file')
+        // for the first iteration, we need to fetch all the links from the root node
+        let requestsPending = node.Links.map(({ Hash }) =>
+          getObjectMappingHash(cidToString(Hash)),
         )
+        logger.info(`Requests pending: ${requestsPending.join(', ')}`)
+        while (requestsPending.length > 0) {
+          // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
+          const requestingNodes = requestsPending
 
-        // we group the object mapping by the piece index
-        const nodes = optimizeBatchFetch(objectMappings)
+          const start = performance.now()
+          // we fetch the object mappings in parallel
+          const objectMappings = await Promise.all(
+            requestingNodes.map(async (hash) => await fetchObjectMapping(hash)),
+          )
 
-        // we fetch the nodes in parallel grouped by the piece index
-        const objectsByHash = fromEntries(
-          await promiseAll(
-            nodes.map((list) =>
-              fetchObjects(list).then((nodes) =>
-                list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
+          // we group the object mapping by the piece index
+          const nodes = optimizeBatchFetch(objectMappings)
+
+          logger.info(
+            `Fetching ${nodes.length} batches of ${nodes.flat().join(',')} nodes`,
+          )
+
+          // we fetch the nodes in parallel grouped by the piece index
+          const objectsByHash = fromEntries(
+            await promiseAll(
+              nodes.map((list) =>
+                fetchObjects(list).then((nodes) =>
+                  list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
+                ),
               ),
-            ),
-          ).then((array) => array.flat()),
-        )
+            ).then((array) => array.flat()),
+          )
 
-        // we map the object mappings to the nodes
-        const retrievedNodes = objectMappings.map((e) => objectsByHash[e[0]])
+          // we map the object mappings to the nodes
+          const retrievedNodes = objectMappings.map((e) => objectsByHash[e[0]])
 
-        const end = performance.now()
-        logger.debug(
-          `Fetching ${requestingNodes.length} nodes took ${end - start}ms`,
-        )
+          const end = performance.now()
+          logger.debug(
+            `Fetching ${requestingNodes.length} nodes took ${end - start}ms`,
+          )
 
-        let newLinks: string[] = []
-        for (const node of retrievedNodes) {
-          const ipldMetadata = safeIPLDDecode(node)
-          // if the node has no links or has data (is the same thing), we write into the stream
-          if (ipldMetadata?.data) {
-            controller.enqueue(ipldMetadata.data)
-          } else {
-            // if the node has links, we need to fetch them in the next iteration
-            newLinks = newLinks.concat(
-              node.Links.map((e) => getObjectMappingHash(cidToString(e.Hash))),
-            )
+          let newLinks: string[] = []
+          for (const node of retrievedNodes) {
+            const ipldMetadata = safeIPLDDecode(node)
+            // if the node has no links or has data (is the same thing), we write into the stream
+            if (ipldMetadata?.data) {
+              controller.enqueue(ipldMetadata.data)
+            } else {
+              // if the node has links, we need to fetch them in the next iteration
+              newLinks = newLinks.concat(
+                node.Links.map((e) =>
+                  getObjectMappingHash(cidToString(e.Hash)),
+                ),
+              )
+            }
           }
-        }
 
-        // we update the list of pending requests with the new links
-        requestsPending = newLinks
+          // we update the list of pending requests with the new links
+          requestsPending = newLinks
+        }
+        controller.close()
+      } catch (error) {
+        logger.error(
+          `Failed to fetch file as stream (cid=${cidToString(cidOfNode(node))}); error=${error}`,
+        )
+        controller.error(error)
       }
-      controller.close()
     },
   })
 }
 
 const fetchFile = async (cid: string): Promise<FileResponse> => {
-  const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
-  const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
-  const nodeMetadata = safeIPLDDecode(head)
+  try {
+    const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
+    const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
+    logger.info(
+      `Fetched hash=${objectMapping[0]} pieceIndex=${objectMapping[1]} pieceOffset=${objectMapping[2]}`,
+    )
+    const nodeMetadata = safeIPLDDecode(head)
 
-  if (!nodeMetadata) {
-    throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
-  }
-  if (nodeMetadata?.type !== MetadataType.File) {
-    throw new HttpError(400, 'Bad request: Not a file')
-  }
+    if (!nodeMetadata) {
+      throw new HttpError(
+        400,
+        'Bad request: Not a valid auto-dag-data IPLD node',
+      )
+    }
+    if (nodeMetadata?.type !== MetadataType.File) {
+      throw new HttpError(400, 'Bad request: Not a file')
+    }
 
-  const isCompressedAndNotEncrypted =
-    nodeMetadata.uploadOptions?.encryption === undefined &&
-    nodeMetadata.uploadOptions?.compression?.algorithm ===
-      CompressionAlgorithm.ZLIB
+    const isCompressedAndNotEncrypted =
+      nodeMetadata.uploadOptions?.encryption === undefined &&
+      nodeMetadata.uploadOptions?.compression?.algorithm ===
+        CompressionAlgorithm.ZLIB
 
-  const data = fetchFileAsStream(head)
+    const data = fetchFileAsStream(head)
 
-  return {
-    data,
-    size: nodeMetadata.size,
-    mimeType:
-      isCompressedAndNotEncrypted && nodeMetadata.name
-        ? mime.lookup(nodeMetadata.name) || undefined
-        : undefined,
-    filename: nodeMetadata.name,
-    encoding: isCompressedAndNotEncrypted ? 'deflate' : undefined,
+    return {
+      data,
+      size: nodeMetadata.size,
+      mimeType:
+        isCompressedAndNotEncrypted && nodeMetadata.name
+          ? mime.lookup(nodeMetadata.name) || undefined
+          : undefined,
+      filename: nodeMetadata.name,
+      encoding: isCompressedAndNotEncrypted ? 'deflate' : undefined,
+    }
+  } catch (error) {
+    logger.error(`Failed to fetch file (cid=${cid}); error=${error}`)
+    throw new HttpError(500, 'Internal server error: Failed to fetch file')
   }
 }
 
