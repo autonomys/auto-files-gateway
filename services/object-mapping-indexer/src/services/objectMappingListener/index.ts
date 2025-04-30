@@ -22,6 +22,7 @@ export const createObjectMappingListener = (): ObjectMappingListener => {
 
       const client = SubspaceObjectListenerAPI.createClient({
         endpoint: config.nodeRpcUrl,
+        reconnectInterval: 60_000,
         callbacks: {
           onEveryOpen: init,
           onReconnection: () => {
