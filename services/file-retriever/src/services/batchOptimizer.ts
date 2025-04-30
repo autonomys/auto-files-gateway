@@ -38,9 +38,6 @@ export const optimizeBatchFetch = (
     currentBatch = []
   }
 
-  console.log('optimizedObjects', optimizedObjects)
-  console.log('currentBatch', currentBatch)
-
   // Once we have optimized the list of objects we
   // merge the batches unless they exceed the max objects per fetch
   return optimizedObjects.reduce(

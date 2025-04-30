@@ -5,7 +5,7 @@ volumes:
 services:
   subspace-rpc-gateway:
     extends:
-      file: docker-compose.yml
+      file: ./docker-compose.yml
       service: subspace-rpc-gateway
     logging:
       driver: loki
@@ -13,7 +13,7 @@ services:
         loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   file-retriever:
     extends:
-      file: docker-compose.yml
+      file: ./docker-compose.yml
       service: file-retriever
     logging:
       driver: loki
@@ -21,7 +21,7 @@ services:
         loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   agent:
     extends:
-      file: docker-compose.yml
+      file: ./docker-compose.yml
       service: agent
     logging:
       driver: loki
