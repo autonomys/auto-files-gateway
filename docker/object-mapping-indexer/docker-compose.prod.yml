@@ -5,15 +5,15 @@ volumes:
 services:
   subspace-node:
     extends:
-      file: docker-compose.yml
-      service: subspace-http-gateway
+      file: docker/object-mapping-indexer/docker-compose.yml
+      service: subspace-node
     logging:
       driver: loki
       options:
         loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   object-mapping-app:
     extends:
-      file: docker-compose.yml
+      file: docker/object-mapping-indexer/docker-compose.yml
       service: file-retriever
     container_name: object-mapping-app
     logging:
@@ -22,7 +22,7 @@ services:
         loki-url: 'https://logging.subspace.network/loki/api/v1/push'
   agent:
     extends:
-      file: docker-compose.yml
+      file: docker/object-mapping-indexer/docker-compose.yml
       service: agent
     logging:
       driver: loki
