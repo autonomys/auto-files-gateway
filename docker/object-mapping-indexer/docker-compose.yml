@@ -1,5 +1,6 @@
 volumes:
   subspace-node-data: {}
+  db-data: {}
 
 services:
   subspace-node:
@@ -57,6 +58,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
   agent:
+    profiles:
+      - production
     container_name: newrelic-infra
     image: newrelic/infrastructure:latest
     cap_add:
@@ -71,3 +74,15 @@ services:
       NRIA_LICENSE_KEY: ${NR_API_KEY}
       NRIA_DISPLAY_NAME: ${NR_AGENT_IDENTIFIER}
     restart: unless-stopped
+  db:
+    profiles:
+      - development
+    image: postgres:16
+    ports:
+      - '127.0.0.1:5432:5432'
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data

@@ -3,18 +3,20 @@ volumes:
   file-retriever-data: {}
 
 services:
-  subspace-http-gateway:
+  subspace-rpc-gateway:
     image: ${GATEWAY_DOCKER_TAG}
     depends_on:
       subspace-node:
         condition: service_healthy
     ports:
-      - '8080:8080'
+      - '9955:9955'
       - '30334:30333'
       - '30434:30433'
     restart: unless-stopped
     stop_grace_period: 30s
-    command: http --node-rpc-url ws://subspace-node:9944/ws --http-listen-on 0.0.0.0:8080 --indexer-endpoint ${OBJECT_MAPPING_INDEXER_URL} --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
+    command: rpc --node-rpc-url ws://subspace-node:9944/ws --rpc-listen-on 0.0.0.0:9955 --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
+    environment:
+      - RUST_LOG=debug
   file-retriever:
     image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
@@ -37,11 +39,14 @@ services:
       - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
       - VICTORIA_USERNAME=${VICTORIA_USERNAME}
       - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
+      - OBJECT_MAPPING_INDEXER_URL=http://object-mapping-app:3000
     depends_on:
       subspace-node:
         condition: service_healthy
     restart: unless-stopped
   agent:
+    profiles:
+      - production
     container_name: newrelic-infra
     image: newrelic/infrastructure:latest
     cap_add:
