@@ -70,7 +70,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   }
 
   return concurrencyController(async () => {
-    logger.info(
+    logger.debug(
       `Fetching nodes: ${body.params.mappings.v0.objects.map((e) => e[0]).join(', ')}`,
     )
     const response = await axios.post(gatewayUrl, body, {
@@ -139,7 +139,6 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
         let requestsPending = node.Links.map(({ Hash }) =>
           getObjectMappingHash(cidToString(Hash)),
         )
-        logger.info(`Requests pending: ${requestsPending.join(', ')}`)
         while (requestsPending.length > 0) {
           // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
           const requestingNodes = requestsPending
@@ -152,10 +151,6 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
 
           // we group the object mapping by the piece index
           const nodes = optimizeBatchFetch(objectMappings)
-
-          logger.info(
-            `Fetching ${nodes.length} batches of ${nodes.flat().join(',')} nodes`,
-          )
 
           // we fetch the nodes in parallel grouped by the piece index
           const objectsByHash = fromEntries(
