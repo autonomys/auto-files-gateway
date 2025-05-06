@@ -20,6 +20,7 @@ export default async function () {
           url: global.SUBSPACE_MAINNET_FILES_GATEWAY_URL,
           params: {
             timeout: '1h',
+            headers: { 'Content-Type': 'application/json' },
           },
           body: JSON.stringify({
             jsonrpc: '2.0',
@@ -33,9 +34,6 @@ export default async function () {
             },
             id: 1,
           }),
-          params: {
-            headers: { 'Content-Type': 'application/json' },
-          },
         })),
       )
     })
@@ -53,8 +51,9 @@ export default async function () {
           url: global.SUBSPACE_MAINNET_FILES_GATEWAY_URL,
           params: {
             timeout: '1h',
+            headers: { 'Content-Type': 'application/json' },
           },
-          body: {
+          body: JSON.stringify({
             jsonrpc: '2.0',
             method: 'subspace_fetchObject',
             params: {
@@ -62,7 +61,8 @@ export default async function () {
                 v0: { objects },
               },
             },
-          },
+            id: 1,
+          }),
         })),
       )
     })
