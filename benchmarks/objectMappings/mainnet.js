@@ -33,10 +33,12 @@ export const mainnetObjectMappings = [
   ],
 ]
 
-export const singleObjectMapping = [
+export const singleObjectMappings = [
   [
-    '1bd07f2716e827763483f6216e7304a52fd7071d6923aa0f4559bfe23bee3c90',
-    113256,
-    1012868,
+    [
+      '1bd07f2716e827763483f6216e7304a52fd7071d6923aa0f4559bfe23bee3c90',
+      113256,
+      1012868,
+    ],
   ],
 ]
