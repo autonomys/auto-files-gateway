@@ -28,7 +28,13 @@ export default async function () {
             params: {
               mappings: {
                 v0: {
-                  objects,
+                  objects: [
+                    [
+                      '1bd07f2716e827763483f6216e7304a52fd7071d6923aa0f4559bfe23bee3c90',
+                      113256,
+                      1012868,
+                    ],
+                  ],
                 },
               },
             },
