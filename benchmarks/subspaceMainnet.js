@@ -4,7 +4,7 @@ import { taurusFiles } from './files/taurus.js'
 import { loadEnv } from './utils/loadEnv.js'
 import {
   mainnetObjectMappings,
-  singleObjectMappings,
+  singleObjectMapping,
 } from './objectMappings/mainnet.js'
 
 loadEnv()
@@ -29,6 +29,7 @@ export default async function () {
               mappings: {
                 v0: {
                   objects,
+                },
               },
             },
             id: 1,
@@ -45,7 +46,7 @@ export default async function () {
   if (runSingleObjectMapping) {
     group('Single Object Mapping', function () {
       return http.batch(
-        singleObjectMappings.map((objects) => ({
+        singleObjectMapping.map((objects) => ({
           method: 'POST',
           url: global.SUBSPACE_MAINNET_FILES_GATEWAY_URL,
           params: {
