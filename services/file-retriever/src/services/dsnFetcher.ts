@@ -70,6 +70,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   }
 
   return concurrencyController(async () => {
+    const now = performance.now()
     logger.debug(
       `Fetching nodes: ${body.params.mappings.v0.objects.map((e) => e[0]).join(', ')}`,
     )
@@ -93,6 +94,9 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
         'Internal server error: Failed to parse fetch nodes response',
       )
     }
+
+    const end = performance.now()
+    logger.debug(`Fetching ${objects.length} nodes took ${end - now}ms`)
 
     return validatedResponseData.data.result.map((hex) =>
       decodeNode(Buffer.from(hex, 'hex')),
@@ -143,7 +147,6 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
           // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
           const requestingNodes = requestsPending
 
-          const start = performance.now()
           // we fetch the object mappings in parallel
           const objectMappings = await Promise.all(
             requestingNodes.map(async (hash) => await fetchObjectMapping(hash)),
@@ -165,11 +168,6 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
 
           // we map the object mappings to the nodes
           const retrievedNodes = objectMappings.map((e) => objectsByHash[e[0]])
-
-          const end = performance.now()
-          logger.debug(
-            `Fetching ${requestingNodes.length} nodes took ${end - start}ms`,
-          )
 
           let newLinks: string[] = []
           for (const node of retrievedNodes) {
