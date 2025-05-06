@@ -21,7 +21,7 @@ export default async function () {
           params: {
             timeout: '1h',
           },
-          body: {
+          body: JSON.stringify({
             jsonrpc: '2.0',
             method: 'subspace_fetchObject',
             params: {
@@ -32,6 +32,9 @@ export default async function () {
               },
             },
             id: 1,
+          }),
+          params: {
+            headers: { 'Content-Type': 'application/json' },
           },
         })),
       )
