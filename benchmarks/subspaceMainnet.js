@@ -2,7 +2,10 @@ import http from 'k6/http'
 import { group } from 'k6'
 import { taurusFiles } from './files/taurus.js'
 import { loadEnv } from './utils/loadEnv.js'
-import { mainnetObjectMappings } from './objectMappings/mainnet.js'
+import {
+  mainnetObjectMappings,
+  singleObjectMapping,
+} from './objectMappings/mainnet.js'
 
 loadEnv()
 
