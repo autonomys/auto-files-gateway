@@ -5,6 +5,7 @@ import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
 import { asyncSafeHandler } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
+import { streamToReadable } from '../../utils/stream.js'
 
 const fileRouter = Router()
 
@@ -48,7 +49,7 @@ fileRouter.get(
       `Streaming file ${req.params.cid} to ${req.ip} with ${file.size} bytes`,
     )
 
-    pipeline(file.data, res, (err) => {
+    pipeline(streamToReadable(file.data), res, (err) => {
       if (err) {
         if (res.headersSent) return
         console.error('Error streaming data:', err)

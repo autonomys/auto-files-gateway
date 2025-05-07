@@ -24,6 +24,7 @@ import {
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
+import { readableToStream } from '../utils/stream.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -221,7 +222,7 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
       nodeMetadata.uploadOptions?.compression?.algorithm ===
         CompressionAlgorithm.ZLIB
 
-    const data = fetchFileAsStream(head)
+    const data = readableToStream(fetchFileAsStream(head))
 
     return {
       data,
