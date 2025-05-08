@@ -53,8 +53,11 @@ const getObjectMappingHash = (cid: string) => {
  * @returns The list of nodes
  */
 const fetchObjects = async (objects: ObjectMapping[]) => {
+  const requestId = Math.floor(Math.random() * 65535)
   const now = performance.now()
-  logger.debug(`Fetching nodes: ${objects.map((e) => e[0]).join(', ')}`)
+  logger.debug(
+    `Enqueuing nodes fetch (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+  )
   const mappings: GlobalObjectMappingRequest = {
     v0: {
       objects,
@@ -69,10 +72,14 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     jsonrpc: '2.0',
     method: 'subspace_fetchObject',
     params: { mappings },
-    id: Math.floor(Math.random() * 65535),
+    id: requestId,
   }
 
   return concurrencyController(async () => {
+    logger.debug(
+      `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+    )
+    const fetchStart = performance.now()
     const response = await axios.post(gatewayUrl, body, {
       timeout: 3600_000,
       responseType: 'json',
@@ -95,7 +102,9 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     }
 
     const end = performance.now()
-    logger.debug(`Fetching ${objects.length} nodes took ${end - now}ms`)
+    logger.debug(
+      `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
+    )
 
     return validatedResponseData.data.result.map((hex) =>
       decodeNode(Buffer.from(hex, 'hex')),
