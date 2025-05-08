@@ -1,5 +1,5 @@
+import { ObjectMapping } from '@auto-files/models'
 import { config } from '../config.js'
-import { ObjectMapping } from './objectMappingIndexer.js'
 
 export const optimizeBatchFetch = (
   objects: ObjectMapping[],
