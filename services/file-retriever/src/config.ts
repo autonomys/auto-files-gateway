@@ -45,3 +45,8 @@ export const config = {
     }),
   },
 }
+
+// Ensure maxObjectsPerFetch is not greater than maxSimultaneousFetches
+if (config.maxObjectsPerFetch > config.maxSimultaneousFetches) {
+  config.maxObjectsPerFetch = config.maxSimultaneousFetches
+}
