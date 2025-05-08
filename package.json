@@ -19,6 +19,7 @@
   "dependencies": {
     "@autonomys/rpc": "^1.4.14",
     "axios": "^1.7.9",
+    "stream-fork": "^1.0.5",
     "ts-node": "^10.9.2",
     "winston": "^3.17.0",
     "yocto-queue": "^1.2.0"
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@types/k6": "^1.0.0",
     "@types/node": "^22.10.2",
+    "@types/stream-fork": "^1.0.5",
     "bun": "^1.1.39",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",

@@ -74,6 +74,16 @@ const getByPieceIndexRange = async (min: number, max: number) => {
   return result.rows
 }
 
+const getByHashes = async (hashes: string[]) => {
+  const db = await getDatabase()
+  const result = await db.query<DBObjectMapping>(
+    'SELECT * FROM object_mappings WHERE hash = ANY($1)',
+    [hashes],
+  )
+
+  return result.rows
+}
+
 export const objectMappingRepository = {
   saveObjectMappings,
   getByBlockNumber,
@@ -81,4 +91,5 @@ export const objectMappingRepository = {
   getByPieceIndex,
   getByHash,
   getByPieceIndexRange,
+  getByHashes,
 }

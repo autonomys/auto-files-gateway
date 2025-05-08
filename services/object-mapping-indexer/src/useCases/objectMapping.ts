@@ -71,10 +71,19 @@ const getObjectByBlock = async (
   return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
 }
 
+const getObjectMappings = async (
+  hashes: string[],
+): Promise<ObjectMapping[]> => {
+  const objectMappings = await objectMappingRepository.getByHashes(hashes)
+
+  return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
+}
+
 export const objectMappingUseCase = {
   processObjectMapping,
   getObject,
   getObjectByPieceIndex,
   getObjectByBlock,
   getObjectByPieceIndexAndStep,
+  getObjectMappings,
 }

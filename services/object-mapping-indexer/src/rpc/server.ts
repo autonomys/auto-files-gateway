@@ -4,6 +4,7 @@ import { expressApp } from '../http/api.js'
 import { Application } from 'express'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
+import { objectMappingUseCase } from '../useCases/objectMapping.js'
 
 const createObjectMappingsRPCServer = (app: Application) => {
   return ObjectMappingIndexerRPCApi.createServer(
@@ -39,6 +40,9 @@ const createObjectMappingsRPCServer = (app: Application) => {
         objectMappingRouter.unsubscribeRecoverObjectMappings(subscriptionId)
 
         return { success: true }
+      },
+      get_object_mappings: async ({ hashes }) => {
+        return objectMappingUseCase.getObjectMappings(hashes)
       },
     },
     {
