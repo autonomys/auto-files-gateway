@@ -1,12 +1,12 @@
 import Stream, { PassThrough, Readable } from 'stream'
-import { fork } from 'stream-fork'
+import streamFork from 'stream-fork'
 
 export async function forkStream(
   stream: Stream,
 ): Promise<[Readable, Readable]> {
   const passThrough1 = new PassThrough()
   const passThrough2 = new PassThrough()
-  const writable = fork([passThrough1, passThrough2])
+  const writable = streamFork.fork([passThrough1, passThrough2])
 
   stream.pipe(writable)
 
