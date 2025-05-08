@@ -98,7 +98,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
         )
         logger.debug(
           `Failed to parse fetch nodes response: ${JSON.stringify(
-            validatedResponseData.data,
+            response.data,
           )}`,
         )
         throw new HttpError(
