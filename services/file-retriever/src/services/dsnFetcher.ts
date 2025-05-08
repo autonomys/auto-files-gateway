@@ -96,6 +96,11 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
           'Failed to parse fetch nodes response',
           validatedResponseData.error,
         )
+        logger.debug(
+          `Failed to parse fetch nodes response: ${JSON.stringify(
+            validatedResponseData.data,
+          )}`,
+        )
         throw new HttpError(
           500,
           'Internal server error: Failed to parse fetch nodes response',
