@@ -2828,6 +2828,7 @@ __metadata:
     ts-node: "npm:^10.9.2"
     winston: "npm:^3.17.0"
     yocto-queue: "npm:^1.2.0"
+    zero-backpressure-weighted-promise-semaphore: "npm:^1.0.15"
   languageName: unknown
   linkType: soft
 
@@ -9997,6 +9998,13 @@ __metadata:
   version: 1.2.1
   resolution: "yocto-queue@npm:1.2.1"
   checksum: 10c0/5762caa3d0b421f4bdb7a1926b2ae2189fc6e4a14469258f183600028eb16db3e9e0306f46e8ebf5a52ff4b81a881f22637afefbef5399d6ad440824e9b27f9f
+  languageName: node
+  linkType: hard
+
+"zero-backpressure-weighted-promise-semaphore@npm:^1.0.15":
+  version: 1.0.15
+  resolution: "zero-backpressure-weighted-promise-semaphore@npm:1.0.15"
+  checksum: 10c0/738ed8370f200b306d6aa732add8c11babf72b38f7d7ec4bbc558136e553c59096a4a115dbe96288023d71f827c212a5f68c96f03a135a5ed2aad4cc2ff8b1df
   languageName: node
   linkType: hard
 

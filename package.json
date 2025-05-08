@@ -22,7 +22,8 @@
     "stream-fork": "^1.0.5",
     "ts-node": "^10.9.2",
     "winston": "^3.17.0",
-    "yocto-queue": "^1.2.0"
+    "yocto-queue": "^1.2.0",
+    "zero-backpressure-weighted-promise-semaphore": "^1.0.15"
   },
   "devDependencies": {
     "@types/k6": "^1.0.0",
