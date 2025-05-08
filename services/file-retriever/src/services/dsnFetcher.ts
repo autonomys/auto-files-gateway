@@ -34,7 +34,7 @@ const fetchNodesSchema = z.object({
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
 const concurrencyControllerByGateway = gatewayUrls.map(
-  () => new WSem(config.maxSimultaneousFetches),
+  () => new WSem<PBNode[]>(config.maxSimultaneousFetches),
 )
 let gatewayIndex = 0
 
@@ -75,55 +75,48 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     id: requestId,
   }
 
-  return new Promise<PBNode[]>((resolve, reject) => {
-    concurrencyController.waitForCompletion(async () => {
-      try {
-        logger.debug(
-          `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
-        )
-        const fetchStart = performance.now()
-        const response = await axios.post(gatewayUrl, body, {
-          timeout: 3600_000,
-          responseType: 'json',
-        })
-        if (response.status !== 200) {
-          console.error('Failed to fetch nodes', response.status, response.data)
-          throw new HttpError(
-            500,
-            'Internal server error: Failed to fetch nodes',
-          )
-        }
-
-        const validatedResponseData = fetchNodesSchema.safeParse(response.data)
-        if (!validatedResponseData.success) {
-          console.error(
-            'Failed to parse fetch nodes response',
-            validatedResponseData.error,
-          )
-          throw new HttpError(
-            500,
-            'Internal server error: Failed to parse fetch nodes response',
-          )
-        }
-
-        const end = performance.now()
-        logger.debug(
-          `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
-        )
-
-        resolve(
-          validatedResponseData.data.result.map((hex) =>
-            decodeNode(Buffer.from(hex, 'hex')),
-          ),
-        )
-      } catch (error) {
-        logger.error(
-          `Failed to fetch nodes (requestId=${requestId}); error=${error}`,
-        )
-        reject(error)
+  return concurrencyController.waitForCompletion(async () => {
+    try {
+      logger.debug(
+        `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+      )
+      const fetchStart = performance.now()
+      const response = await axios.post(gatewayUrl, body, {
+        timeout: 3600_000,
+        responseType: 'json',
+      })
+      if (response.status !== 200) {
+        console.error('Failed to fetch nodes', response.status, response.data)
+        throw new HttpError(500, 'Internal server error: Failed to fetch nodes')
       }
-    }, objects.length)
-  })
+
+      const validatedResponseData = fetchNodesSchema.safeParse(response.data)
+      if (!validatedResponseData.success) {
+        console.error(
+          'Failed to parse fetch nodes response',
+          validatedResponseData.error,
+        )
+        throw new HttpError(
+          500,
+          'Internal server error: Failed to parse fetch nodes response',
+        )
+      }
+
+      const end = performance.now()
+      logger.debug(
+        `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
+      )
+
+      return validatedResponseData.data.result.map((hex) =>
+        decodeNode(Buffer.from(hex, 'hex')),
+      )
+    } catch (error) {
+      logger.error(
+        `Failed to fetch nodes (requestId=${requestId}); error=${error}`,
+      )
+      throw error
+    }
+  }, objects.length)
 }
 
 /**
