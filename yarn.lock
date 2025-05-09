@@ -43,10 +43,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/asynchronous@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/asynchronous@npm:1.4.19"
-  checksum: 10c0/faa6bc739bbfec932638d0184a02e561be08fd22f2ddc5c62ddb33bbc70c062d70447fe67594855e61d9528ab4f9dde4f96d7c54d74e327f32810b460da96c9e
+"@autonomys/asynchronous@npm:^1.4.21":
+  version: 1.4.21
+  resolution: "@autonomys/asynchronous@npm:1.4.21"
+  checksum: 10c0/3ae2128ff9cc5e0d1e21eb42e87674af432a4760fe3963ab6f95ba84bfbdbe7fcf852aabb458809fed74f314e07b22b160adeddf61564a519aad7d9814702185
   languageName: node
   linkType: hard
 
@@ -69,11 +69,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/auto-dag-data@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/auto-dag-data@npm:1.4.19"
+"@autonomys/auto-dag-data@npm:^1.4.21":
+  version: 1.4.21
+  resolution: "@autonomys/auto-dag-data@npm:1.4.21"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.4.19"
+    "@autonomys/asynchronous": "npm:^1.4.21"
     "@ipld/dag-pb": "npm:^4.1.3"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@webbuf/blake3": "npm:^3.0.26"
@@ -84,27 +84,27 @@ __metadata:
     protobufjs: "npm:^7.4.0"
     protons: "npm:^7.6.0"
     protons-runtime: "npm:^5.5.0"
-  checksum: 10c0/45ec26f0816ac1f2e1aae741b176c4c65794ac53f4b8d7f5761cf147e7a3cdd39db50d9d0112f6834eb0dced23528a96d22542e3d2a5717ec34b84d303cefaad
+  checksum: 10c0/c95aebec660bfbd612514cc2c6bc3b1230f54248fc0c2e5737197bdd4129ceb8d7b1a06afde7bb76b3d0ffe510177cf6317fefc7b140570cc3278bc2495d75ca
   languageName: node
   linkType: hard
 
-"@autonomys/auto-utils@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/auto-utils@npm:1.4.19"
+"@autonomys/auto-utils@npm:^1.4.21":
+  version: 1.4.21
+  resolution: "@autonomys/auto-utils@npm:1.4.21"
   dependencies:
     "@polkadot/api": "npm:^15.8.1"
     "@polkadot/extension-dapp": "npm:^0.58.6"
-  checksum: 10c0/37ae107a353c0933ecc7be6f5999c5b3a5df7fd639dad329ab63693b4c7051481baacb13c0d94191d1f0bbfab42e5e9496e2d35eb2826142e07fa205a2d1d6ea
+  checksum: 10c0/cd00fef9bdd8327bad0f98fd5db734439d3c5044cee566cc1f0d30341717740173cf055b736c372a778dd2c282c317b5a15063df8ae9c384d90110674b22f46f
   languageName: node
   linkType: hard
 
-"@autonomys/file-caching@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/file-caching@npm:1.4.19"
+"@autonomys/file-caching@npm:^1.4.21":
+  version: 1.4.21
+  resolution: "@autonomys/file-caching@npm:1.4.21"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.4.19"
-    "@autonomys/auto-dag-data": "npm:^1.4.19"
-    "@autonomys/auto-utils": "npm:^1.4.19"
+    "@autonomys/asynchronous": "npm:^1.4.21"
+    "@autonomys/auto-dag-data": "npm:^1.4.21"
+    "@autonomys/auto-utils": "npm:^1.4.21"
     "@keyvhq/sqlite": "npm:^2.1.7"
     cache-manager: "npm:^6.4.2"
     jszip: "npm:^3.10.1"
@@ -114,7 +114,7 @@ __metadata:
     stream: "npm:^0.0.3"
     uuid: "npm:^11.1.0"
     zod: "npm:^3.24.2"
-  checksum: 10c0/ff0cd1cd25d7fa867ac7036e3878f36ae57d8db26eec03d8d56c7deb54488013bf40f1aaf3419586a35d93d988dbdc75a3e38081bd13b84a7371d3e936726ef3
+  checksum: 10c0/0a74f70bfc7dadf264c15307d3a1889118329291b7801d2dc4b557f73063f1c00fde092c13d0a0eccc89ac3f250e3b06c7eb735dab3f02f1a7ead308198953cc
   languageName: node
   linkType: hard
 
@@ -135,6 +135,16 @@ __metadata:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
   checksum: 10c0/45b5bb7d5a0d2b3e2ea3a9d3eed35d564c353948efa3994ede343e303729d8da5bdd4886ee8be72d36017ac713680b7cd7c0e1d1cf675b32b40bec0d5199ee20
+  languageName: node
+  linkType: hard
+
+"@autonomys/rpc@npm:^1.4.21":
+  version: 1.4.21
+  resolution: "@autonomys/rpc@npm:1.4.21"
+  dependencies:
+    websocket: "npm:^1.0.35"
+    zod: "npm:^3.24.2"
+  checksum: 10c0/85f4462f90654c2ee6938ad386bce9beab3330694c4c47afd87f7ec6aff552f4a7d7e7d594e3d213bf998e899d62a0bd56bd79b9f8087a48f16836b71d452c69
   languageName: node
   linkType: hard
 
@@ -4744,11 +4754,11 @@ __metadata:
   resolution: "file-retriever@workspace:services/file-retriever"
   dependencies:
     "@auto-files/rpc-apis": "workspace:*"
-    "@autonomys/asynchronous": "npm:^1.4.19"
-    "@autonomys/auto-dag-data": "npm:^1.4.19"
-    "@autonomys/auto-utils": "npm:^1.4.19"
-    "@autonomys/file-caching": "npm:^1.4.19"
-    "@autonomys/rpc": "npm:^1.4.19"
+    "@autonomys/asynchronous": "npm:^1.4.21"
+    "@autonomys/auto-dag-data": "npm:^1.4.21"
+    "@autonomys/auto-utils": "npm:^1.4.21"
+    "@autonomys/file-caching": "npm:^1.4.21"
+    "@autonomys/rpc": "npm:^1.4.21"
     "@ipld/dag-pb": "npm:^4.1.3"
     "@keyvhq/core": "npm:^2.1.1"
     "@keyvhq/sqlite": "npm:^2.1.6"
