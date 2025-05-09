@@ -1,4 +1,3 @@
-import { FileResponse } from '../models/file.js'
 import { dsnFetcher } from './dsnFetcher.js'
 import { forkStream } from '../utils/stream.js'
 import { logger } from '../drivers/logger.js'
@@ -6,6 +5,7 @@ import {
   createFileCache,
   defaultMemoryAndSqliteConfig,
   ensureDirectoryExists,
+  FileResponse,
 } from '@autonomys/file-caching'
 import path from 'path'
 import { config } from '../config.js'

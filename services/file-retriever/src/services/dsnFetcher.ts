@@ -1,4 +1,4 @@
-import { FileResponse } from '../models/file.js'
+import { FileResponse } from '@autonomys/file-caching'
 import {
   blake3HashFromCid,
   stringToCid,
@@ -24,8 +24,8 @@ import {
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
-import { readableToStream } from '../utils/stream.js'
 import { withRetries } from '../utils/retries.js'
+import { Readable } from 'stream'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -141,7 +141,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
  * @param node - The root node of the file
  * @returns A readable stream of the file
  */
-const fetchFileAsStream = (node: PBNode): ReadableStream => {
+const fetchFileAsStream = (node: PBNode): Readable => {
   const metadata = safeIPLDDecode(node)
 
   // if a file is a single node (< 64KB) no additional fetching is needed
@@ -149,10 +149,10 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
     logger.debug(
       `File resolved to single node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata?.size})`,
     )
-    return new ReadableStream({
-      start: async (controller) => {
-        controller.enqueue(Buffer.from(metadata?.data ?? []))
-        controller.close()
+    return new Readable({
+      read: async function () {
+        this.push(Buffer.from(metadata?.data ?? []))
+        this.push(null)
       },
     })
   }
@@ -163,8 +163,8 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
   // if a file is a multi-node file, we need to fetch the nodes in the correct order
   // bearing in mind there might be multiple levels of links, we need to fetch
   // all the links from the root node first and then continue with the next level
-  return new ReadableStream({
-    start: async (controller) => {
+  return new Readable({
+    read: async function () {
       try {
         logger.debug('Starting to fetch file')
         // for the first iteration, we need to fetch all the links from the root node
@@ -202,7 +202,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
             const ipldMetadata = safeIPLDDecode(node)
             // if the node has no links or has data (is the same thing), we write into the stream
             if (ipldMetadata?.data) {
-              controller.enqueue(ipldMetadata.data)
+              this.push(ipldMetadata.data)
             } else {
               // if the node has links, we need to fetch them in the next iteration
               newLinks = newLinks.concat(
@@ -216,12 +216,12 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
           // we update the list of pending requests with the new links
           requestsPending = newLinks
         }
-        controller.close()
+        this.push(null)
       } catch (error) {
         logger.error(
           `Failed to fetch file as stream (cid=${cidToString(cidOfNode(node))}); error=${error}`,
         )
-        controller.error(error)
+        this.emit('error', error)
       }
     },
   })
@@ -251,7 +251,7 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
       nodeMetadata.uploadOptions?.compression?.algorithm ===
         CompressionAlgorithm.ZLIB
 
-    const data = readableToStream(fetchFileAsStream(head))
+    const data = fetchFileAsStream(head)
 
     return {
       data,
