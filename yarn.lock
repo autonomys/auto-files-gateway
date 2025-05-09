@@ -89,12 +89,12 @@ __metadata:
   linkType: hard
 
 "@autonomys/auto-utils@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/auto-utils@npm:1.4.19"
+  version: 1.4.21
+  resolution: "@autonomys/auto-utils@npm:1.4.21"
   dependencies:
     "@polkadot/api": "npm:^15.8.1"
     "@polkadot/extension-dapp": "npm:^0.58.6"
-  checksum: 10c0/37ae107a353c0933ecc7be6f5999c5b3a5df7fd639dad329ab63693b4c7051481baacb13c0d94191d1f0bbfab42e5e9496e2d35eb2826142e07fa205a2d1d6ea
+  checksum: 10c0/cd00fef9bdd8327bad0f98fd5db734439d3c5044cee566cc1f0d30341717740173cf055b736c372a778dd2c282c317b5a15063df8ae9c384d90110674b22f46f
   languageName: node
   linkType: hard
 
