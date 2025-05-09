@@ -25,6 +25,7 @@ import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
 import { readableToStream } from '../utils/stream.js'
+import { withRetries } from '../utils/retries.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -75,41 +76,60 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     id: requestId,
   }
 
-  return concurrencyController(async () => {
-    logger.debug(
-      `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
-    )
-    const fetchStart = performance.now()
-    const response = await axios.post(gatewayUrl, body, {
-      timeout: 3600_000,
-      responseType: 'json',
-    })
-    if (response.status !== 200) {
-      console.error('Failed to fetch nodes', response.status, response.data)
-      throw new HttpError(500, 'Internal server error: Failed to fetch nodes')
-    }
+  return concurrencyController(
+    async () =>
+      withRetries(
+        async () => {
+          logger.debug(
+            `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+          )
+          const fetchStart = performance.now()
+          const response = await axios.post(gatewayUrl, body, {
+            timeout: 3600_000,
+            responseType: 'json',
+          })
+          if (response.status !== 200) {
+            console.error(
+              'Failed to fetch nodes',
+              response.status,
+              response.data,
+            )
+            throw new HttpError(
+              500,
+              'Internal server error: Failed to fetch nodes',
+            )
+          }
 
-    const validatedResponseData = fetchNodesSchema.safeParse(response.data)
-    if (!validatedResponseData.success) {
-      console.error(
-        'Failed to parse fetch nodes response',
-        validatedResponseData.error,
-      )
-      throw new HttpError(
-        500,
-        'Internal server error: Failed to parse fetch nodes response',
-      )
-    }
+          const validatedResponseData = fetchNodesSchema.safeParse(
+            response.data,
+          )
+          if (!validatedResponseData.success) {
+            console.error(
+              'Failed to parse fetch nodes response',
+              validatedResponseData.error,
+            )
+            throw new HttpError(
+              500,
+              'Internal server error: Failed to parse fetch nodes response',
+            )
+          }
 
-    const end = performance.now()
-    logger.debug(
-      `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
-    )
+          const end = performance.now()
+          logger.debug(
+            `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
+          )
 
-    return validatedResponseData.data.result.map((hex) =>
-      decodeNode(Buffer.from(hex, 'hex')),
-    )
-  }, objects.length)
+          return validatedResponseData.data.result.map((hex) =>
+            decodeNode(Buffer.from(hex, 'hex')),
+          )
+        },
+        {
+          maxRetries: 3,
+          delay: 500,
+        },
+      ),
+    objects.length,
+  )
 }
 
 /**
