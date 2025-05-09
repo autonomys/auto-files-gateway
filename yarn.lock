@@ -118,27 +118,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/rpc@npm:^1.4.14":
-  version: 1.4.17
-  resolution: "@autonomys/rpc@npm:1.4.17"
-  dependencies:
-    websocket: "npm:^1.0.35"
-    zod: "npm:^3.24.2"
-  checksum: 10c0/9ed13b51758a3d00957844c166d66678497f23bfe569d01ec1b80bca1a6dc2d0999b6cdc13cc8d28c737b4d39d3449b6462ef731979583c536735e83107c4283
-  languageName: node
-  linkType: hard
-
-"@autonomys/rpc@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/rpc@npm:1.4.19"
-  dependencies:
-    websocket: "npm:^1.0.35"
-    zod: "npm:^3.24.2"
-  checksum: 10c0/45b5bb7d5a0d2b3e2ea3a9d3eed35d564c353948efa3994ede343e303729d8da5bdd4886ee8be72d36017ac713680b7cd7c0e1d1cf675b32b40bec0d5199ee20
-  languageName: node
-  linkType: hard
-
-"@autonomys/rpc@npm:^1.4.21":
+"@autonomys/rpc@npm:^1.4.14, @autonomys/rpc@npm:^1.4.19, @autonomys/rpc@npm:^1.4.21":
   version: 1.4.21
   resolution: "@autonomys/rpc@npm:1.4.21"
   dependencies:
