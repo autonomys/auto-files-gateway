@@ -1,6 +1,6 @@
 {
   "name": "file-retriever",
-  "packageManager": "yarn@4.2.2",
+  "packageManager": "yarn@4.9.1",
   "type": "module",
   "dependencies": {
     "@auto-files/rpc-apis": "workspace:*",
