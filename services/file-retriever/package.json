@@ -36,7 +36,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "devrun": "node --loader ts-node/esm",
-    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand --coverage"
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand --coverage",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@types/cpu-features": "^0",

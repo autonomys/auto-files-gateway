@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { defineUnvalidatedType, createApiDefinition } from '@autonomys/rpc'
 import { z } from 'zod'
 import { ObjectMapping } from '@auto-files/models'

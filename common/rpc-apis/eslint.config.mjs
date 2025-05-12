@@ -5,7 +5,6 @@ import tsParser from '@typescript-eslint/parser'
 import prettier from 'eslint-plugin-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import globals from 'globals'
-import requireExtensions from 'eslint-plugin-require-extensions'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -36,13 +35,12 @@ export default defineConfig([
     extends: compat.extends(
       'eslint:recommended',
       'plugin:@typescript-eslint/recommended',
-      'plugin:require-extensions/error',
+      'plugin:require-extensions/recommended',
       'prettier',
     ),
 
     plugins: {
       '@typescript-eslint': typescriptEslint,
-      'require-extensions': requireExtensions,
       prettier,
     },
 
@@ -69,6 +67,7 @@ export default defineConfig([
       'spaced-comment': 'error',
       quotes: ['error', 'single'],
       'no-duplicate-imports': 'error',
+      'require-extensions/require-extensions': 'error',
     },
   },
 ])

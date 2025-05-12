@@ -1,6 +1,6 @@
-import { config } from '../src/config'
-import { optimizeBatchFetch } from '../src/services/batchOptimizer'
-import { ObjectMapping } from '../src/services/objectMappingIndexer'
+import { config } from '../src/config.js'
+import { optimizeBatchFetch } from '../src/services/batchOptimizer.js'
+import { ObjectMapping } from '@auto-files/models'
 
 describe('Batch Optimizer', () => {
   it('should optimize the batch and merge the batches', () => {
