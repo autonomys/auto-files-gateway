@@ -17,7 +17,7 @@
     "test": "yarn workspaces foreach --topological --verbose --all run test"
   },
   "dependencies": {
-    "@autonomys/rpc": "^1.4.14",
+    "@autonomys/rpc": "^1.4.22",
     "axios": "^1.7.9",
     "stream-fork": "^1.0.5",
     "ts-node": "^10.9.2",

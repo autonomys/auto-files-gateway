@@ -17,7 +17,7 @@
     "@auto-files/models": "workspace:*",
     "@auto-files/rpc-apis": "workspace:*",
     "@autonomys/auto-dag-data": "^1.0.5",
-    "@autonomys/rpc": "^1.4.14",
+    "@autonomys/rpc": "^1.4.22",
     "@peculiar/webcrypto": "^1.5.0",
     "@types/node": "^22.10.2",
     "cors": "^2.8.5",
