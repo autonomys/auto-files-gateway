@@ -9,6 +9,10 @@
 # In that case, don't forget to run `yarn config set enableGlobalCache false`!
 # Documentation here: https://yarnpkg.com/features/caching#zero-installs
 
+# Debug Scripts
+*.debug.ts
+*.debug.js
+
 #!.yarn/cache
 .pnp.*
 # Logs
