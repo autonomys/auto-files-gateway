@@ -681,11 +681,11 @@ __metadata:
   linkType: hard
 
 "@ipld/dag-pb@npm:^4.1.3":
-  version: 4.1.3
-  resolution: "@ipld/dag-pb@npm:4.1.3"
+  version: 4.1.4
+  resolution: "@ipld/dag-pb@npm:4.1.4"
   dependencies:
     multiformats: "npm:^13.1.0"
-  checksum: 10c0/c785c8e291c7c417618b43381a57672feda61e1fed8aaf3365e306f29b31d4770cf54f68a4de4fac03775a768d93c2be11690a008e0856851a5b64a4b7d27efc
+  checksum: 10c0/24e2e7297b021e775f9de51afd0050300bcca91c10eeac47a6fd797c2a5210610748ec42502d70f9de6813fce6b2a632bf5cf669ceb10d352ff9dedcdf8eaeff
   languageName: node
   linkType: hard
 
