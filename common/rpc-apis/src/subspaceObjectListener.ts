@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { ObjectMappingListEntry } from '@auto-files/models'
 import { createApiDefinition, defineUnvalidatedType } from '@autonomys/rpc'
 
