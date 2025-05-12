@@ -170,14 +170,11 @@ const fetchFileAsStream = (node: PBNode): Readable => {
         )
         while (requestsPending.length > 0) {
           // we fetch the object mappings in parallel
-          const objectMappings = await objectMappingIndexer
-            .get_object_mappings({
+          const objectMappings = await objectMappingIndexer.get_object_mappings(
+            {
               hashes: requestsPending,
-            })
-            .then((objectMappings) =>
-              objectMappings.map((e) => [e[0], e[1], e[2]]),
-            )
-
+            },
+          )
           // we group the object mapping by the piece index
           const nodes = optimizeBatchFetch(objectMappings)
 
