@@ -1,19 +1,14 @@
 import { PassThrough, Readable } from 'stream'
+import streamFork from 'stream-fork'
 
-export async function forkAsyncIterable(
-  asyncIterable: AsyncIterable<Buffer>,
+export async function forkStream(
+  stream: Readable,
 ): Promise<[Readable, Readable]> {
   const passThrough1 = new PassThrough()
   const passThrough2 = new PassThrough()
+  const writable = streamFork.fork([passThrough1, passThrough2])
 
-  ;(async () => {
-    for await (const chunk of asyncIterable) {
-      passThrough1.write(chunk)
-      passThrough2.write(chunk)
-    }
-    passThrough1.end()
-    passThrough2.end()
-  })()
+  stream.pipe(writable)
 
   return [passThrough1, passThrough2]
 }

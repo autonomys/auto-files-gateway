@@ -1,4 +1,4 @@
-import { FileResponse } from '../models/file.js'
+import { FileResponse } from '@autonomys/file-caching'
 import {
   blake3HashFromCid,
   stringToCid,
@@ -24,6 +24,8 @@ import {
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
+import { withRetries } from '../utils/retries.js'
+import { Readable } from 'stream'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -52,6 +54,11 @@ const getObjectMappingHash = (cid: string) => {
  * @returns The list of nodes
  */
 const fetchObjects = async (objects: ObjectMapping[]) => {
+  const requestId = Math.floor(Math.random() * 65535)
+  const now = performance.now()
+  logger.debug(
+    `Enqueuing nodes fetch (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+  )
   const mappings: GlobalObjectMappingRequest = {
     v0: {
       objects,
@@ -66,42 +73,63 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     jsonrpc: '2.0',
     method: 'subspace_fetchObject',
     params: { mappings },
-    id: Math.floor(Math.random() * 65535),
+    id: requestId,
   }
 
-  return concurrencyController(async () => {
-    const now = performance.now()
-    logger.debug(
-      `Fetching nodes: ${body.params.mappings.v0.objects.map((e) => e[0]).join(', ')}`,
-    )
-    const response = await axios.post(gatewayUrl, body, {
-      timeout: 3600_000,
-      responseType: 'json',
-    })
-    if (response.status !== 200) {
-      console.error('Failed to fetch nodes', response.status, response.data)
-      throw new HttpError(500, 'Internal server error: Failed to fetch nodes')
-    }
+  return concurrencyController(
+    async () =>
+      withRetries(
+        async () => {
+          logger.debug(
+            `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+          )
+          const fetchStart = performance.now()
+          const response = await axios.post(gatewayUrl, body, {
+            timeout: 3600_000,
+            responseType: 'json',
+          })
+          if (response.status !== 200) {
+            console.error(
+              'Failed to fetch nodes',
+              response.status,
+              response.data,
+            )
+            throw new HttpError(
+              500,
+              'Internal server error: Failed to fetch nodes',
+            )
+          }
 
-    const validatedResponseData = fetchNodesSchema.safeParse(response.data)
-    if (!validatedResponseData.success) {
-      console.error(
-        'Failed to parse fetch nodes response',
-        validatedResponseData.error,
-      )
-      throw new HttpError(
-        500,
-        'Internal server error: Failed to parse fetch nodes response',
-      )
-    }
+          const validatedResponseData = fetchNodesSchema.safeParse(
+            response.data,
+          )
+          if (!validatedResponseData.success) {
+            console.error(
+              'Failed to parse fetch nodes response',
+              validatedResponseData.error,
+            )
+            throw new HttpError(
+              500,
+              'Internal server error: Failed to parse fetch nodes response',
+            )
+          }
 
-    const end = performance.now()
-    logger.debug(`Fetching ${objects.length} nodes took ${end - now}ms`)
+          const end = performance.now()
+          logger.debug(
+            `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
+          )
 
-    return validatedResponseData.data.result.map((hex) =>
-      decodeNode(Buffer.from(hex, 'hex')),
-    )
-  }, objects.length)
+          return validatedResponseData.data.result.map((hex) =>
+            decodeNode(Buffer.from(hex, 'hex')),
+          )
+        },
+        {
+          maxRetries: 3,
+          delay: 500,
+        },
+      ),
+    objects.length,
+  )
 }
 
 /**
@@ -113,7 +141,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
  * @param node - The root node of the file
  * @returns A readable stream of the file
  */
-const fetchFileAsStream = (node: PBNode): ReadableStream => {
+const fetchFileAsStream = (node: PBNode): Readable => {
   const metadata = safeIPLDDecode(node)
 
   // if a file is a single node (< 64KB) no additional fetching is needed
@@ -121,10 +149,10 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
     logger.debug(
       `File resolved to single node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata?.size})`,
     )
-    return new ReadableStream({
-      start: async (controller) => {
-        controller.enqueue(Buffer.from(metadata?.data ?? []))
-        controller.close()
+    return new Readable({
+      read: async function () {
+        this.push(Buffer.from(metadata?.data ?? []))
+        this.push(null)
       },
     })
   }
@@ -135,8 +163,8 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
   // if a file is a multi-node file, we need to fetch the nodes in the correct order
   // bearing in mind there might be multiple levels of links, we need to fetch
   // all the links from the root node first and then continue with the next level
-  return new ReadableStream({
-    start: async (controller) => {
+  return new Readable({
+    read: async function () {
       try {
         logger.debug('Starting to fetch file')
         // for the first iteration, we need to fetch all the links from the root node
@@ -174,7 +202,7 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
             const ipldMetadata = safeIPLDDecode(node)
             // if the node has no links or has data (is the same thing), we write into the stream
             if (ipldMetadata?.data) {
-              controller.enqueue(ipldMetadata.data)
+              this.push(ipldMetadata.data)
             } else {
               // if the node has links, we need to fetch them in the next iteration
               newLinks = newLinks.concat(
@@ -188,12 +216,12 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
           // we update the list of pending requests with the new links
           requestsPending = newLinks
         }
-        controller.close()
+        this.push(null)
       } catch (error) {
         logger.error(
           `Failed to fetch file as stream (cid=${cidToString(cidOfNode(node))}); error=${error}`,
         )
-        controller.error(error)
+        this.emit('error', error)
       }
     },
   })

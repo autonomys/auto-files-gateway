@@ -1,11 +1,11 @@
-import { FileResponse } from '../models/file.js'
 import { dsnFetcher } from './dsnFetcher.js'
-import { forkAsyncIterable } from '../utils/stream.js'
+import { forkStream } from '../utils/stream.js'
 import { logger } from '../drivers/logger.js'
 import {
   createFileCache,
   defaultMemoryAndSqliteConfig,
   ensureDirectoryExists,
+  FileResponse,
 } from '@autonomys/file-caching'
 import path from 'path'
 import { config } from '../config.js'
@@ -37,7 +37,7 @@ const get = async (
   logger.debug(`Fetching file from DSN ${cid} took ${end - start}ms`)
 
   start = performance.now()
-  const [data, cachingStream] = await forkAsyncIterable(file.data)
+  const [data, cachingStream] = await forkStream(file.data)
   end = performance.now()
   logger.debug(`Forking file ${cid} took ${end - start}ms`)
 
