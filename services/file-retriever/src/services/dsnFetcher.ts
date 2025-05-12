@@ -179,6 +179,7 @@ const fetchFileAsStream = (node: PBNode): Readable => {
           const nodes = optimizeBatchFetch(objectMappings)
 
           // we fetch the nodes in parallel grouped by the piece index
+          // and we create a map of the nodes by their hash
           const objectsByHash = fromEntries(
             await promiseAll(
               nodes.map((list) =>
