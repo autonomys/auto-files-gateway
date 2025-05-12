@@ -24,7 +24,6 @@ import {
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
-import pLimit from 'p-limit'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -33,7 +32,9 @@ const fetchNodesSchema = z.object({
 })
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
-const concurrencyControllerByGateway = pLimit(1)
+const concurrencyControllerByGateway = gatewayUrls.map(() =>
+  weightedRequestConcurrencyController(config.maxSimultaneousFetches),
+)
 let gatewayIndex = 0
 
 const getObjectMappingHash = (cid: string) => {
@@ -59,7 +60,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
 
   const index = gatewayIndex++ % gatewayUrls.length
   const gatewayUrl = gatewayUrls[index]
-  const concurrencyController = concurrencyControllerByGateway
+  const concurrencyController = concurrencyControllerByGateway[index]
 
   const body = {
     jsonrpc: '2.0',
@@ -100,7 +101,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     return validatedResponseData.data.result.map((hex) =>
       decodeNode(Buffer.from(hex, 'hex')),
     )
-  })
+  }, objects.length)
 }
 
 /**
