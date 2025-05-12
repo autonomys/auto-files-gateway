@@ -118,43 +118,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/rpc@npm:^1.4.14":
-  version: 1.4.17
-  resolution: "@autonomys/rpc@npm:1.4.17"
+"@autonomys/rpc@npm:^1.4.14, @autonomys/rpc@npm:^1.4.19, @autonomys/rpc@npm:^1.4.20, @autonomys/rpc@npm:^1.4.21":
+  version: 1.4.22
+  resolution: "@autonomys/rpc@npm:1.4.22"
   dependencies:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
-  checksum: 10c0/9ed13b51758a3d00957844c166d66678497f23bfe569d01ec1b80bca1a6dc2d0999b6cdc13cc8d28c737b4d39d3449b6462ef731979583c536735e83107c4283
-  languageName: node
-  linkType: hard
-
-"@autonomys/rpc@npm:^1.4.19":
-  version: 1.4.19
-  resolution: "@autonomys/rpc@npm:1.4.19"
-  dependencies:
-    websocket: "npm:^1.0.35"
-    zod: "npm:^3.24.2"
-  checksum: 10c0/45b5bb7d5a0d2b3e2ea3a9d3eed35d564c353948efa3994ede343e303729d8da5bdd4886ee8be72d36017ac713680b7cd7c0e1d1cf675b32b40bec0d5199ee20
-  languageName: node
-  linkType: hard
-
-"@autonomys/rpc@npm:^1.4.20":
-  version: 1.4.20
-  resolution: "@autonomys/rpc@npm:1.4.20"
-  dependencies:
-    websocket: "npm:^1.0.35"
-    zod: "npm:^3.24.2"
-  checksum: 10c0/b62d0ed93ba8b3227da773568609a883be5ca7388143f55fe60c1fcbcca09883a8a669d14a9a9a455729b6a84ad78b32f4da98dff309a86ef6cbd272c6aad694
-  languageName: node
-  linkType: hard
-
-"@autonomys/rpc@npm:^1.4.21":
-  version: 1.4.21
-  resolution: "@autonomys/rpc@npm:1.4.21"
-  dependencies:
-    websocket: "npm:^1.0.35"
-    zod: "npm:^3.24.2"
-  checksum: 10c0/85f4462f90654c2ee6938ad386bce9beab3330694c4c47afd87f7ec6aff552f4a7d7e7d594e3d213bf998e899d62a0bd56bd79b9f8087a48f16836b71d452c69
+  checksum: 10c0/d98c9dbea15e38f1e74463c7ecac55eef0e0008a2987f3a4340774661710210e00e5d28de516bfe29cc6e07114cf1933e743dc2032a324dbaf675c5bbb4904c5
   languageName: node
   linkType: hard
 
