@@ -76,7 +76,20 @@ const getObjectMappings = async (
 ): Promise<ObjectMapping[]> => {
   const objectMappings = await objectMappingRepository.getByHashes(hashes)
 
-  return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
+  // Create a map of hash to object mapping for quick lookup
+  const mappingsByHash = new Map<string, ObjectMapping>(
+    objectMappings.map((e) => [e.hash, [e.hash, e.pieceIndex, e.pieceOffset]]),
+  )
+
+  // Return results in the same order as input hashes
+  return hashes.map((hash) => {
+    const mapping = mappingsByHash.get(hash)
+    if (!mapping) {
+      throw new Error('Object mapping not found')
+    }
+
+    return mapping
+  })
 }
 
 export const objectMappingUseCase = {
