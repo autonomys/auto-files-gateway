@@ -1,6 +1,11 @@
 import { ObjectMapping } from '@auto-files/models'
 import { config } from '../config.js'
 
+const maxObjectsPerBatch = Math.min(
+  config.maxObjectsPerFetch,
+  config.maxSimultaneousFetches,
+)
+
 export const optimizeBatchFetch = (
   objects: ObjectMapping[],
 ): ObjectMapping[][] => {
@@ -21,7 +26,7 @@ export const optimizeBatchFetch = (
       pieceIndex === safePieceIndex ||
       pieceIndex === safePieceIndex + 1 ||
       lastPieceIndex === null
-    const isFull = currentBatch.length === config.maxObjectsPerFetch
+    const isFull = currentBatch.length === maxObjectsPerBatch
 
     // if pieces are not consecutive, they're not sharing the same piece
     if (isSameOrConsecutive && !isFull) {
@@ -43,7 +48,7 @@ export const optimizeBatchFetch = (
   return optimizedObjects.reduce(
     (acc, curr) => {
       const lastBatch = acc[acc.length - 1]
-      if (lastBatch.length + curr.length <= config.maxObjectsPerFetch) {
+      if (lastBatch.length + curr.length <= maxObjectsPerBatch) {
         acc[acc.length - 1] = lastBatch.concat(curr)
       } else {
         acc.push(curr)
