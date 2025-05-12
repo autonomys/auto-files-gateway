@@ -16,14 +16,11 @@ import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 import axios from 'axios'
-import {
-  fetchObjectMapping,
-  GlobalObjectMappingRequest,
-  ObjectMapping,
-} from './objectMappingIndexer.js'
+import { objectMappingIndexer } from './objectMappingIndexer.js'
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
+import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 
@@ -59,7 +56,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   logger.debug(
     `Enqueuing nodes fetch (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
   )
-  const mappings: GlobalObjectMappingRequest = {
+  const mappings = {
     v0: {
       objects,
     },
@@ -172,18 +169,17 @@ const fetchFileAsStream = (node: PBNode): Readable => {
           getObjectMappingHash(cidToString(Hash)),
         )
         while (requestsPending.length > 0) {
-          // for each iteration, we fetch the nodes in batches of MAX_SIMULTANEOUS_FETCHES
-          const requestingNodes = requestsPending
-
           // we fetch the object mappings in parallel
-          const objectMappings = await Promise.all(
-            requestingNodes.map(async (hash) => await fetchObjectMapping(hash)),
+          const objectMappings = await objectMappingIndexer.get_object_mappings(
+            {
+              hashes: requestsPending,
+            },
           )
-
           // we group the object mapping by the piece index
           const nodes = optimizeBatchFetch(objectMappings)
 
           // we fetch the nodes in parallel grouped by the piece index
+          // and we create a map of the nodes by their hash
           const objectsByHash = fromEntries(
             await promiseAll(
               nodes.map((list) =>
@@ -229,7 +225,9 @@ const fetchFileAsStream = (node: PBNode): Readable => {
 
 const fetchFile = async (cid: string): Promise<FileResponse> => {
   try {
-    const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
+    const [objectMapping] = await objectMappingIndexer.get_object_mappings({
+      hashes: [getObjectMappingHash(cid)],
+    })
     const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
     logger.info(
       `Fetched hash=${objectMapping[0]} pieceIndex=${objectMapping[1]} pieceOffset=${objectMapping[2]}`,
@@ -270,7 +268,9 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
 }
 
 const fetchNode = async (cid: string) => {
-  const objectMapping = await fetchObjectMapping(getObjectMappingHash(cid))
+  const [objectMapping] = await objectMappingIndexer.get_object_mappings({
+    hashes: [getObjectMappingHash(cid)],
+  })
   const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
   return head
 }

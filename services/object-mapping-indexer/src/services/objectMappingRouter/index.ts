@@ -28,9 +28,12 @@ const init = async () => {
 }
 
 const subscribeObjectMappings = (
-  connection: Websocket.connection,
+  connection: Websocket.connection | undefined,
   subscriptionId: string = v4(),
 ) => {
+  if (!connection) {
+    throw new Error('Subscribe object mappings is not supported over http')
+  }
   logger.info(`IP (${connection.remoteAddress}) subscribing to object mappings`)
   state.objectMappingsSubscriptions.set(subscriptionId, connection)
   return subscriptionId
@@ -69,10 +72,13 @@ const emitObjectMappings = (event: ObjectMappingListEntry) => {
 }
 
 const subscribeRecoverObjectMappings = (
-  connection: Websocket.connection,
+  connection: Websocket.connection | undefined,
   startingPieceIndex: number,
   step: number = 1,
 ) => {
+  if (!connection) {
+    throw new Error('Subscribe object mappings is not supported over http')
+  }
   logger.info(
     `IP (${connection.remoteAddress}) subscribing to recover object mappings`,
   )
