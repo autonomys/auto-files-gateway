@@ -39,7 +39,7 @@ services:
       - METRIC_ENVIRONMENT_TAG=${METRIC_ENVIRONMENT_TAG}
       - VICTORIA_USERNAME=${VICTORIA_USERNAME}
       - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
-      - OBJECT_MAPPING_INDEXER_URL=http://object-mapping-app:3000
+      - OBJECT_MAPPING_INDEXER_URL=http://object-mapping-app:3000/ws
     depends_on:
       subspace-node:
         condition: service_healthy
