@@ -1,5 +1,5 @@
 import { dsnFetcher } from './dsnFetcher.js'
-import { forkStream } from '../utils/stream.js'
+import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
 import {
   createFileCache,
