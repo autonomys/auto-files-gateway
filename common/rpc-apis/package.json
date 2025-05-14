@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "@auto-files/models": "workspace:*",
-    "@autonomys/rpc": "^1.4.22",
+    "@autonomys/rpc": "^1.4.23",
     "zod": "^3.24.2"
   },
   "exports": {
