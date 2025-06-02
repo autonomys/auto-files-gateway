@@ -12,6 +12,8 @@ services:
       - '30433:30433'
       - '127.0.0.1:9944:9944'
     restart: unless-stopped
+    environment:
+      - RUST_LOG=${RUST_LOG_NODE:-info}
     command: >
       run
       --chain ${NETWORK_ID}
