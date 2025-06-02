@@ -36,13 +36,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@autonomys/asynchronous@npm:^1.4.17":
-  version: 1.4.17
-  resolution: "@autonomys/asynchronous@npm:1.4.17"
-  checksum: 10c0/f3fe5f5849108a73b45ac9c05f68034730c5ca64fd77c1ed63b1e6f7d7e9d7c1a1d425ec0cc8f436f4e3d5021b904be61647940565d2d8b90277177eac846c3e
-  languageName: node
-  linkType: hard
-
 "@autonomys/asynchronous@npm:^1.4.31":
   version: 1.4.31
   resolution: "@autonomys/asynchronous@npm:1.4.31"
@@ -52,22 +45,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@autonomys/auto-dag-data@npm:^1.0.5":
-  version: 1.4.17
-  resolution: "@autonomys/auto-dag-data@npm:1.4.17"
+"@autonomys/asynchronous@npm:^1.4.35":
+  version: 1.4.35
+  resolution: "@autonomys/asynchronous@npm:1.4.35"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.4.17"
-    "@ipld/dag-pb": "npm:^4.1.3"
-    "@peculiar/webcrypto": "npm:^1.5.0"
-    "@webbuf/blake3": "npm:^3.0.26"
-    "@webbuf/fixedbuf": "npm:^3.0.26"
-    "@webbuf/webbuf": "npm:^3.0.26"
-    fflate: "npm:^0.8.2"
-    multiformats: "npm:^13.3.2"
-    protobufjs: "npm:^7.4.0"
-    protons: "npm:^7.6.0"
-    protons-runtime: "npm:^5.5.0"
-  checksum: 10c0/313b73af85452aec908a08483f946f41ebeb9be08a691e5d1b6cad20ca6e2c07aadd09f446499a693f192e688c2622c36e4c3142ac4f54aa8acda108e8779a0f
+    stream-fork: "npm:^1.0.5"
+  checksum: 10c0/493a64e21cc64eca6c252fef68b0de3f7fbccf3428cf0c9d6b74458aa0aff6ca74f139bb9790234a0c5d42d743b8672e10efd15cd567bf2096967fc1434a41c7
   languageName: node
   linkType: hard
 
@@ -87,6 +70,25 @@ __metadata:
     protons: "npm:^7.6.0"
     protons-runtime: "npm:^5.5.0"
   checksum: 10c0/f06fbeeac5e2266e233539791d2435d1220e6c53c2bf3ee38a03b5e332526d84ad53bb6569e5b9607c06e09c53fcaf8339c1dc4d2421497807c882d8d7502ce2
+  languageName: node
+  linkType: hard
+
+"@autonomys/auto-dag-data@npm:^1.4.35":
+  version: 1.4.35
+  resolution: "@autonomys/auto-dag-data@npm:1.4.35"
+  dependencies:
+    "@autonomys/asynchronous": "npm:^1.4.35"
+    "@ipld/dag-pb": "npm:^4.1.3"
+    "@peculiar/webcrypto": "npm:^1.5.0"
+    "@webbuf/blake3": "npm:^3.0.26"
+    "@webbuf/fixedbuf": "npm:^3.0.26"
+    "@webbuf/webbuf": "npm:^3.0.26"
+    fflate: "npm:^0.8.2"
+    multiformats: "npm:^13.3.2"
+    protobufjs: "npm:^7.4.0"
+    protons: "npm:^7.6.0"
+    protons-runtime: "npm:^5.5.0"
+  checksum: 10c0/bbe022a5b936e446f737f12a9f063704967b483ad0f1b59435f16908e38fc2551f27e0d46352d2f8fcea831323257f1995faf1589beec48dd2e4085dea7ede60
   languageName: node
   linkType: hard
 
@@ -7307,7 +7309,7 @@ __metadata:
   dependencies:
     "@auto-files/models": "workspace:*"
     "@auto-files/rpc-apis": "workspace:*"
-    "@autonomys/auto-dag-data": "npm:^1.0.5"
+    "@autonomys/auto-dag-data": "npm:^1.4.35"
     "@autonomys/rpc": "npm:^1.4.31"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@types/cors": "npm:^2.8.17"

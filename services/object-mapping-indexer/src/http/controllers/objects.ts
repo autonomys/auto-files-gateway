@@ -27,6 +27,18 @@ objectsController.get('/:hash', async (req, res, next) => {
   }
 })
 
+objectsController.get('/by-cid/:cid', async (req, res, next) => {
+  try {
+    const { cid } = req.params
+
+    const object = await objectMappingUseCase.getObjectByCid(cid)
+
+    res.json(object)
+  } catch (err) {
+    next(err)
+  }
+})
+
 objectsController.get('/by-block/:blockNumber', async (req, res, next) => {
   try {
     const { blockNumber } = req.params

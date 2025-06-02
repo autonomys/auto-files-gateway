@@ -5,6 +5,7 @@ import {
 } from '@auto-files/models'
 import { objectMappingRepository } from '../repositories/objectMapping.js'
 import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
+import { blake3HashFromCid, stringToCid } from '@autonomys/auto-dag-data'
 
 const processObjectMapping = async (event: ObjectMappingListEntry) => {
   await Promise.all([
@@ -92,6 +93,20 @@ const getObjectMappings = async (
   })
 }
 
+const getObjectByCid = async (cid: string): Promise<ObjectMapping> => {
+  const hash = Buffer.from(blake3HashFromCid(stringToCid(cid))).toString('hex')
+  const objectMapping = await objectMappingRepository.getByHash(hash)
+  if (!objectMapping) {
+    throw new Error('Object mapping not found')
+  }
+
+  return [
+    objectMapping.hash,
+    objectMapping.pieceIndex,
+    objectMapping.pieceOffset,
+  ]
+}
+
 export const objectMappingUseCase = {
   processObjectMapping,
   getObject,
@@ -99,4 +114,5 @@ export const objectMappingUseCase = {
   getObjectByBlock,
   getObjectByPieceIndexAndStep,
   getObjectMappings,
+  getObjectByCid,
 }
