@@ -16,7 +16,7 @@ services:
     stop_grace_period: 30s
     command: rpc --node-rpc-url ws://subspace-node:9944/ws --rpc-listen-on 0.0.0.0:9955 --allow-private-ips --out-connections ${OUT_CONNECTIONS} --pending-out-connections ${PENDING_OUT_CONNECTIONS}
     environment:
-      - RUST_LOG=debug
+      - RUST_LOG=${RUST_LOG_GATEWAY:-info}
   file-retriever:
     image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
