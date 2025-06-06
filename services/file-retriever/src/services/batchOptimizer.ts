@@ -6,6 +6,7 @@ const maxObjectsPerBatch = Math.min(
   config.maxSimultaneousFetches,
 )
 
+// Optimize the batch fetch by grouping objects by piece index
 export const optimizeBatchFetch = (
   objects: ObjectMapping[],
 ): ObjectMapping[][] => {
@@ -43,9 +44,12 @@ export const optimizeBatchFetch = (
     currentBatch = []
   }
 
-  // Once we have optimized the list of objects we
-  // merge the batches unless they exceed the max objects per fetch
-  return optimizedObjects.reduce(
+  return optimizedObjects
+}
+
+// Merge batches unless they exceed the max objects per fetch
+export const mergeBatches = (batches: ObjectMapping[][]): ObjectMapping[][] => {
+  return batches.reduce(
     (acc, curr) => {
       const lastBatch = acc[acc.length - 1]
       if (lastBatch.length + curr.length <= maxObjectsPerBatch) {

@@ -7,6 +7,8 @@ import {
   cidToString,
   CompressionAlgorithm,
   cidOfNode,
+  cidFromBlakeHash,
+  decodeIPLDNodeData,
 } from '@autonomys/auto-dag-data'
 import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
@@ -20,9 +22,18 @@ import { objectMappingIndexer } from './objectMappingIndexer.js'
 import { fromEntries, promiseAll } from '../utils/array.js'
 import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
-import { ObjectMapping } from '@auto-files/models'
+import {
+  ObjectMapping,
+  AsyncDownloadTree,
+  AsyncDownloadNode,
+  getNodeByIndex,
+  getLeftmostNode,
+  getUnresolvedNodes,
+  setChildrenToNode,
+} from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
+import { asyncDownloadTreeCache } from './asyncDownloadTreeCache.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -164,14 +175,10 @@ const fetchFileAsStream = (node: PBNode): Readable => {
   // if a file is a multi-node file, we need to fetch the nodes in the correct order
   // bearing in mind there might be multiple levels of links, we need to fetch
   // all the links from the root node first and then continue with the next level
+  
   return new Readable({
     read: async function () {
       try {
-        logger.debug('Starting to fetch file')
-        // for the first iteration, we need to fetch all the links from the root node
-        let requestsPending = node.Links.map(({ Hash }) =>
-          getObjectMappingHash(cidToString(Hash)),
-        )
         while (requestsPending.length > 0) {
           // we fetch the object mappings in parallel
           const objectMappings = await objectMappingIndexer.get_object_mappings(
@@ -184,7 +191,7 @@ const fetchFileAsStream = (node: PBNode): Readable => {
 
           // we fetch the nodes in parallel grouped by the piece index
           // and we create a map of the nodes by their hash
-          const objectsByHash = fromEntries(
+          const objectsByHash = fromEntries<string, PBNode>(
             await promiseAll(
               nodes.map((list) =>
                 fetchObjects(list).then((nodes) =>
@@ -279,8 +286,110 @@ const fetchNode = async (cid: string) => {
   return head
 }
 
+// Returns the max link depth for the current tree iteration
+const getPartial = async (
+  cid: string,
+  index: number,
+): Promise<Buffer | null> => {
+  const asyncDownloadTree = asyncDownloadTreeCache.get(cid)
+
+  // If the tree is not in the cache we fetch the node and create the tree
+  if (!asyncDownloadTree) {
+    const node = await fetchNode(cid)
+    const ipldData = decodeIPLDNodeData(node.Data!)
+
+    if (ipldData.linkDepth === 0) {
+      return Buffer.from(node.Data!)
+    }
+
+    const tree: AsyncDownloadTree = {
+      cid,
+      linkDepth: ipldData.linkDepth,
+      children: undefined,
+    }
+    asyncDownloadTreeCache.set(cid, tree)
+    return null
+  }
+
+  const node = getNodeByIndex(asyncDownloadTree, index)
+  // If the node is found we return it
+  if (node) {
+    const nodeData = await fetchNode(node.cid)
+    if (!nodeData.Data) {
+      throw new HttpError(
+        500,
+        `Internal server error: Fetching node (cid=${node.cid}) data failed due to missing data`,
+      )
+    }
+    return Buffer.from(nodeData.Data)
+  }
+
+  // If the node is not found we need to fetch the node
+  const leftmostNode = getLeftmostNode(asyncDownloadTree)
+  const leftmostNodeObjectMappingHash = getObjectMappingHash(leftmostNode.cid)
+
+  // We get the list of unresolved nodes
+  const unresolvedNodes = getUnresolvedNodes(asyncDownloadTree)
+  const unresolvedNodesByCid = fromEntries<string, AsyncDownloadNode>(
+    unresolvedNodes.map((n) => [n.cid, n]),
+  )
+
+  // We get the object mappings for the unresolved nodes
+  const objectMappings = await objectMappingIndexer.get_object_mappings({
+    hashes: unresolvedNodes.map((n) => getObjectMappingHash(n.cid)),
+  })
+
+  // We optimize the batch fetch for the unresolved nodes
+  const optimizedBatchWithLeftmostPendingNode = optimizeBatchFetch(
+    objectMappings,
+  ).find((batch) => {
+    batch.some((om) => om[0] === leftmostNodeObjectMappingHash)
+  })
+
+  // If the optimized batch with the leftmost pending node is not found, we throw an error (this should never happen)
+  if (!optimizedBatchWithLeftmostPendingNode) {
+    throw new HttpError(
+      500,
+      `Internal server error: Failed to fetch node (cid=${leftmostNode.cid}) data due to missing object mapping`,
+    )
+  }
+
+  // We fetch the nodes in the optimized batch
+  const fetchedObjects = await fetchObjects(
+    optimizedBatchWithLeftmostPendingNode,
+  )
+
+  // We update the tree with the new fetched nodes
+  fetchedObjects.forEach((object, i) => {
+    const cid = cidToString(
+      cidFromBlakeHash(
+        Buffer.from(optimizedBatchWithLeftmostPendingNode[i][0], 'hex'),
+      ),
+    )
+    const node = unresolvedNodesByCid[cid]
+    if (!node) {
+      throw new HttpError(
+        500,
+        `Internal server error: Failed to fetch node (cid=${cid}) data due to missing node`,
+      )
+    }
+    if (node) {
+      setChildrenToNode(node, object)
+    }
+  })
+
+  // We update the tree with the new nodes
+
+  // // We set the nodes in the cache
+  // // @ts-expect-error: cache is not defined
+  // const flattenTree: AsyncDownloadTree = cache.set(cid, asyncDownloadTree)
+
+  return null
+}
+
 export const dsnFetcher = {
   fetchFile,
   fetchNode,
   fetchObjects,
+  getPartial,
 }

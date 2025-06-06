@@ -5,6 +5,8 @@ import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
 import { asyncSafeHandler } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
+import { dsnFetcher } from '../../services/dsnFetcher.js'
+import { HttpError } from '../middlewares/error.js'
 
 const fileRouter = Router()
 
@@ -58,6 +60,21 @@ fileRouter.get(
         })
       }
     })
+  }),
+)
+
+fileRouter.get(
+  '/:cid/async',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+    const chunk = parseInt(req.query.chunk as string)
+    if (isNaN(chunk)) {
+      throw new HttpError(400, 'Invalid chunk')
+    }
+
+    const tree = await dsnFetcher.getPartial(cid, chunk)
+    res.json(tree)
   }),
 )
 

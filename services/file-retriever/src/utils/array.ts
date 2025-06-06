@@ -10,8 +10,6 @@ export const promiseAll = async <T>(array: T[]) => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const fromEntries = <K extends PropertyKey, T extends [K, any]>(
-  array: T[],
-) => {
-  return Object.fromEntries(array) as Record<K, T[1]>
+export const fromEntries = <K extends PropertyKey, T>(array: [K, T][]) => {
+  return Object.fromEntries(array) as Record<K, T>
 }
