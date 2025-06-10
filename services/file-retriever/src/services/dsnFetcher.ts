@@ -24,6 +24,7 @@ import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
+import { cache } from './cache.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -272,16 +273,75 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
   }
 }
 
-const fetchNode = async (cid: string) => {
-  const [objectMapping] = await objectMappingIndexer.get_object_mappings({
-    hashes: [getObjectMappingHash(cid)],
+const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
+  // @ts-expect-error: cache.has returns a boolean
+  const isCached: boolean = await cache.has(cid)
+  if (isCached) {
+    const buffer = await cache
+      .get(cid)
+      // @ts-expect-error: streamToBuffer returns a Buffer
+      .then((e) => streamToBuffer(e!.data) as Buffer)
+    return decodeNode(buffer)
+  }
+
+  const nodeObjectMappingHash = getObjectMappingHash(cid)
+  const hashes = siblings.map(getObjectMappingHash)
+  const objectMappings = await objectMappingIndexer.get_object_mappings({
+    hashes,
   })
-  const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
+  const optimizedBatches = optimizeBatchFetch(objectMappings)
+  const optimizedBatch = optimizedBatches.find((e) =>
+    e.some((e) => e[0] === nodeObjectMappingHash),
+  )
+  if (!optimizedBatch) {
+    throw new HttpError(
+      500,
+      'Internal server error: Optimizing batch did not include target node',
+    )
+  }
+
+  const head = await fetchObjects(optimizedBatch).then((nodes) => nodes[0])
   return head
+}
+
+const getPartial = async (
+  cid: string,
+  chunk: number,
+): Promise<Buffer | null> => {
+  let index = 0
+  // TODO: implement siblings optimization retrieval
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function dfs(cid: string, siblings: string[] = []) {
+    const node = await fetchNode(cid, siblings)
+    if (index === chunk) {
+      return node
+    }
+    index++
+    for (const sibling of node.Links) {
+      await dfs(
+        cidToString(sibling.Hash),
+        node.Links.map((e) => cidToString(e.Hash)),
+      )
+    }
+  }
+
+  const node = await dfs(cid)
+
+  // if the node is not found, the chunk is not present
+  // and therefore the file has finished being downloaded
+  if (!node) {
+    return Buffer.from([])
+  }
+  const ipldMetadata = safeIPLDDecode(node)
+  if (!ipldMetadata) {
+    throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
+  }
+  return ipldMetadata.data ? Buffer.from(ipldMetadata.data) : null
 }
 
 export const dsnFetcher = {
   fetchFile,
   fetchNode,
   fetchObjects,
+  getPartial,
 }
