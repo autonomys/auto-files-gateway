@@ -18,7 +18,10 @@ import { logger } from '../drivers/logger.js'
 import axios from 'axios'
 import { objectMappingIndexer } from './objectMappingIndexer.js'
 import { fromEntries, promiseAll } from '../utils/array.js'
-import { weightedRequestConcurrencyController } from '@autonomys/asynchronous'
+import {
+  streamToBuffer,
+  weightedRequestConcurrencyController,
+} from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
 import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
@@ -274,13 +277,9 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
-  // @ts-expect-error: cache.has returns a boolean
   const isCached: boolean = await cache.has(cid)
   if (isCached) {
-    const buffer = await cache
-      .get(cid)
-      // @ts-expect-error: streamToBuffer returns a Buffer
-      .then((e) => streamToBuffer(e!.data) as Buffer)
+    const buffer = await cache.get(cid).then((e) => streamToBuffer(e!.data))
     return decodeNode(buffer)
   }
 
@@ -309,10 +308,8 @@ const getPartial = async (
   chunk: number,
 ): Promise<Buffer | null> => {
   let index = 0
-  // TODO: implement siblings optimization retrieval
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function dfs(cid: string, siblings: string[] = []) {
-    const node = await fetchNode(cid, siblings)
+    const node = await dsnFetcher.fetchNode(cid, siblings)
     if (index === chunk) {
       return node
     }
