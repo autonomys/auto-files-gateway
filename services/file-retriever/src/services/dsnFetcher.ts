@@ -308,17 +308,23 @@ const getPartial = async (
   chunk: number,
 ): Promise<Buffer | null> => {
   let index = 0
-  async function dfs(cid: string, siblings: string[] = []) {
+  async function dfs(
+    cid: string,
+    siblings: string[] = [],
+  ): Promise<PBNode | undefined> {
     const node = await dsnFetcher.fetchNode(cid, siblings)
     if (index === chunk) {
       return node
     }
     index++
     for (const sibling of node.Links) {
-      await dfs(
+      const result = await dfs(
         cidToString(sibling.Hash),
         node.Links.map((e) => cidToString(e.Hash)),
       )
+      if (result) {
+        return result
+      }
     }
   }
 
@@ -333,7 +339,9 @@ const getPartial = async (
   if (!ipldMetadata) {
     throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
   }
-  return ipldMetadata.data ? Buffer.from(ipldMetadata.data) : null
+  return ipldMetadata.linkDepth === 0 && ipldMetadata.data
+    ? Buffer.from(ipldMetadata.data)
+    : null
 }
 
 export const dsnFetcher = {
