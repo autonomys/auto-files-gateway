@@ -284,7 +284,9 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   }
 
   const nodeObjectMappingHash = getObjectMappingHash(cid)
-  const hashes = siblings.map(getObjectMappingHash)
+  const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
+    getObjectMappingHash,
+  )
   const objectMappings = await objectMappingIndexer.get_object_mappings({
     hashes,
   })
