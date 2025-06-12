@@ -11,8 +11,8 @@ import { safeIPLDDecode } from '../../utils/dagData.js'
 
 const fileRouter = Router()
 
-fileRouter.head(
-  '/:cid',
+fileRouter.get(
+  '/:cid/info',
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
