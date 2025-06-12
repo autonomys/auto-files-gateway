@@ -51,7 +51,8 @@ describe('Partial downloads', () => {
 
     // First node (head) should return null
     const chunk = await dsnFetcher.getPartial(cid, 0)
-    expect(chunk).toBeNull()
+    expect(chunk).toBeInstanceOf(Buffer)
+    expect(chunk?.length).toBe(0)
 
     // Chunks 1-5 should return the correct chunk
     let i = 0
@@ -65,8 +66,7 @@ describe('Partial downloads', () => {
 
     // Chunk 6 should return empty buffer because it's past the end of the file
     const chunk6 = await dsnFetcher.getPartial(cid, 6)
-    expect(chunk6).toBeDefined()
-    expect(chunk6?.length).toBe(0)
+    expect(chunk6).toBeNull()
   })
 
   it('should work with a large file', async () => {
@@ -103,14 +103,13 @@ describe('Partial downloads', () => {
     while (received < chunks.length) {
       const chunk = await dsnFetcher.getPartial(cid, index)
       index++
-      if (chunk) {
+      if (chunk && chunk?.length > 0) {
         expect(chunk.toString('hex')).toBe(chunks[received].toString('hex'))
         received++
       }
     }
 
     const finalResult = await dsnFetcher.getPartial(cid, index)
-    expect(finalResult).toBeInstanceOf(Buffer)
-    expect(finalResult?.length).toBe(0)
+    expect(finalResult).toBeNull()
   })
 })

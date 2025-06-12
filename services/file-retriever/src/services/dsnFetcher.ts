@@ -333,15 +333,13 @@ const getPartial = async (
   // if the node is not found, the chunk is not present
   // and therefore the file has finished being downloaded
   if (!node) {
-    return Buffer.from([])
+    return null
   }
   const ipldMetadata = safeIPLDDecode(node)
   if (!ipldMetadata) {
     throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
   }
-  return ipldMetadata.linkDepth === 0 && ipldMetadata.data
-    ? Buffer.from(ipldMetadata.data)
-    : null
+  return Buffer.from(ipldMetadata.data ?? [])
 }
 
 export const dsnFetcher = {
