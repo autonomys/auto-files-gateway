@@ -1,22 +1,8 @@
 import { dsnFetcher } from './dsnFetcher.js'
 import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
-import {
-  createFileCache,
-  defaultMemoryAndSqliteConfig,
-  ensureDirectoryExists,
-  FileResponse,
-} from '@autonomys/file-caching'
-import path from 'path'
-import { config } from '../config.js'
-
-const cache = createFileCache(
-  defaultMemoryAndSqliteConfig({
-    dirname: ensureDirectoryExists(path.join(config.cacheDir, 'files')),
-    cacheMaxSize: config.cacheMaxSize,
-    cacheTtl: config.cacheTtl,
-  }),
-)
+import { FileResponse } from '@autonomys/file-caching'
+import { cache } from './cache.js'
 
 const get = async (
   cid: string,

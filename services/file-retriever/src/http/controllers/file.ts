@@ -5,6 +5,9 @@ import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
 import { asyncSafeHandler } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
+import { HttpError } from '../middlewares/error.js'
+import { dsnFetcher } from '../../services/dsnFetcher.js'
+import { safeIPLDDecode } from '../../utils/dagData.js'
 
 const fileRouter = Router()
 
@@ -58,6 +61,55 @@ fileRouter.get(
         })
       }
     })
+  }),
+)
+
+fileRouter.head(
+  '/:cid',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+
+    const file = await dsnFetcher.fetchNode(cid, [])
+    if (file) {
+      const metadata = safeIPLDDecode(file)
+      const size = metadata?.size
+      const isCompressed = metadata?.uploadOptions?.compression
+      const isEncrypted = metadata?.uploadOptions?.encryption
+      if (size) {
+        res.set('Content-Length', size.toString())
+        res.set('Content-Type', 'application/octet-stream')
+      }
+      if (isCompressed && !isEncrypted) {
+        res.set('Content-Encoding', 'deflate')
+      } else if (isEncrypted) {
+        res.set('Content-Encoding', 'aes-256-gcm')
+      }
+      res.sendStatus(204)
+    } else {
+      res.sendStatus(404)
+    }
+  }),
+)
+
+fileRouter.get(
+  '/:cid/partial',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+    const chunk = parseInt(req.query.chunk as string)
+    if (isNaN(chunk)) {
+      throw new HttpError(400, 'Invalid chunk')
+    }
+
+    const fileData = await dsnFetcher.getPartial(cid, chunk)
+    if (fileData) {
+      res.set('Content-Type', 'application/octet-stream')
+      res.set('Content-Length', fileData.length.toString())
+      res.send(fileData)
+    } else {
+      res.sendStatus(204)
+    }
   }),
 )
 
