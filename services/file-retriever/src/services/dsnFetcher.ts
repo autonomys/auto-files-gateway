@@ -27,7 +27,7 @@ import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { cache } from './cache.js'
+import { nodeCache } from './cache.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -277,9 +277,9 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
-  const isCached: boolean = await cache.has(cid)
+  const isCached: boolean = await nodeCache.has(cid)
   if (isCached) {
-    const buffer = await cache.get(cid).then((e) => streamToBuffer(e!.data))
+    const buffer = await nodeCache.get(cid).then((e) => streamToBuffer(e!.data))
     return decodeNode(buffer)
   }
 
