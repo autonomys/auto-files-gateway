@@ -11,6 +11,34 @@ import { safeIPLDDecode } from '../../utils/dagData.js'
 
 const fileRouter = Router()
 
+fileRouter.head(
+  '/:cid',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+
+    const file = await dsnFetcher.fetchNode(cid, [])
+    if (file) {
+      const metadata = safeIPLDDecode(file)
+      const size = metadata?.size
+      const isCompressed = metadata?.uploadOptions?.compression
+      const isEncrypted = metadata?.uploadOptions?.encryption
+      if (size) {
+        res.set('Content-Length', size.toString())
+        res.set('Content-Type', 'application/octet-stream')
+      }
+      if (isCompressed && !isEncrypted) {
+        res.set('Content-Encoding', 'deflate')
+      } else if (isEncrypted) {
+        res.set('Content-Encoding', 'aes-256-gcm')
+      }
+      res.sendStatus(204)
+    } else {
+      res.sendStatus(404)
+    }
+  }),
+)
+
 fileRouter.get(
   '/:cid',
   authMiddleware,
@@ -61,34 +89,6 @@ fileRouter.get(
         })
       }
     })
-  }),
-)
-
-fileRouter.head(
-  '/:cid',
-  authMiddleware,
-  asyncSafeHandler(async (req, res) => {
-    const cid = req.params.cid
-
-    const file = await dsnFetcher.fetchNode(cid, [])
-    if (file) {
-      const metadata = safeIPLDDecode(file)
-      const size = metadata?.size
-      const isCompressed = metadata?.uploadOptions?.compression
-      const isEncrypted = metadata?.uploadOptions?.encryption
-      if (size) {
-        res.set('Content-Length', size.toString())
-        res.set('Content-Type', 'application/octet-stream')
-      }
-      if (isCompressed && !isEncrypted) {
-        res.set('Content-Encoding', 'deflate')
-      } else if (isEncrypted) {
-        res.set('Content-Encoding', 'aes-256-gcm')
-      }
-      res.sendStatus(204)
-    } else {
-      res.sendStatus(404)
-    }
   }),
 )
 
