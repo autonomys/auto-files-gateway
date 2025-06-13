@@ -6,6 +6,7 @@ import {
   cidToString,
   CompressionAlgorithm,
   cidOfNode,
+  encodeNode,
 } from '@autonomys/auto-dag-data'
 import { FileResponse } from '@autonomys/file-caching'
 import { z } from 'zod'
@@ -27,7 +28,7 @@ import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { cache } from './cache.js'
+import { nodeCache } from './cache.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -277,9 +278,9 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
-  const isCached: boolean = await cache.has(cid)
+  const isCached: boolean = await nodeCache.has(cid)
   if (isCached) {
-    const buffer = await cache.get(cid).then((e) => streamToBuffer(e!.data))
+    const buffer = await nodeCache.get(cid).then((e) => streamToBuffer(e!.data))
     return decodeNode(buffer)
   }
 
@@ -290,19 +291,40 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const objectMappings = await objectMappingIndexer.get_object_mappings({
     hashes,
   })
-  const optimizedBatches = optimizeBatchFetch(objectMappings)
-  const optimizedBatch = optimizedBatches.find((e) =>
-    e.some((e) => e[0] === nodeObjectMappingHash),
+  const nodeObjectMapping = objectMappings.find(
+    (e) => e[0] === nodeObjectMappingHash,
   )
-  if (!optimizedBatch) {
+  if (!nodeObjectMapping) {
+    throw new HttpError(
+      500,
+      'Internal server error: Failed to find node object mapping',
+    )
+  }
+
+  const objectMappingsWithinSamePiece = objectMappings.filter(
+    (e) => e[1] === nodeObjectMapping[1],
+  )
+  if (objectMappingsWithinSamePiece.length === 0) {
     throw new HttpError(
       500,
       'Internal server error: Optimizing batch did not include target node',
     )
   }
 
-  const head = await fetchObjects(optimizedBatch).then((nodes) => nodes[0])
-  return head
+  const objectsByCID = await fetchObjects(objectMappingsWithinSamePiece).then(
+    (nodes) =>
+      Object.fromEntries(
+        nodes.map((e) => [cidToString(cidOfNode(e)), e] as [string, PBNode]),
+      ),
+  )
+
+  Object.entries(objectsByCID).forEach(([cid, node]) => {
+    nodeCache.set(cid, {
+      data: Readable.from(Buffer.from(encodeNode(node))),
+    })
+  })
+
+  return objectsByCID[cid]
 }
 
 const getPartial = async (
