@@ -2,14 +2,14 @@ import { dsnFetcher } from './dsnFetcher.js'
 import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
 import { FileResponse } from '@autonomys/file-caching'
-import { cache } from './cache.js'
+import { fileCache } from './cache.js'
 
 const get = async (
   cid: string,
   ignoreCache = false,
 ): Promise<[fromCache: boolean, FileResponse]> => {
   if (!ignoreCache) {
-    const cachedFile = await cache.get(cid)
+    const cachedFile = await fileCache.get(cid)
     if (cachedFile) {
       logger.debug(`Cache hit for file ${cid}`)
       return [true, cachedFile]
@@ -27,7 +27,7 @@ const get = async (
   end = performance.now()
   logger.debug(`Forking file ${cid} took ${end - start}ms`)
 
-  cache
+  fileCache
     .set(cid, {
       ...file,
       data: cachingStream,
