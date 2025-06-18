@@ -8,6 +8,7 @@ import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
 import { safeIPLDDecode } from '../../utils/dagData.js'
+import { fileCache } from '../../services/cache.js'
 
 const fileRouter = Router()
 
@@ -28,6 +29,20 @@ fileRouter.get(
     } else {
       res.sendStatus(404)
     }
+  }),
+)
+
+fileRouter.get(
+  '/:cid/status',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+
+    const isCached = await fileCache.has(cid)
+
+    res.status(200).json({
+      isCached,
+    })
   }),
 )
 

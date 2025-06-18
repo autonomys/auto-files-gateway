@@ -28,7 +28,7 @@ import { ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { nodeCache } from './cache.js'
+import { fileCache, nodeCache } from './cache.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -233,6 +233,30 @@ const fetchFileAsStream = (node: PBNode): ReadableStream => {
   })
 }
 
+const getFileTraitsFromHead = (head: PBNode): Omit<FileResponse, 'data'> => {
+  const nodeMetadata = safeIPLDDecode(head)
+  if (!nodeMetadata) {
+    throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
+  }
+  if (nodeMetadata?.type !== MetadataType.File) {
+    throw new HttpError(400, 'Bad request: Not a file')
+  }
+  const isCompressedAndNotEncrypted =
+    nodeMetadata.uploadOptions?.encryption === undefined &&
+    nodeMetadata.uploadOptions?.compression?.algorithm ===
+      CompressionAlgorithm.ZLIB
+
+  return {
+    size: nodeMetadata.size,
+    mimeType:
+      isCompressedAndNotEncrypted && nodeMetadata.name
+        ? mime.lookup(nodeMetadata.name) || undefined
+        : undefined,
+    filename: nodeMetadata.name,
+    encoding: isCompressedAndNotEncrypted ? 'deflate' : undefined,
+  }
+}
+
 const fetchFile = async (cid: string): Promise<FileResponse> => {
   try {
     const [objectMapping] = await objectMappingIndexer.get_object_mappings({
@@ -254,27 +278,61 @@ const fetchFile = async (cid: string): Promise<FileResponse> => {
       throw new HttpError(400, 'Bad request: Not a file')
     }
 
-    const isCompressedAndNotEncrypted =
-      nodeMetadata.uploadOptions?.encryption === undefined &&
-      nodeMetadata.uploadOptions?.compression?.algorithm ===
-        CompressionAlgorithm.ZLIB
-
-    const data = Readable.fromWeb(fetchFileAsStream(head))
-
     return {
-      data,
-      size: nodeMetadata.size,
-      mimeType:
-        isCompressedAndNotEncrypted && nodeMetadata.name
-          ? mime.lookup(nodeMetadata.name) || undefined
-          : undefined,
-      filename: nodeMetadata.name,
-      encoding: isCompressedAndNotEncrypted ? 'deflate' : undefined,
+      data: Readable.fromWeb(fetchFileAsStream(head)),
+      ...getFileTraitsFromHead(head),
     }
   } catch (error) {
     logger.error(`Failed to fetch file (cid=${cid}); error=${error}`)
     throw new HttpError(500, 'Internal server error: Failed to fetch file')
   }
+}
+
+const onFileDownloaded = async (cid: string) => {
+  setTimeout(() => {
+    migrateToFileCache(cid)
+  })
+}
+
+const getNodeFromCache = async (cid: string) => {
+  const node = await nodeCache
+    .get(cid)
+    .then((e) => streamToBuffer(e!.data))
+    .then((e) => decodeNode(e))
+  return node
+}
+
+const migrateToFileCache = async (cid: string) => {
+  const node = await getNodeFromCache(cid)
+  if (!node) {
+    logger.error(`Failed to migrate to file cache (cid=${cid})`)
+  }
+
+  async function* dfs(node: PBNode): AsyncGenerator<Buffer> {
+    if (node.Links.length > 0) {
+      for (const link of node.Links) {
+        const child = await getNodeFromCache(cidToString(link.Hash))
+        if (!child)
+          throw new Error(
+            `Failed to migrate to file cache: Node not found in cache (cid=${cid})`,
+          )
+        for await (const chunk of dfs(child)) {
+          yield chunk
+        }
+      }
+    } else {
+      const data = safeIPLDDecode(node)
+      if (!data) {
+        logger.error(`Failed to migrate to file cache (cid=${cid})`)
+      }
+      yield Buffer.from(data?.data ?? [])
+    }
+  }
+
+  fileCache.set(cid, {
+    data: Readable.from(dfs(node)),
+    ...getFileTraitsFromHead(node),
+  })
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
@@ -357,6 +415,7 @@ const getPartial = async (
   // if the node is not found, the chunk is not present
   // and therefore the file has finished being downloaded
   if (!node) {
+    onFileDownloaded(cid)
     return null
   }
   const ipldMetadata = safeIPLDDecode(node)
