@@ -376,11 +376,13 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
       ),
   )
 
-  Object.entries(objectsByCID).forEach(([cid, node]) => {
-    nodeCache.set(cid, {
-      data: Readable.from(Buffer.from(encodeNode(node))),
-    })
-  })
+  await Promise.all(
+    Object.entries(objectsByCID).map(([cid, node]) =>
+      nodeCache.set(cid, {
+        data: Readable.from(Buffer.from(encodeNode(node))),
+      }),
+    ),
+  )
 
   return objectsByCID[cid]
 }
