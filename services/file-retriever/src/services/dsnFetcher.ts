@@ -133,6 +133,11 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
         {
           maxRetries: 3,
           delay: 500,
+          onRetry: (error, retries) => {
+            logger.error(
+              `Failed to fetch nodes (requestId=${requestId}); error=${error}; retries=${retries}`,
+            )
+          },
         },
       ),
     objects.length,
