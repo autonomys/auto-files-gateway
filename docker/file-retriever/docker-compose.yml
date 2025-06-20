@@ -21,7 +21,7 @@ services:
     image: ${FILE_RETRIEVER_DOCKER_TAG}
     container_name: file-retriever
     volumes:
-      - file-retriever-data:/app/.cache
+      - file-retriever-data:/app/services/file-retriever/.cache
     ports:
       - '8090:8090'
     environment:
