@@ -38,7 +38,9 @@ const fetchNodesSchema = z.object({
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
 const concurrencyControllerByGateway = gatewayUrls.map(() =>
-  weightedRequestConcurrencyController(config.maxSimultaneousFetches),
+  weightedRequestConcurrencyController(
+    config.objectFetching.maxSimultaneousFetches,
+  ),
 )
 let gatewayIndex = 0
 
