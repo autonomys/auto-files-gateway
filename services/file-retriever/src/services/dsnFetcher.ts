@@ -90,7 +90,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
           )
           const fetchStart = performance.now()
           const response = await axios.post(gatewayUrl, body, {
-            timeout: 3600_000,
+            timeout: config.objectFetching.fetchTimeout,
             responseType: 'json',
           })
           if (response.status !== 200) {

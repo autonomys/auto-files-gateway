@@ -23,6 +23,11 @@ export const config = {
         defaultValue: 10,
       }),
     ),
+    fetchTimeout: Number(
+      env('FETCH_TIMEOUT', {
+        defaultValue: 180_000,
+      }),
+    ),
   },
   cacheDir: path.join(
     process.cwd(),
