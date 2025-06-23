@@ -12,16 +12,23 @@ export const config = {
   logLevel: env('LOG_LEVEL', { defaultValue: 'info' }),
   port: Number(env('FILE_RETRIEVER_PORT', { defaultValue: 8090 })),
   corsOrigin: env('CORS_ORIGIN', { defaultValue: '*' }),
-  maxObjectsPerFetch: Number(
-    env('MAX_OBJECTS_PER_FETCH', {
-      defaultValue: 100,
-    }),
-  ),
-  maxSimultaneousFetches: Number(
-    env('MAX_SIMULTANEOUS_FETCHES', {
-      defaultValue: 10,
-    }),
-  ),
+  objectFetching: {
+    maxObjectsPerFetch: Number(
+      env('MAX_OBJECTS_PER_FETCH', {
+        defaultValue: 100,
+      }),
+    ),
+    maxSimultaneousFetches: Number(
+      env('MAX_SIMULTANEOUS_FETCHES', {
+        defaultValue: 10,
+      }),
+    ),
+    fetchTimeout: Number(
+      env('FETCH_TIMEOUT', {
+        defaultValue: 180_000,
+      }),
+    ),
+  },
   cacheDir: path.join(
     process.cwd(),
     env('CACHE_DIR', { defaultValue: './.cache' }),

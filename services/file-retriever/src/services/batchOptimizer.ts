@@ -2,8 +2,8 @@ import { ObjectMapping } from '@auto-files/models'
 import { config } from '../config.js'
 
 const maxObjectsPerBatch = Math.min(
-  config.maxObjectsPerFetch,
-  config.maxSimultaneousFetches,
+  config.objectFetching.maxObjectsPerFetch,
+  config.objectFetching.maxSimultaneousFetches,
 )
 
 export const optimizeBatchFetch = (
