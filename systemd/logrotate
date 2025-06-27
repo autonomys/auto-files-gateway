@@ -1,0 +1,12 @@
+/var/log/auto-drive-gateway.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+    create 0644 ubuntu ubuntu
+    su ubuntu ubuntu
+    postrotate
+        systemctl restart auto-drive-gateway.service > /dev/null 2>/dev/null || true
+    endscript
+}
