@@ -1,0 +1,27 @@
+[Unit]
+Description=Auto Drive Gateway Service
+After=network.target
+
+[Service]
+User=ubuntu
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=/home/ubuntu/deploy
+ExecStart=/usr/bin/docker compose \
+    --env-file /home/ubuntu/deploy/.env \
+    -f /home/ubuntu/deploy/auto-files-gateway/docker/file-retriever/docker-compose.yml \
+    -f /home/ubuntu/deploy/auto-files-gateway/docker/file-retriever/docker-compose.prod.yml \
+    -f /home/ubuntu/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.yml \
+    -f /home/ubuntu/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.prod.yml \
+    up -d
+Restart=always
+RestartSec=5
+SyslogIdentifier=auto-drive-gateway
+StandardOutput=append:/var/log/auto-drive-gateway.log
+StandardError=append:/var/log/auto-drive-gateway.log
+
+# Resource limits
+CPUQuota=90%
+MemoryMax=4G
+
+[Install]
+WantedBy=multi-user.target
