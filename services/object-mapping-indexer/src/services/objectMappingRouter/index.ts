@@ -1,11 +1,10 @@
 import { v4 } from 'uuid'
 import Websocket from 'websocket'
-import { ObjectMappingListEntry } from '@auto-files/models'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { config } from '../../config.js'
 import { logger } from '../../drivers/logger.js'
-import { objectMappingRepository } from '../../repositories/objectMapping.js'
 import { server } from '../../rpc/server.js'
+import { segmentUseCase } from '../../useCases/segment.js'
 
 type RouterState = {
   objectMappingsSubscriptions: Map<string, Websocket.connection>
@@ -13,18 +12,19 @@ type RouterState = {
     string,
     { connection: Websocket.connection; pieceIndex: number; step: number }
   >
-  lastRealtimeBlockNumber: number
+  lastRealtimeSegmentIndex: number
 }
 
 const state: RouterState = {
   objectMappingsSubscriptions: new Map(),
   recoverObjectMappingsSubscriptions: new Map(),
-  lastRealtimeBlockNumber: 0,
+  lastRealtimeSegmentIndex: 0,
 }
 
 const init = async () => {
-  const latestBlockNumber = await objectMappingRepository.getLatestBlockNumber()
-  state.lastRealtimeBlockNumber = latestBlockNumber.blockNumber
+  const latestSegmentIndex = await segmentUseCase.getLastSegment()
+  state.lastRealtimeSegmentIndex = latestSegmentIndex
+  segmentUseCase.subscribeToArchivedSegmentHeader(emitObjectMappings)
 }
 
 const subscribeObjectMappings = (
@@ -49,14 +49,25 @@ const unsubscribeObjectMappings = (subscriptionId: string) => {
   }
 }
 
-const emitObjectMappings = (event: ObjectMappingListEntry) => {
-  state.lastRealtimeBlockNumber = event.blockNumber
+const emitObjectMappings = async (segmentIndex: number) => {
+  // avoid emitting object mappings for segments that are already processed
+  if (segmentIndex <= state.lastRealtimeSegmentIndex) {
+    return
+  }
+  state.lastRealtimeSegmentIndex = segmentIndex
+  const [lowerLimit, upperLimit] =
+    segmentUseCase.getPieceIndexRangeBySegment(segmentIndex)
+  const objectMappings = await objectMappingUseCase.getObjectByPieceIndexRange(
+    lowerLimit,
+    upperLimit,
+  )
+
   Array.from(state.objectMappingsSubscriptions.entries()).forEach(
     ([subscriptionId, connection]) => {
       if (connection.socket.readyState === 'open') {
         server.notificationClient.object_mapping_list(
           connection,
-          event.v0.objects,
+          objectMappings,
         )
       } else {
         logger.warn(
@@ -106,6 +117,19 @@ const unsubscribeRecoverObjectMappings = (subscriptionId: string) => {
   }
 }
 
+// Limits the maximum piece index to the already archived segments
+// avoiding to distribute pieces that are not yet archived
+const getUpperLimit = (pieceIndex: number) => {
+  const segmentIndex = segmentUseCase.getSegmentByPieceIndex(pieceIndex)
+  if (segmentIndex >= state.lastRealtimeSegmentIndex) {
+    const UPPER_LIMIT_RANGE_INDEX = 1
+    return segmentUseCase.getPieceIndexRangeBySegment(
+      state.lastRealtimeSegmentIndex,
+    )[UPPER_LIMIT_RANGE_INDEX]
+  }
+  return pieceIndex
+}
+
 const emitRecoverObjectMappings = async () => {
   const recovering = Array.from(
     state.recoverObjectMappingsSubscriptions.entries(),
@@ -113,18 +137,20 @@ const emitRecoverObjectMappings = async () => {
 
   const promises = recovering.map(
     async ([subscriptionId, { connection, pieceIndex, step }]) => {
-      const result = await objectMappingUseCase.getObjectByPieceIndexAndStep(
+      const upperLimit = getUpperLimit(pieceIndex + step)
+      const result = await objectMappingUseCase.getObjectByPieceIndexRange(
         pieceIndex,
-        step,
+        upperLimit,
       )
 
       state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
         connection,
-        pieceIndex: pieceIndex + step,
+        pieceIndex: upperLimit,
         step,
       })
 
-      if (pieceIndex >= state.lastRealtimeBlockNumber) {
+      const hasReachedLastSegment = pieceIndex !== upperLimit
+      if (hasReachedLastSegment) {
         unsubscribeRecoverObjectMappings(subscriptionId)
         subscribeObjectMappings(connection, subscriptionId)
       }
