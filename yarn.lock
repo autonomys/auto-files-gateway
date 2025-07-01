@@ -30,7 +30,7 @@ __metadata:
   resolution: "@auto-files/rpc-apis@workspace:common/rpc-apis"
   dependencies:
     "@auto-files/models": "workspace:*"
-    "@autonomys/rpc": "npm:^1.4.31"
+    "@autonomys/rpc": "npm:^1.5.4"
     typescript: "npm:^5.6.3"
     zod: "npm:^3.24.2"
   languageName: unknown
@@ -139,6 +139,16 @@ __metadata:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
   checksum: 10c0/18b22b8f9bd91785b77093f8e591fa275d15ec09b53bdd47b9d30ff0d0cc3d0210dac16c5455f69f3cba3244cfbe565fddbc53204b74457ae4abfa32e3bd787c
+  languageName: node
+  linkType: hard
+
+"@autonomys/rpc@npm:^1.5.4":
+  version: 1.5.4
+  resolution: "@autonomys/rpc@npm:1.5.4"
+  dependencies:
+    websocket: "npm:^1.0.35"
+    zod: "npm:^3.24.2"
+  checksum: 10c0/fc2ed54a6726c5b368e1634b5c905666f69723ad11bbf2d70dbcd35ef967043d942b45e09cdf79140fd3910f18c633e9f6e6fd12272bfa87e4bf6de8b3a774ea
   languageName: node
   linkType: hard
 
