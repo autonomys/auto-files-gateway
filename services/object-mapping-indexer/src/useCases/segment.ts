@@ -55,7 +55,7 @@ const subscribeToArchivedSegmentHeader = async (
 const getSegmentByPieceIndex = (pieceIndex: number) => {
   const RAW_RECORDS = 128
   const ERASURE_ENCODE_FACTOR = 2
-  return Math.ceil(pieceIndex / (RAW_RECORDS * ERASURE_ENCODE_FACTOR))
+  return Math.floor(pieceIndex / (RAW_RECORDS * ERASURE_ENCODE_FACTOR))
 }
 
 const getPieceIndexRangeBySegment = (segmentIndex: number) => {
