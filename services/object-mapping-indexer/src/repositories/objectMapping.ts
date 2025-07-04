@@ -67,7 +67,7 @@ const getByPieceIndexRange = async (min: number, max: number) => {
   const db = await getDatabase()
 
   const result = await db.query<DBObjectMapping>(
-    'SELECT * FROM object_mappings WHERE "pieceIndex" >= $1 AND "pieceIndex" < $2',
+    'SELECT * FROM object_mappings WHERE "pieceIndex" >= $1 AND "pieceIndex" <= $2',
     [min, max],
   )
 
