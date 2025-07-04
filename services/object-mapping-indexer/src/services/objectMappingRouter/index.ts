@@ -55,12 +55,20 @@ const emitObjectMappings = async (segmentIndex: number) => {
     return
   }
   state.lastRealtimeSegmentIndex = segmentIndex
-  const [lowerLimit, upperLimit] =
-    segmentUseCase.getPieceIndexRangeBySegment(segmentIndex)
+  const UPPER_LIMIT_RANGE_INDEX = 1
+  const lastUpperLimit = segmentUseCase.getPieceIndexRangeBySegment(
+    state.lastRealtimeSegmentIndex,
+  )[UPPER_LIMIT_RANGE_INDEX]
+  const upperLimit =
+    segmentUseCase.getPieceIndexRangeBySegment(segmentIndex)[
+      UPPER_LIMIT_RANGE_INDEX
+    ]
   const objectMappings = await objectMappingUseCase.getObjectByPieceIndexRange(
-    lowerLimit,
+    lastUpperLimit + 1,
     upperLimit,
   )
+
+  state.lastRealtimeSegmentIndex = segmentIndex
 
   Array.from(state.objectMappingsSubscriptions.entries()).forEach(
     ([subscriptionId, connection]) => {
