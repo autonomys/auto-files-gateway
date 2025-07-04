@@ -137,7 +137,8 @@ const emitRecoverObjectMappings = async () => {
 
   const promises = recovering.map(
     async ([subscriptionId, { connection, pieceIndex, step }]) => {
-      const upperLimit = getUpperLimit(pieceIndex + step)
+      const upperPieceIndex = pieceIndex + step
+      const upperLimit = getUpperLimit(upperPieceIndex)
       const result = await objectMappingUseCase.getObjectByPieceIndexRange(
         pieceIndex,
         upperLimit,
@@ -149,7 +150,7 @@ const emitRecoverObjectMappings = async () => {
         step,
       })
 
-      const hasReachedLastSegment = pieceIndex !== upperLimit
+      const hasReachedLastSegment = upperPieceIndex > upperLimit
       if (hasReachedLastSegment) {
         unsubscribeRecoverObjectMappings(subscriptionId)
         subscribeObjectMappings(connection, subscriptionId)
