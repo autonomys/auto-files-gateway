@@ -13,18 +13,21 @@ type RouterState = {
     { connection: Websocket.connection; pieceIndex: number; step: number }
   >
   lastRealtimeSegmentIndex: number
+  recoveryLoop: NodeJS.Timeout | null
 }
 
 const state: RouterState = {
   objectMappingsSubscriptions: new Map(),
   recoverObjectMappingsSubscriptions: new Map(),
   lastRealtimeSegmentIndex: 0,
+  recoveryLoop: null,
 }
 
 const init = async () => {
   const latestSegmentIndex = await segmentUseCase.getLastSegment()
   state.lastRealtimeSegmentIndex = latestSegmentIndex
-  segmentUseCase.subscribeToArchivedSegmentHeader(emitObjectMappings)
+  await segmentUseCase.subscribeToArchivedSegmentHeader(emitObjectMappings)
+  state.recoveryLoop = setTimeout(recoveryLoop, 0)
 }
 
 const subscribeObjectMappings = (
@@ -172,17 +175,23 @@ const emitRecoverObjectMappings = async () => {
 
 const recoveryLoop = async () => {
   await emitRecoverObjectMappings()
-  setTimeout(recoveryLoop, config.recoveryInterval)
+  state.recoveryLoop = setTimeout(recoveryLoop, config.recoveryInterval)
 }
 
 export const objectMappingRouter = {
+  getState: (): Readonly<RouterState> => state,
   subscribeObjectMappings,
   unsubscribeObjectMappings,
   emitObjectMappings,
   subscribeRecoverObjectMappings,
   unsubscribeRecoverObjectMappings,
   init,
+  close: () => {
+    state.objectMappingsSubscriptions.clear()
+    state.recoverObjectMappingsSubscriptions.clear()
+    if (state.recoveryLoop) {
+      clearTimeout(state.recoveryLoop)
+    }
+    segmentUseCase.unsubscribeFromArchivedSegmentHeader()
+  },
 }
-
-setTimeout(init, 1000)
-setTimeout(recoveryLoop)

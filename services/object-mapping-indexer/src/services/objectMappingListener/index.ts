@@ -1,7 +1,7 @@
 import { logger } from '../../drivers/logger.js'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
 import { ObjectMappingListener } from './types.js'
-import { SubspaceObjectListenerAPI } from '@auto-files/rpc-apis'
+import { SubspaceRPCApi } from '@auto-files/rpc-apis'
 import { config } from '../../config.js'
 
 export const createObjectMappingListener = (): ObjectMappingListener => {
@@ -20,7 +20,7 @@ export const createObjectMappingListener = (): ObjectMappingListener => {
         })
       }
 
-      const client = SubspaceObjectListenerAPI.createClient({
+      const client = SubspaceRPCApi.createClient({
         endpoint: config.nodeRpcUrl,
         reconnectInterval: 60_000,
         callbacks: {

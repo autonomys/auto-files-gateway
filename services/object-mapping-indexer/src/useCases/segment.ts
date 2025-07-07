@@ -1,9 +1,11 @@
-import { SubspaceObjectListenerAPI } from '@auto-files/rpc-apis'
+import { SubspaceRPCApi } from '@auto-files/rpc-apis'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 
+let client: ReturnType<typeof SubspaceRPCApi.createClient> | null = null
+
 const getLastSegment = async () => {
-  const client = SubspaceObjectListenerAPI.createHttpClient(
+  const client = SubspaceRPCApi.createHttpClient(
     config.nodeRpcUrl.replace('ws', 'http'),
   )
 
@@ -24,7 +26,7 @@ const getLastSegment = async () => {
 const subscribeToArchivedSegmentHeader = async (
   onArchivedSegmentHeader?: (segmentIndex: number) => void,
 ) => {
-  const client = SubspaceObjectListenerAPI.createClient({
+  const client = SubspaceRPCApi.createClient({
     endpoint: config.nodeRpcUrl,
     callbacks: {
       onEveryOpen: async () => {
@@ -52,13 +54,20 @@ const subscribeToArchivedSegmentHeader = async (
   })
 }
 
+const unsubscribeFromArchivedSegmentHeader = () => {
+  client?.close()
+  client = null
+}
+
 const getSegmentByPieceIndex = (pieceIndex: number) => {
   const RAW_RECORDS = 128
   const ERASURE_ENCODE_FACTOR = 2
   return Math.floor(pieceIndex / (RAW_RECORDS * ERASURE_ENCODE_FACTOR))
 }
 
-const getPieceIndexRangeBySegment = (segmentIndex: number) => {
+const getPieceIndexRangeBySegment = (
+  segmentIndex: number,
+): [number, number] => {
   const RAW_RECORDS = 128
   const ERASURE_ENCODE_FACTOR = 2
   return [
@@ -70,6 +79,7 @@ const getPieceIndexRangeBySegment = (segmentIndex: number) => {
 export const segmentUseCase = {
   getLastSegment,
   subscribeToArchivedSegmentHeader,
+  unsubscribeFromArchivedSegmentHeader,
   getSegmentByPieceIndex,
   getPieceIndexRangeBySegment,
 }
