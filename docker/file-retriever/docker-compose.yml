@@ -23,7 +23,7 @@ services:
     volumes:
       - file-retriever-data:/app/services/file-retriever/.cache
     ports:
-      - '8090:8090'
+      - '${FILE_RETRIEVER_PORT:-8090}:8090'
     environment:
       - NODE_ENV=production
       - SUBSPACE_GATEWAY_URLS=http://subspace-rpc-gateway:9955
