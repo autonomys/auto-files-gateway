@@ -54,7 +54,6 @@ const emitObjectMappings = async (segmentIndex: number) => {
   if (segmentIndex <= state.lastRealtimeSegmentIndex) {
     return
   }
-  state.lastRealtimeSegmentIndex = segmentIndex
   const UPPER_LIMIT_RANGE_INDEX = 1
   const lastUpperLimit = segmentUseCase.getPieceIndexRangeBySegment(
     state.lastRealtimeSegmentIndex,
