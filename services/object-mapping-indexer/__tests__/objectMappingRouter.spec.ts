@@ -7,6 +7,8 @@ import { objectMappingRouter } from '../src/services/objectMappingRouter/index.j
 import { segmentUseCase } from '../src/useCases/segment.js'
 import { SubspaceRPCApi } from '@auto-files/rpc-apis'
 import { objectMappingUseCase } from '../src/useCases/objectMapping.js'
+import { config } from '../src/config.js'
+import { ObjectMapping } from '@auto-files/models'
 
 let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient>
 
@@ -74,9 +76,9 @@ describe('Object Mapping Router', () => {
 
   it('should fetch object mappings for last segment', async () => {
     jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
-    const getObjectByPieceIndexRangeSpy = jest
-      .spyOn(objectMappingUseCase, 'getObjectByPieceIndexRange')
-      .mockResolvedValue([])
+    const dispatchObjectsSpy = jest
+      .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+      .mockResolvedValue(undefined)
     mockSubscribeToArchivedSegmentHeader()
 
     await objectMappingRouter.init()
@@ -100,14 +102,14 @@ describe('Object Mapping Router', () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(0)
-    expect(getObjectByPieceIndexRangeSpy).toHaveBeenCalledWith(0, 255)
+    expect(dispatchObjectsSpy).toHaveBeenCalledWith([], 0, 255)
   })
 
   it('should fetch object mappings for last two segments when event is missed', async () => {
     jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
-    const getObjectByPieceIndexRangeSpy = jest
-      .spyOn(objectMappingUseCase, 'getObjectByPieceIndexRange')
-      .mockResolvedValue([])
+    const dispatchObjectsSpy = jest
+      .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+      .mockResolvedValue(undefined)
     mockSubscribeToArchivedSegmentHeader()
 
     await objectMappingRouter.init()
@@ -131,6 +133,47 @@ describe('Object Mapping Router', () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(1)
-    expect(getObjectByPieceIndexRangeSpy).toHaveBeenCalledWith(0, 511)
+    expect(dispatchObjectsSpy).toHaveBeenCalledWith([], 0, 511)
+  })
+
+  it('should dispatch object mappings respecting the limit', async () => {
+    jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
+    const objectMappings: ObjectMapping[] = Array.from(
+      { length: config.objectMappingDistribution.maxObjectsPerMessage },
+      (_, i) => [`0x${i.toString(16).padStart(64, '0')}`, i, i],
+    )
+    mockSubscribeToArchivedSegmentHeader()
+
+    const getObjectsAfterObjectWithinLimitsSpy = jest
+      .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+      .mockImplementation(async (objectMapping, endPieceIndex, limit) => {
+        if (objectMapping[1] === 0 && objectMapping[2] === -1) {
+          return objectMappings.slice(0, limit)
+        }
+        return []
+      })
+
+    await objectMappingRouter.init()
+
+    await objectMappingRouter.dispatchObjectMappings(
+      [['123', createMockConnection()]],
+      0,
+      1000,
+    )
+
+    expect(getObjectsAfterObjectWithinLimitsSpy).toHaveBeenCalledWith(
+      [expect.any(String), 0, -1],
+      1000,
+      config.objectMappingDistribution.maxObjectsPerMessage,
+    )
+    expect(getObjectsAfterObjectWithinLimitsSpy).toHaveBeenCalledWith(
+      [
+        expect.any(String),
+        objectMappings.length - 1,
+        objectMappings.length - 1,
+      ],
+      1000,
+      config.objectMappingDistribution.maxObjectsPerMessage,
+    )
   })
 })
