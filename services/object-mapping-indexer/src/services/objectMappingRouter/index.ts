@@ -66,10 +66,12 @@ const dispatchObjectMappings = async (
   const { maxObjectsPerMessage, timeBetweenMessages } =
     config.objectMappingDistribution
 
-  let currentPieceIndex = startPieceIndex
+  let lastBatchObjectCount = maxObjectsPerMessage
+  // initialise the pointer to the first object mapping
   let lastObjectMapping: ObjectMapping = ['', startPieceIndex, -1]
 
-  while (currentPieceIndex <= endPieceIndex) {
+  // if the last batch has the maximum number of objects, we need to fetch more
+  while (lastBatchObjectCount === maxObjectsPerMessage) {
     const objectMappings =
       await objectMappingUseCase.getObjectsAfterObjectWithinLimits(
         lastObjectMapping,
@@ -104,13 +106,11 @@ const dispatchObjectMappings = async (
     })
 
     // Move the cursor past the last pieceIndex we just sent
-    currentPieceIndex = objectMappings[objectMappings.length - 1][1]
     lastObjectMapping = objectMappings[objectMappings.length - 1]
+    lastBatchObjectCount = objectMappings.length
 
     // Throttle so we don’t overwhelm clients
-    if (currentPieceIndex <= endPieceIndex) {
-      await new Promise((resolve) => setTimeout(resolve, timeBetweenMessages))
-    }
+    await new Promise((resolve) => setTimeout(resolve, timeBetweenMessages))
   }
 }
 
