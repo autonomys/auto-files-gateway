@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { jest } from '@jest/globals'
-import { createMockConnection } from '@autonomys/rpc'
+import { createMockConnection } from './utils.js'
 import { logger } from '../src/drivers/logger.js'
 import { objectMappingRouter } from '../src/services/objectMappingRouter/index.js'
 import { segmentUseCase } from '../src/useCases/segment.js'

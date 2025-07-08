@@ -3,7 +3,7 @@ import { jest } from '@jest/globals'
 import { SubspaceRPCApi } from '@auto-files/rpc-apis'
 import { logger } from '../src/drivers/logger.js'
 import { createObjectMappingListener } from '../src/services/objectMappingListener/index.js'
-import { createMockConnection } from '@autonomys/rpc'
+import { createMockConnection } from './utils.js'
 import { objectMappingUseCase } from '../src/useCases/objectMapping.js'
 
 let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient> | undefined
