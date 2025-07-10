@@ -1,13 +1,14 @@
 import { ObjectMapping } from '@auto-files/models'
 import { config } from '../config.js'
 
-const maxObjectsPerBatch = Math.min(
+const globalMaxObjectsPerBatch = Math.min(
   config.objectFetching.maxObjectsPerFetch,
   config.objectFetching.maxSimultaneousFetches,
 )
 
 export const optimizeBatchFetch = (
   objects: ObjectMapping[],
+  maxObjectsPerBatch: number = globalMaxObjectsPerBatch,
 ): ObjectMapping[][] => {
   let currentBatch: ObjectMapping[] = []
   const PIECE_INDEX_KEY = 1
