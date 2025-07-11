@@ -84,15 +84,6 @@ const dispatchObjectMappings = async (
       break
     }
 
-    // Sort the object mappings by pieceIndex and pieceOffset ascending
-    objectMappings.sort((a, b) => {
-      const diffPieceIndex = a[1] - b[1]
-      if (diffPieceIndex === 0) {
-        return a[2] - b[2]
-      }
-      return diffPieceIndex
-    })
-
     // Send the batch to every still-connected subscriber
     connections.forEach(([subscriptionId, connection]) => {
       if (connection?.connected) {
