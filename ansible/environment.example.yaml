@@ -1,0 +1,22 @@
+---
+# Example Environment Configuration for Auto-Files Gateway Deployment
+# Copy this file to environment.yaml and update with your actual values
+
+# Infisical Configuration
+# Get these from your Infisical project settings
+infisical_client_id: "your-infisical-client-id-here"
+infisical_token: "your-infisical-client-secret-here"
+infisical_project_id: "your-infisical-project-id-here"
+
+# Docker Image Tags
+# Use specific version tags for production deployments
+file_retriever_image_tag: "v1.0.0"
+indexer_image_tag: "v1.0.0"
+gateway_image_tag: "v1.0.0"
+
+# Target Machines
+# Should match the group names in hosts.ini
+target_machines: "production"
+
+# Optional: Override default settings
+# env_file_path: "$HOME/deploy/.env"
