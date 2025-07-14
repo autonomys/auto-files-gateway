@@ -4,7 +4,6 @@ import {
   ObjectMappingListEntry,
 } from '@auto-files/models'
 import { objectMappingRepository } from '../repositories/objectMapping.js'
-import { objectMappingRouter } from '../services/objectMappingRouter/index.js'
 import { blake3HashFromCid, stringToCid } from '@autonomys/auto-dag-data'
 
 const processObjectMapping = async (event: ObjectMappingListEntry) => {
@@ -18,8 +17,6 @@ const processObjectMapping = async (event: ObjectMappingListEntry) => {
       })),
     ),
   ])
-
-  objectMappingRouter.emitObjectMappings(event)
 }
 
 const getObject = async (hash: string): Promise<GlobalObjectMapping> => {
@@ -51,13 +48,13 @@ const getObjectByPieceIndex = async (
   return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
 }
 
-const getObjectByPieceIndexAndStep = async (
+const getObjectByPieceIndexRange = async (
   pieceIndex: number,
-  step: number,
+  upperLimit: number,
 ): Promise<ObjectMapping[]> => {
   const objectMappings = await objectMappingRepository.getByPieceIndexRange(
     pieceIndex,
-    pieceIndex + step,
+    pieceIndex + upperLimit,
   )
 
   return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
@@ -112,7 +109,7 @@ export const objectMappingUseCase = {
   getObject,
   getObjectByPieceIndex,
   getObjectByBlock,
-  getObjectByPieceIndexAndStep,
+  getObjectByPieceIndexRange,
   getObjectMappings,
   getObjectByCid,
 }
