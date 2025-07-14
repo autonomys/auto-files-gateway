@@ -23,11 +23,12 @@ This directory contains Ansible playbooks and configuration files for deploying 
 Add your target servers to the appropriate groups:
 
 ```ini
-[production]
-files-gateway-01 ansible_host=YOUR_SERVER_IP ansible_user=ubuntu
+...
 
-[staging]
-files-gateway-staging ansible_host=YOUR_STAGING_IP ansible_user=ubuntu
+[files_gateway_taurus_staging]
+user@x.x.x.x
+
+...
 ```
 
 ### 2. Update `environment.yaml`
@@ -36,17 +37,9 @@ Configure the deployment variables:
 
 ```yaml
 # Infisical Configuration
-infisical_client_id: "your-client-id"
-infisical_token: "your-client-secret"
-infisical_project_id: "your-project-id"
-
-# Docker Image Tags
-file_retriever_image_tag: "latest"
-indexer_image_tag: "latest"
-gateway_image_tag: "latest"
-
-# Target Machines
-target_machines: "production"
+infisical_client_id: 'your-client-id'
+infisical_token: 'your-client-secret'
+infisical_project_id: 'your-project-id'
 ```
 
 ## Usage
@@ -55,7 +48,7 @@ target_machines: "production"
 
 ```bash
 ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \
-  -e target_machines=production \
+  -e target_machines=files_gateway_taurus_production \
   -e file_retriever_image_tag=v1.0.0 \
   -e indexer_image_tag=v1.0.0 \
   -e gateway_image_tag=v1.0.0
@@ -65,7 +58,7 @@ ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \
 
 ```bash
 ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \
-  -e target_machines=staging \
+  -e target_machines=files_gateway_taurus_staging \
   -e file_retriever_image_tag=staging \
   -e indexer_image_tag=staging \
   -e gateway_image_tag=staging
@@ -74,18 +67,8 @@ ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \
 ### Deploy with Custom Configuration
 
 ```bash
-ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \
-  --extra-vars="@custom-vars.yaml"
+ansible-playbook -i hosts.ini auto-files-gateway-deployment.yaml \ --extra-vars="@custom-vars.yaml"
 ```
-
-## Required Infisical Secrets
-
-The deployment script expects these secrets to be configured in Infisical:
-
-- `FILE_RETRIEVER_DOCKER_TAG`
-- `OBJECT_MAPPING_INDEXER_DOCKER_TAG`
-- `GATEWAY_DOCKER_TAG`
-- All environment variables required by the services
 
 ## Troubleshooting
 
