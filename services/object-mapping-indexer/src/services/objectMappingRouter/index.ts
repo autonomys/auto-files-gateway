@@ -27,7 +27,9 @@ const state: RouterState = {
 const init = async () => {
   const latestSegmentIndex = await segmentUseCase.getLastSegment()
   state.lastRealtimeSegmentIndex = latestSegmentIndex
-  await segmentUseCase.subscribeToArchivedSegmentHeader(emitObjectMappings)
+  await segmentUseCase.subscribeToArchivedSegmentHeader(
+    objectMappingRouter.emitObjectMappings,
+  )
   state.recoveryLoop = setTimeout(recoveryLoop, 0)
 }
 
@@ -92,7 +94,7 @@ const dispatchObjectMappings = async (
           objectMappings,
         )
       } else {
-        unsubscribeObjectMappings(subscriptionId)
+        objectMappingRouter.unsubscribeObjectMappings(subscriptionId)
       }
     })
 

@@ -7,8 +7,9 @@ import { objectMappingRouter } from '../src/services/objectMappingRouter/index.j
 import { segmentUseCase } from '../src/useCases/segment.js'
 import { SubspaceRPCApi } from '@auto-files/rpc-apis'
 import { objectMappingUseCase } from '../src/useCases/objectMapping.js'
-import { config } from '../src/config.js'
+import Websocket from 'websocket'
 import { ObjectMapping } from '@auto-files/models'
+import { config } from '../src/config.js'
 
 let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient>
 
@@ -54,8 +55,13 @@ const mockSubscribeToArchivedSegmentHeader = () => {
     })
 }
 
-jest.mock('../src/rpc/server.js', () => ({
-  server: { notificationClient: { object_mapping_list: jest.fn() } },
+jest.mock('../src/config.js', () => ({
+  config: {
+    objectMappingDistribution: {
+      maxObjectsPerMessage: 2,
+      timeBetweenMessages: 0,
+    },
+  },
 }))
 
 describe('Object Mapping Router', () => {
@@ -74,106 +80,201 @@ describe('Object Mapping Router', () => {
     expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(-1)
   })
 
-  it('should fetch object mappings for last segment', async () => {
-    jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
-    const dispatchObjectsSpy = jest
-      .spyOn(objectMappingRouter, 'dispatchObjectMappings')
-      .mockResolvedValue(undefined)
-    mockSubscribeToArchivedSegmentHeader()
+  describe('Event routing', () => {
+    it('should call emitObjectMappings when router is initialized', async () => {
+      jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(0)
+      const emitObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'emitObjectMappings')
+        .mockResolvedValue(undefined)
+      mockSubscribeToArchivedSegmentHeader()
 
-    await objectMappingRouter.init()
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(-1)
+      await objectMappingRouter.init()
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(0)
 
-    const connection = createMockConnection()
-
-    client.notificationClient.subspace_archived_segment_header(connection, {
-      v0: {
-        segmentIndex: 0,
-        segmentCommitment: '0x123',
-        prevSegmentHeaderHash: '0x456',
-        lastArchivedBlock: {
-          number: 0,
-          archivedProgress: { partial: 0 },
-        },
-      },
+      expect(emitObjectMappingsSpy).toHaveBeenCalledWith(0)
     })
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // test for segmentIndex 1 and 3
+    for (const segmentIndex of [1, 3]) {
+      it(`should call 'emitObjectMappings' when router receives a new segment (segmentIndex=${segmentIndex})`, async () => {
+        jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(0)
+        const emitObjectMappingsSpy = jest
+          .spyOn(objectMappingRouter, 'emitObjectMappings')
+          .mockResolvedValue(undefined)
+        mockSubscribeToArchivedSegmentHeader()
 
-    expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(0)
-    expect(dispatchObjectsSpy).toHaveBeenCalledWith([], 0, 255)
-  })
+        await objectMappingRouter.init()
+        await new Promise((resolve) => setTimeout(resolve, 100))
 
-  it('should fetch object mappings for last two segments when event is missed', async () => {
-    jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
-    const dispatchObjectsSpy = jest
-      .spyOn(objectMappingRouter, 'dispatchObjectMappings')
-      .mockResolvedValue(undefined)
-    mockSubscribeToArchivedSegmentHeader()
+        const connection = createMockConnection()
 
-    await objectMappingRouter.init()
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(-1)
+        client.notificationClient.subspace_archived_segment_header(connection, {
+          v0: {
+            segmentIndex,
+            segmentCommitment: '',
+            prevSegmentHeaderHash: '',
+            lastArchivedBlock: {
+              number: 0,
+              archivedProgress: {
+                partial: 0,
+              },
+            },
+          },
+        })
 
-    const connection = createMockConnection()
+        await new Promise((resolve) => setTimeout(resolve, 100))
 
-    client.notificationClient.subspace_archived_segment_header(connection, {
-      v0: {
-        segmentIndex: 1,
-        segmentCommitment: '0x123',
-        prevSegmentHeaderHash: '0x456',
-        lastArchivedBlock: {
-          number: 0,
-          archivedProgress: { partial: 0 },
-        },
-      },
-    })
-
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(1)
-    expect(dispatchObjectsSpy).toHaveBeenCalledWith([], 0, 511)
-  })
-
-  it('should dispatch object mappings respecting the limit', async () => {
-    jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(-1)
-    const objectMappings: ObjectMapping[] = Array.from(
-      { length: config.objectMappingDistribution.maxObjectsPerMessage },
-      (_, i) => [`0x${i.toString(16).padStart(64, '0')}`, i, i],
-    )
-    mockSubscribeToArchivedSegmentHeader()
-
-    const getObjectsAfterObjectWithinLimitsSpy = jest
-      .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
-      .mockImplementation(async (objectMapping, endPieceIndex, limit) => {
-        if (objectMapping[1] === 0 && objectMapping[2] === -1) {
-          return objectMappings.slice(0, limit)
-        }
-        return []
+        expect(emitObjectMappingsSpy).toHaveBeenCalledWith(segmentIndex)
       })
+    }
+  })
 
-    await objectMappingRouter.init()
+  describe('emitObjectMappings', () => {
+    it('should emit object mappings for the last segment', async () => {
+      jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(0)
+      const dispatchObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+        .mockResolvedValue(undefined)
 
-    await objectMappingRouter.dispatchObjectMappings(
-      [['123', createMockConnection()]],
-      0,
-      1000,
-    )
+      await objectMappingRouter.emitObjectMappings(0)
 
-    expect(getObjectsAfterObjectWithinLimitsSpy).toHaveBeenCalledWith(
-      [expect.any(String), 0, -1],
-      1000,
-      config.objectMappingDistribution.maxObjectsPerMessage,
-    )
-    expect(getObjectsAfterObjectWithinLimitsSpy).toHaveBeenCalledWith(
-      [
-        expect.any(String),
-        objectMappings.length - 1,
-        objectMappings.length - 1,
-      ],
-      1000,
-      config.objectMappingDistribution.maxObjectsPerMessage,
-    )
+      expect(dispatchObjectMappingsSpy).not.toHaveBeenCalled()
+    })
+
+    it('should emit object mappings for the next segment', async () => {
+      jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(0)
+      const dispatchObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+        .mockResolvedValue(undefined)
+
+      await objectMappingRouter.emitObjectMappings(1)
+
+      expect(dispatchObjectMappingsSpy).toHaveBeenCalledWith(
+        Array.from(
+          objectMappingRouter.getState().objectMappingsSubscriptions.entries(),
+        ),
+        256,
+        511,
+      )
+    })
+
+    it('should emit object mappings for the next two segments', async () => {
+      jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(1)
+      const dispatchObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+        .mockResolvedValue(undefined)
+
+      await objectMappingRouter.emitObjectMappings(3)
+
+      expect(dispatchObjectMappingsSpy).toHaveBeenCalledWith(
+        Array.from(
+          objectMappingRouter.getState().objectMappingsSubscriptions.entries(),
+        ),
+        512,
+        1023,
+      )
+    })
+  })
+
+  describe('dispatchObjectMappings', () => {
+    it('should not do anything if no connections', async () => {
+      const getSpy = jest
+        .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+        .mockResolvedValue([])
+
+      await objectMappingRouter.dispatchObjectMappings([], 1, 10)
+
+      expect(getSpy).not.toHaveBeenCalled()
+    })
+
+    it('should not do anything if invalid range', async () => {
+      const getSpy = jest
+        .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+        .mockResolvedValue([])
+
+      const connection = createMockConnection(true)
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      await objectMappingRouter.dispatchObjectMappings(connections, 10, 5)
+
+      expect(getSpy).not.toHaveBeenCalled()
+    })
+
+    it('should fetch and send one batch', async () => {
+      config.objectMappingDistribution.maxObjectsPerMessage = 3
+      const batch: ObjectMapping[] = [
+        ['hash1', 1, 100],
+        ['hash2', 2, 200],
+      ]
+      const getSpy = jest
+        .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+        .mockResolvedValueOnce(batch)
+        .mockResolvedValueOnce([])
+
+      const connection = createMockConnection(true)
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      await objectMappingRouter.dispatchObjectMappings(connections, 1, 10)
+
+      expect(getSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it('should fetch and send multiple batches', async () => {
+      config.objectMappingDistribution.maxObjectsPerMessage = 2
+      const batch1: ObjectMapping[] = [
+        ['hash1', 1, 100],
+        ['hash2', 2, 200],
+      ]
+      const batch2: ObjectMapping[] = [
+        ['hash3', 3, 300],
+        ['hash4', 4, 400],
+      ]
+      const batch3: ObjectMapping[] = [['hash5', 5, 500]]
+      const getSpy = jest
+        .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+        .mockResolvedValueOnce(batch1)
+        .mockResolvedValueOnce(batch2)
+        .mockResolvedValueOnce(batch3)
+        .mockResolvedValueOnce([])
+
+      const connection = createMockConnection(true)
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      await objectMappingRouter.dispatchObjectMappings(connections, 1, 10)
+
+      expect(getSpy).toHaveBeenCalledTimes(3)
+      expect(getSpy).toHaveBeenNthCalledWith(1, ['', 1, -1], 10, 2)
+      expect(getSpy).toHaveBeenNthCalledWith(2, ['hash2', 2, 200], 10, 2)
+      expect(getSpy).toHaveBeenNthCalledWith(3, ['hash4', 4, 400], 10, 2)
+    })
+
+    it('should unsubscribe disconnected connections', async () => {
+      const batch: ObjectMapping[] = [['hash1', 1, 100]]
+      jest
+        .spyOn(objectMappingUseCase, 'getObjectsAfterObjectWithinLimits')
+        .mockResolvedValueOnce(batch)
+        .mockResolvedValueOnce([])
+
+      const connection = createMockConnection(false)
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      const unsubscribeSpy = jest.spyOn(
+        objectMappingRouter,
+        'unsubscribeObjectMappings',
+      )
+
+      await objectMappingRouter.dispatchObjectMappings(connections, 1, 10)
+
+      expect(unsubscribeSpy).toHaveBeenCalledWith('sub1')
+    })
   })
 })
