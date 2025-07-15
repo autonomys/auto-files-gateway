@@ -1,5 +1,4 @@
 /* eslint-disable camelcase */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { jest } from '@jest/globals'
 import { createMockConnection } from './utils.js'
 import { logger } from '../src/drivers/logger.js'
