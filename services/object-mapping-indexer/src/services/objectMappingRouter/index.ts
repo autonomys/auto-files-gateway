@@ -134,6 +134,7 @@ const subscribeRecoverObjectMappings = (
   connection: Websocket.connection | undefined,
   startingPieceIndex: number,
   step: number = 1,
+  subscriptionId: string = v4(),
 ) => {
   if (!connection) {
     throw new Error('Subscribe object mappings is not supported over http')
@@ -141,8 +142,7 @@ const subscribeRecoverObjectMappings = (
   logger.info(
     `IP (${connection.remoteAddress}) subscribing to recover object mappings`,
   )
-  const subscriptionId = v4()
-  const pieceIndex = startingPieceIndex - 1
+  const pieceIndex = startingPieceIndex
   state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
     connection,
     pieceIndex,
@@ -224,6 +224,7 @@ export const objectMappingRouter = {
   subscribeRecoverObjectMappings,
   unsubscribeRecoverObjectMappings,
   init,
+  emitRecoverObjectMappings,
   dispatchObjectMappings,
   close: () => {
     state.objectMappingsSubscriptions.clear()

@@ -10,7 +10,8 @@ import Websocket from 'websocket'
 import { ObjectMapping } from '@auto-files/models'
 import { config } from '../src/config.js'
 
-let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient>
+let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient> | null =
+  null
 
 const mockSubscribeToArchivedSegmentHeader = () => {
   jest
@@ -30,8 +31,8 @@ const mockSubscribeToArchivedSegmentHeader = () => {
             // triggers a new subscription to archived segment headers
             // ignores subscriptionId and processed events by name
             // using client.onNotification('subspace_archived_segment_header')
-            client.api.subspace_subscribeArchivedSegmentHeader()
-            client.onNotification(
+            client?.api.subspace_subscribeArchivedSegmentHeader()
+            client?.onNotification(
               'subspace_archived_segment_header',
               (event) => {
                 logger.info(
@@ -64,10 +65,19 @@ jest.mock('../src/config.js', () => ({
 }))
 
 describe('Object Mapping Router', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    // Wait a bit to ensure all async operations are complete
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    // Clean up the mock client first
+    if (client) {
+      client.close()
+      client = null
+    }
+
+    objectMappingRouter.close()
     jest.clearAllMocks()
     jest.restoreAllMocks()
-    objectMappingRouter.close()
   })
 
   it('should be initialized correctly', async () => {
@@ -108,19 +118,22 @@ describe('Object Mapping Router', () => {
 
         const connection = createMockConnection()
 
-        client.notificationClient.subspace_archived_segment_header(connection, {
-          v0: {
-            segmentIndex,
-            segmentCommitment: '',
-            prevSegmentHeaderHash: '',
-            lastArchivedBlock: {
-              number: 0,
-              archivedProgress: {
-                partial: 0,
+        client?.notificationClient.subspace_archived_segment_header(
+          connection,
+          {
+            v0: {
+              segmentIndex,
+              segmentCommitment: '',
+              prevSegmentHeaderHash: '',
+              lastArchivedBlock: {
+                number: 0,
+                archivedProgress: {
+                  partial: 0,
+                },
               },
             },
           },
-        })
+        )
 
         await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -274,6 +287,118 @@ describe('Object Mapping Router', () => {
       await objectMappingRouter.dispatchObjectMappings(connections, 1, 10)
 
       expect(unsubscribeSpy).toHaveBeenCalledWith('sub1')
+    })
+  })
+
+  describe('emitRecoverObjectMappings', () => {
+    it('should emit object mappings for the interval [pieceIndex, pieceIndex + step]', async () => {
+      jest.spyOn(segmentUseCase, 'getLastSegment').mockResolvedValue(10)
+      const dispatchObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+        .mockResolvedValue(undefined)
+      mockSubscribeToArchivedSegmentHeader()
+
+      const connection = createMockConnection(true)
+      const subscriptionId = 'sub1'
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      await objectMappingRouter.init()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Clear the recovery loop to mock the recovery loop
+      const recoveryLoop = objectMappingRouter.getState().recoveryLoop
+      if (recoveryLoop) {
+        clearTimeout(recoveryLoop)
+      }
+
+      // pre-condition: lastRealtimeSegmentIndex is 10
+      expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(10)
+
+      const startingPieceIndex = 0
+      const step = 10
+
+      // Initialize the subscription
+      objectMappingRouter.subscribeRecoverObjectMappings(
+        connection,
+        startingPieceIndex,
+        step,
+        subscriptionId,
+      )
+
+      await objectMappingRouter.emitRecoverObjectMappings()
+
+      expect(dispatchObjectMappingsSpy).toHaveBeenCalledWith(
+        connections,
+        startingPieceIndex,
+        startingPieceIndex + step,
+      )
+
+      // Clean up any remaining recovery subscriptions
+      objectMappingRouter.unsubscribeRecoverObjectMappings(subscriptionId)
+    })
+
+    it('should emit object mappings for the interval [pieceIndex, latestArchivedSegmentIndexUpperPieceIndex]', async () => {
+      const latestArchivedSegmentIndex = 10
+      jest
+        .spyOn(segmentUseCase, 'getLastSegment')
+        .mockResolvedValue(latestArchivedSegmentIndex)
+      const dispatchObjectMappingsSpy = jest
+        .spyOn(objectMappingRouter, 'dispatchObjectMappings')
+        .mockResolvedValue(undefined)
+      mockSubscribeToArchivedSegmentHeader()
+
+      const connection = createMockConnection(true)
+      const subscriptionId = 'sub1'
+      const connections: [string, Websocket.connection][] = [
+        ['sub1', connection],
+      ]
+
+      await objectMappingRouter.init()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Clear the recovery loop to mock the recovery loop
+      const recoveryLoop = objectMappingRouter.getState().recoveryLoop
+      if (recoveryLoop) {
+        clearTimeout(recoveryLoop)
+      }
+
+      // pre-condition: lastRealtimeSegmentIndex is 10
+      expect(objectMappingRouter.getState().lastRealtimeSegmentIndex).toBe(
+        latestArchivedSegmentIndex,
+      )
+
+      const startingPieceIndex = 2000
+      const step = 1000
+
+      // Initialize the subscription
+      objectMappingRouter.subscribeRecoverObjectMappings(
+        connection,
+        startingPieceIndex,
+        step,
+        subscriptionId,
+      )
+
+      await objectMappingRouter.emitRecoverObjectMappings()
+
+      // capped limit is the last piece index of the latest archived segment
+      const cappedLimit = (latestArchivedSegmentIndex + 1) * 256 - 1
+      expect(dispatchObjectMappingsSpy).toHaveBeenCalledWith(
+        connections,
+        startingPieceIndex,
+        cappedLimit,
+      )
+
+      // expect the subscription to be updated
+      expect(
+        objectMappingRouter
+          .getState()
+          .recoverObjectMappingsSubscriptions.get(subscriptionId),
+      ).toBeUndefined()
+      expect(
+        objectMappingRouter
+          .getState()
+          .objectMappingsSubscriptions.get(subscriptionId),
+      ).toBeDefined()
     })
   })
 })
