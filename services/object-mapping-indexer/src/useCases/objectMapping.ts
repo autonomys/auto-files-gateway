@@ -48,14 +48,19 @@ const getObjectByPieceIndex = async (
   return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
 }
 
-const getObjectByPieceIndexRange = async (
-  pieceIndex: number,
-  upperLimit: number,
+const getObjectsAfterObjectWithinLimits = async (
+  objectMapping: ObjectMapping,
+  endPieceIndex: number,
+  limit: number,
 ): Promise<ObjectMapping[]> => {
-  const objectMappings = await objectMappingRepository.getByPieceIndexRange(
-    pieceIndex,
-    pieceIndex + upperLimit,
-  )
+  const [, pieceIndex, pieceOffset] = objectMapping
+  const objectMappings =
+    await objectMappingRepository.getObjectsFromPieceIndexAndOffset(
+      pieceIndex,
+      pieceOffset,
+      endPieceIndex,
+      limit,
+    )
 
   return objectMappings.map((e) => [e.hash, e.pieceIndex, e.pieceOffset])
 }
@@ -109,7 +114,7 @@ export const objectMappingUseCase = {
   getObject,
   getObjectByPieceIndex,
   getObjectByBlock,
-  getObjectByPieceIndexRange,
+  getObjectsAfterObjectWithinLimits,
   getObjectMappings,
   getObjectByCid,
 }

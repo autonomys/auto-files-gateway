@@ -13,4 +13,10 @@ export const config = {
     process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   ),
   databaseUrl: env('DATABASE_URL'),
+  objectMappingDistribution: {
+    maxObjectsPerMessage: notNaN(
+      Number(env('MAX_OBJECTS_PER_MESSAGE', '1000')),
+    ),
+    timeBetweenMessages: notNaN(Number(env('TIME_BETWEEN_MESSAGES', '1000'))),
+  },
 }
