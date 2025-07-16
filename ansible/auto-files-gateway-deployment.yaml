@@ -15,6 +15,7 @@
     - name: Import environment variables
       ansible.builtin.include_vars:
         file: environment.yaml
+      ignore_errors: true
 
     - name: Set matched group name for this host
       ansible.builtin.set_fact:
