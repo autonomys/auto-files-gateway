@@ -56,7 +56,7 @@ jobs:
             echo "Using manual inputs"
           else
             # Push trigger - use defaults
-            TARGET_MACHINES="auto_drive_multinetwork_gateway"
+            TARGET_MACHINES="files_gateway_taurus_staging"
             GATEWAY_IMAGE_TAG=""  # or set a default like "latest"
             INDEXER_IMAGE_TAG=""  # or set a default like "latest"
             FILE_RETRIEVER_IMAGE_TAG=""  # or set a default like "latest"
