@@ -28,7 +28,6 @@
     "@types/k6": "^1.0.0",
     "@types/node": "^22.10.2",
     "@types/stream-fork": "^1.0.5",
-    "bun": "^1.1.39",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-eslint-plugin": "^6.3.1",
