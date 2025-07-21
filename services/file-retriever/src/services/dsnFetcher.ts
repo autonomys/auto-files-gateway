@@ -297,17 +297,21 @@ const onFileDownloaded = async (cid: string) => {
 }
 
 const getNodeFromCache = async (cid: string) => {
-  const node = await nodeCache
-    .get(cid)
-    .then((e) => streamToBuffer(e!.data))
-    .then((e) => decodeNode(e))
-  return node
+  const cachedItem = await nodeCache.get(cid)
+  if (!cachedItem) {
+    return null
+  }
+  const buffer = await streamToBuffer(cachedItem.data)
+  return decodeNode(buffer)
 }
 
 const migrateToFileCache = async (cid: string) => {
   const node = await getNodeFromCache(cid)
   if (!node) {
-    logger.error(`Failed to migrate to file cache (cid=${cid})`)
+    logger.error(
+      `Failed to migrate to file cache (cid=${cid}): node not found in cache`,
+    )
+    return
   }
 
   async function* dfs(node: PBNode): AsyncGenerator<Buffer> {
