@@ -24,9 +24,6 @@ on:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/auto-files-gateway/pkgs/container/file-retriever)'
         required: true
         type: string
-  push:
-    branches:
-      - deploy-scripts
 env:
   INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
   INFISICAL_SECRET: ${{ secrets.INFISICAL_SECRET }}
