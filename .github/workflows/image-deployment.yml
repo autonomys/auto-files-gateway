@@ -29,7 +29,7 @@ on:
       - deploy-scripts
 env:
   INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-  INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+  INFISICAL_SECRET: ${{ secrets.INFISICAL_SECRET }}
   INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
 
 jobs:
@@ -107,7 +107,7 @@ jobs:
             -e "indexer_image_tag=${{ steps.params.outputs.indexer_image_tag }}" \
             -e "file_retriever_image_tag=${{ steps.params.outputs.file_retriever_image_tag }}" \
             -e "infisical_client_id=${{ secrets.INFISICAL_CLIENT_ID }}" \
-            -e "infisical_token=${{ secrets.INFISICAL_TOKEN }}" \
+            -e "infisical_secret=${{ secrets.INFISICAL_SECRET }}" \
             -e "infisical_project_id=${{ secrets.INFISICAL_PROJECT_ID }}" \
             -vv 2>&1 | sed -E 's/([0-9]{1,3}\.){3}[0-9]{1,3}/<IP>/g' # hide IP addresses
         env:

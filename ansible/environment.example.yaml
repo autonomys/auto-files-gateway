@@ -5,5 +5,5 @@
 # Infisical Configuration
 # Get these from your Infisical project settings
 infisical_client_id: "your-infisical-client-id-here"
-infisical_token: "your-infisical-client-secret-here"
+infisical_secret: "your-infisical-client-secret-here"
 infisical_project_id: "your-infisical-project-id-here"

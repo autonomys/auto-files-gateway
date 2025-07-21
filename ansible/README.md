@@ -38,7 +38,7 @@ Configure the deployment variables:
 ```yaml
 # Infisical Configuration
 infisical_client_id: 'your-client-id'
-infisical_token: 'your-client-secret'
+infisical_secret: 'your-client-secret'
 infisical_project_id: 'your-project-id'
 ```
 
