@@ -63,12 +63,17 @@ const getByHash = async (hash: string) => {
   return result.rows.at(0)
 }
 
-const getByPieceIndexRange = async (min: number, max: number) => {
+const getObjectsFromPieceIndexAndOffset = async (
+  minPieceIndex: number,
+  minPieceOffset: number,
+  maxPieceIndex: number,
+  limit: number,
+) => {
   const db = await getDatabase()
 
   const result = await db.query<DBObjectMapping>(
-    'SELECT * FROM object_mappings WHERE "pieceIndex" >= $1 AND "pieceIndex" < $2',
-    [min, max],
+    'SELECT * FROM object_mappings WHERE ("pieceIndex" > $1 OR ("pieceIndex" = $1 AND "pieceOffset" > $2)) AND "pieceIndex" <= $3 ORDER BY "pieceIndex" ASC, "pieceOffset" ASC LIMIT $4',
+    [minPieceIndex, minPieceOffset, maxPieceIndex, limit],
   )
 
   return result.rows
@@ -90,6 +95,6 @@ export const objectMappingRepository = {
   getLatestBlockNumber,
   getByPieceIndex,
   getByHash,
-  getByPieceIndexRange,
+  getObjectsFromPieceIndexAndOffset,
   getByHashes,
 }

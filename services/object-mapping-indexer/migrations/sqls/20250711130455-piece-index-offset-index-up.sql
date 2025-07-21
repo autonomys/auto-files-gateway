@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS object_mappings_piece_index_offset_index ON object_mappings (piece_index, piece_offset);
