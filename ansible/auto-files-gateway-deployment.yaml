@@ -1,0 +1,70 @@
+---
+- name: Pull new image, update secret, and reboot
+  hosts: '{{ target_machines }}'
+  vars:
+    env_file_path: $HOME/deploy/.env
+  tasks:
+    - name: Show current host information
+      ansible.builtin.debug:
+        msg: |
+          Current target machines: {{ target_machines }}
+          Current inventory hostname: {{ inventory_hostname }}
+          Current system hostname: {{ ansible_hostname }}
+          Current connection host: {{ ansible_host }}
+
+    - name: Import environment variables
+      ansible.builtin.include_vars:
+        file: environment.yaml
+      ignore_errors: true
+
+    - name: Set matched group name for this host
+      ansible.builtin.set_fact:
+        matched_group: "{{ group_names | select('match', target_machines ) | first | default('undefined') }}"
+
+    - name: Login to Infisical and get access token
+      ansible.builtin.shell: >
+        infisical login \
+          --method=universal-auth \
+          --client-id={{ infisical_client_id }} \
+          --client-secret={{ infisical_secret }} \
+          --plain
+      register: login_cmd
+
+    - name: Update image to backend container key BACKEND_IMAGE in folder '/{{ matched_group }}' image to {{ file_retriever_image_tag }}
+      ansible.builtin.shell: |
+        infisical secrets --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }} set FILE_RETRIEVER_DOCKER_TAG={{ file_retriever_image_tag }}
+      when: file_retriever_image_tag is defined and file_retriever_image_tag != ''
+      register: hello_output
+
+    - name: Update image to indexer container key OBJECT_MAPPING_INDEXER_DOCKER_TAG in folder '/{{ matched_group }}' image to {{ indexer_image_tag }}
+      ansible.builtin.shell: |
+        infisical secrets --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }} set OBJECT_MAPPING_INDEXER_DOCKER_TAG={{ indexer_image_tag }}
+      when: indexer_image_tag is defined and indexer_image_tag != ''
+      register: hello_output
+
+    - name: Update image to indexer container key GATEWAY_DOCKER_TAG in folder '/{{ matched_group }}' image to {{ gateway_image_tag }}
+      ansible.builtin.shell: |
+        infisical secrets --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }} set GATEWAY_DOCKER_TAG={{ gateway_image_tag }}
+      when: gateway_image_tag is defined and gateway_image_tag != ''
+      register: hello_output
+
+    - name: Update .env
+      ansible.builtin.shell: |
+        env_file=$(infisical export --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }})
+        # Create all necessary directories
+        mkdir -p ~/env-archives
+        timestamp=$(date +%s)
+        # Only try to backup existing .env if it exists
+        if [ -f {{ env_file_path }} ]; then
+          cat {{ env_file_path }} > "$HOME/env-archives/{{ matched_group }}.${timestamp}.txt"
+        fi
+        echo "$env_file" > {{ env_file_path }}
+      register: env_output
+
+    - name: Launch docker compose
+      ansible.builtin.shell: |
+        /usr/bin/docker compose --env-file {{ env_file_path }} -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.prod.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.prod.yml up -d
+
+    - name: Show env output
+      ansible.builtin.debug:
+        var: env_output.stderr
