@@ -8,6 +8,7 @@ import { logger } from './drivers/logger.js'
 import { HttpError } from './http/middlewares/error.js'
 import { healthController } from './http/controllers/health.js'
 import { bandwidthTracker } from './http/middlewares/bandwidthMonitor.js'
+import { moderationRouter } from './http/controllers/moderation.js'
 
 const app: Application = express()
 
@@ -20,6 +21,7 @@ if (config.monitoring.active) {
 }
 
 app.use('/files', fileRouter)
+app.use('/moderation', moderationRouter)
 app.use('/nodes', nodeRouter)
 app.use('/health', healthController)
 
