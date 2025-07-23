@@ -12,6 +12,7 @@ const get = async (
 ): Promise<[fromCache: boolean, FileResponse]> => {
   const isBanned = await moderationService.isFileBanned(cid)
   if (isBanned) {
+    logger.warn(`File download blocked: ${cid}`)
     throw new HttpError(451, 'Unavailable for legal reasons')
   }
 
