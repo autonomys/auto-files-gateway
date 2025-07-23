@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { authMiddleware } from '../middlewares/auth.js'
 import { asyncSafeHandler } from '../../utils/express.js'
 import { moderationService } from '../../services/moderation.js'
+import { isValidCID } from '../../utils/dagData.js'
+import { HttpError } from '../middlewares/error.js'
 
 export const moderationRouter = Router()
 
@@ -10,6 +12,10 @@ moderationRouter.post(
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
+
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
 
     await moderationService.banFile(cid)
 
@@ -25,6 +31,9 @@ moderationRouter.post(
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
 
     await moderationService.unbanFile(cid)
 
