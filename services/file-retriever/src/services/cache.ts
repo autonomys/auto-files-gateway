@@ -21,6 +21,7 @@ const cacheWithNamespace = (namespace: string) => {
     set: (cid: string, fileResponse: FileResponse) =>
       cache.set(`${namespace}:${cid}`, fileResponse),
     has: (cid: string) => cache.has(`${namespace}:${cid}`),
+    remove: (cid: string) => cache.remove(`${namespace}:${cid}`),
   }
 }
 

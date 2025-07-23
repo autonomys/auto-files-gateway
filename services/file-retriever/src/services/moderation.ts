@@ -1,7 +1,6 @@
 import { bannedFilesRepository } from '../repositories/banned-files.js'
 import { logger } from '../drivers/logger.js'
 import { fileCache } from './cache.js'
-import { Readable } from 'stream'
 
 /**
  * Moderation service for handling banned files
@@ -15,10 +14,7 @@ export const moderationService = {
   banFile: async (cid: string): Promise<void> => {
     try {
       await bannedFilesRepository.addBannedFile(cid)
-      // wipe the cache for the banned file
-      await fileCache.set(cid, {
-        data: Readable.from([]),
-      })
+      await fileCache.remove(cid)
       logger.info(`File banned successfully: ${cid}`)
     } catch (error) {
       logger.error(`Failed to ban file ${cid}: ${String(error)}`)
