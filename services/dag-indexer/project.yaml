@@ -1,0 +1,40 @@
+# // Auto-generated , DO NOT EDIT
+specVersion: 1.0.0
+version: 0.0.1
+name: dag-indexer
+description: SubQuery indexer for indexing DAG nodes from Substrate blockchain
+runner:
+  node:
+    name: '@subql/node'
+    version: '>=5.2.9'
+    options:
+      unsafe: true
+      historical: false
+      unfinalizedBlocks: false
+  query:
+    name: '@subql/query'
+    version: '*'
+schema:
+  file: ./schema.graphql
+network:
+  chainId: '0x66455a580aabff303720aa83adbe6c44502922251c03ba73686d5245da9e21bd'
+  endpoint:
+    - https://rpc-0.mainnet.subspace.network
+  types:
+    Solution:
+      public_key: AccountId32
+      reward_address: AccountId32
+    SubPreDigest:
+      slot: u64
+      solution: Solution
+dataSources:
+  - kind: substrate/Runtime
+    startBlock: 3167587
+    mapping:
+      file: ./dist/index.js
+      handlers:
+        - kind: substrate/CallHandler
+          handler: handleCall
+          filter:
+            module: system
+            method: remark
