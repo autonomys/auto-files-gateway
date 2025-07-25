@@ -5,6 +5,7 @@ import { config } from '../../config.js'
 import { logger } from '../../drivers/logger.js'
 import { server } from '../../rpc/server.js'
 import { segmentUseCase } from '../../useCases/segment.js'
+import { ObjectMapping } from '@auto-files/models'
 
 type RouterState = {
   objectMappingsSubscriptions: Map<string, Websocket.connection>
@@ -26,7 +27,9 @@ const state: RouterState = {
 const init = async () => {
   const latestSegmentIndex = await segmentUseCase.getLastSegment()
   state.lastRealtimeSegmentIndex = latestSegmentIndex
-  await segmentUseCase.subscribeToArchivedSegmentHeader(emitObjectMappings)
+  await segmentUseCase.subscribeToArchivedSegmentHeader(
+    objectMappingRouter.emitObjectMappings,
+  )
   state.recoveryLoop = setTimeout(recoveryLoop, 0)
 }
 
@@ -52,6 +55,58 @@ const unsubscribeObjectMappings = (subscriptionId: string) => {
   }
 }
 
+const dispatchObjectMappings = async (
+  connections: [string, Websocket.connection][],
+  startPieceIndex: number,
+  endPieceIndex: number,
+) => {
+  // Early-exit if the requested range is invalid
+  if (startPieceIndex > endPieceIndex || connections.length === 0) {
+    return
+  }
+
+  const { maxObjectsPerMessage, timeBetweenMessages } =
+    config.objectMappingDistribution
+
+  let lastBatchObjectCount = maxObjectsPerMessage
+  // initialise the pointer to the first object mapping
+  let lastObjectMapping: ObjectMapping = ['', startPieceIndex, -1]
+
+  // if the last batch has the maximum number of objects, we need to fetch more
+  while (lastBatchObjectCount === maxObjectsPerMessage) {
+    const objectMappings =
+      await objectMappingUseCase.getObjectsAfterObjectWithinLimits(
+        lastObjectMapping,
+        endPieceIndex,
+        maxObjectsPerMessage,
+      )
+
+    // If the query returned nothing, we are done
+    if (objectMappings.length === 0) {
+      break
+    }
+
+    // Send the batch to every still-connected subscriber
+    connections.forEach(([subscriptionId, connection]) => {
+      if (connection?.connected) {
+        server.notificationClient.object_mapping_list(
+          connection,
+          objectMappings,
+        )
+      } else {
+        objectMappingRouter.unsubscribeObjectMappings(subscriptionId)
+      }
+    })
+
+    // Move the cursor past the last pieceIndex we just sent
+    lastObjectMapping = objectMappings[objectMappings.length - 1]
+    lastBatchObjectCount = objectMappings.length
+
+    // Throttle so we don’t overwhelm clients
+    await new Promise((resolve) => setTimeout(resolve, timeBetweenMessages))
+  }
+}
+
 const emitObjectMappings = async (segmentIndex: number) => {
   // avoid emitting object mappings for segments that are already processed
   if (segmentIndex <= state.lastRealtimeSegmentIndex) {
@@ -65,37 +120,21 @@ const emitObjectMappings = async (segmentIndex: number) => {
     segmentUseCase.getPieceIndexRangeBySegment(segmentIndex)[
       UPPER_LIMIT_RANGE_INDEX
     ]
-  const objectMappings = await objectMappingUseCase.getObjectByPieceIndexRange(
+
+  await objectMappingRouter.dispatchObjectMappings(
+    Array.from(state.objectMappingsSubscriptions.entries()),
     lastUpperLimit + 1,
     upperLimit,
   )
 
   state.lastRealtimeSegmentIndex = segmentIndex
-
-  Array.from(state.objectMappingsSubscriptions.entries()).forEach(
-    ([subscriptionId, connection]) => {
-      if (connection.socket.readyState === 'open') {
-        server.notificationClient.object_mapping_list(
-          connection,
-          objectMappings,
-        )
-      } else {
-        logger.warn(
-          `IP (${connection.remoteAddress}) object mappings subscription ${subscriptionId} socket is ${connection.socket.readyState}`,
-        )
-        logger.debug(
-          `Removing subscription ${subscriptionId} from object mappings`,
-        )
-        unsubscribeObjectMappings(subscriptionId)
-      }
-    },
-  )
 }
 
 const subscribeRecoverObjectMappings = (
   connection: Websocket.connection | undefined,
   startingPieceIndex: number,
   step: number = 1,
+  subscriptionId: string = v4(),
 ) => {
   if (!connection) {
     throw new Error('Subscribe object mappings is not supported over http')
@@ -103,8 +142,7 @@ const subscribeRecoverObjectMappings = (
   logger.info(
     `IP (${connection.remoteAddress}) subscribing to recover object mappings`,
   )
-  const subscriptionId = v4()
-  const pieceIndex = startingPieceIndex - 1
+  const pieceIndex = startingPieceIndex
   state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
     connection,
     pieceIndex,
@@ -149,10 +187,6 @@ const emitRecoverObjectMappings = async () => {
     async ([subscriptionId, { connection, pieceIndex, step }]) => {
       const upperPieceIndex = pieceIndex + step
       const upperLimit = getUpperLimit(upperPieceIndex)
-      const result = await objectMappingUseCase.getObjectByPieceIndexRange(
-        pieceIndex,
-        upperLimit,
-      )
 
       state.recoverObjectMappingsSubscriptions.set(subscriptionId, {
         connection,
@@ -166,7 +200,11 @@ const emitRecoverObjectMappings = async () => {
         subscribeObjectMappings(connection, subscriptionId)
       }
 
-      server.notificationClient.object_mapping_list(connection, result)
+      objectMappingRouter.dispatchObjectMappings(
+        [[subscriptionId, connection]],
+        pieceIndex,
+        upperLimit,
+      )
     },
   )
 
@@ -186,6 +224,8 @@ export const objectMappingRouter = {
   subscribeRecoverObjectMappings,
   unsubscribeRecoverObjectMappings,
   init,
+  emitRecoverObjectMappings,
+  dispatchObjectMappings,
   close: () => {
     state.objectMappingsSubscriptions.clear()
     state.recoverObjectMappingsSubscriptions.clear()

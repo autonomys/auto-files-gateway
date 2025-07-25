@@ -13,7 +13,7 @@ export const createObjectMappingListener = (): ObjectMappingListener => {
 
         client.onNotification('subspace_object_mappings', async (event) => {
           logger.info(
-            `Processing object mapping (blockNumber=${event.result.v0})`,
+            `Processing object mapping (blockNumber=${event.result.blockNumber})`,
           )
           logger.debug(`Object mapping: ${JSON.stringify(event)}`)
           await objectMappingUseCase.processObjectMapping(event.result)

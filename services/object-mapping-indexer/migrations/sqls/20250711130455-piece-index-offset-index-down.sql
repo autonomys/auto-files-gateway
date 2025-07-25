@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS object_mappings_piece_index_offset_index;
