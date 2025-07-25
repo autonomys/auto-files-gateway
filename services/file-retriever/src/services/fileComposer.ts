@@ -3,11 +3,19 @@ import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
 import { FileResponse } from '@autonomys/file-caching'
 import { fileCache } from './cache.js'
+import { moderationService } from './moderation.js'
+import { HttpError } from '../http/middlewares/error.js'
 
 const get = async (
   cid: string,
   ignoreCache = false,
 ): Promise<[fromCache: boolean, FileResponse]> => {
+  const isBanned = await moderationService.isFileBanned(cid)
+  if (isBanned) {
+    logger.warn(`File download blocked: ${cid}`)
+    throw new HttpError(451, 'Unavailable for legal reasons')
+  }
+
   if (!ignoreCache) {
     const cachedFile = await fileCache.get(cid)
     if (cachedFile) {

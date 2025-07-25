@@ -7,7 +7,7 @@ import { asyncSafeHandler } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
-import { safeIPLDDecode } from '../../utils/dagData.js'
+import { isValidCID, safeIPLDDecode } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
 
 const fileRouter = Router()
@@ -17,6 +17,10 @@ fileRouter.get(
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
+
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
 
     const file = await dsnFetcher.fetchNode(cid, [])
     if (file) {
@@ -37,6 +41,9 @@ fileRouter.get(
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
 
     const isCached = await fileCache.has(cid)
 
@@ -53,6 +60,10 @@ fileRouter.get(
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
     const cid = req.params.cid
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
+
     const rawMode = req.query.raw === 'true'
     const ignoreCache =
       req.query.originControl === 'no-cache' ||
@@ -107,6 +118,10 @@ fileRouter.get(
     const chunk = parseInt(req.query.chunk as string)
     if (isNaN(chunk)) {
       throw new HttpError(400, 'Invalid chunk')
+    }
+
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
     }
 
     const fileData = await dsnFetcher.getPartial(cid, chunk)
