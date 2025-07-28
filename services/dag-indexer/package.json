@@ -18,8 +18,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
-  "homepage": "https://github.com/subquery/subql-starter",
-  "repository": "github:subquery/subql-starter",
+  "repository": "https://github.com/autonomys/auto-files-gateway",
   "files": [
     "dist",
     "schema.graphql",
