@@ -58,3 +58,17 @@ moderationRouter.get(
     })
   }),
 )
+
+moderationRouter.get(
+  '/:cid/status',
+  authMiddleware,
+  asyncSafeHandler(async (req, res) => {
+    const cid = req.params.cid
+
+    const isBanned = await moderationService.isFileBanned(cid)
+
+    res.status(200).json({
+      isBanned,
+    })
+  }),
+)
