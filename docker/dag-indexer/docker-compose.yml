@@ -1,21 +1,17 @@
-volumes:
-  dag-indexer-data: {}
-
 services:
   dag-indexer:
     image: ghcr.io/autonomys/subql-node-substrate:latest
-    volumes:
-      - dag-indexer-data:/app
     ports:
       - '127.0.0.1:30001:3000'
+    volumes:
+      - ../../services/dag-indexer:/app
+    network_mode: host
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/ready']
       interval: 3s
       timeout: 5s
       retries: 10
     environment:
-      ENDPOINT: ${RPC_URLS}
-      CHAIN_ID: ${CHAIN_ID}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
