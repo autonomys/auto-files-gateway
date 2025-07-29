@@ -14,9 +14,9 @@ export const getSortId = (
   blockHeight: bigint | string,
   indexInBlock?: bigint | string,
 ): string => {
-  const str1 = blockHeight.toString().padStart(32, PAD_ZEROS)
+  const str1 = blockHeight.toString().padStart(20, PAD_ZEROS)
   if (indexInBlock === undefined) return str1
-  const str2 = indexInBlock.toString().padStart(32, PAD_ZEROS)
+  const str2 = indexInBlock.toString().padStart(10, PAD_ZEROS)
   return str1 + '-' + str2
 }
 
