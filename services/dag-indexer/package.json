@@ -49,7 +49,7 @@
     "ipfs-unixfs": "6.0.9"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "20.x"
   },
   "jest": {
     "preset": "ts-jest",
