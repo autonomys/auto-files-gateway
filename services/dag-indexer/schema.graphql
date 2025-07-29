@@ -12,11 +12,6 @@ type Node @entity {
   uploadOptions: FileUploadOptions
 }
 
-type AddressDetail @jsonField {
-  street: String!
-  district: String!
-}
-
 type CompressionOptions @jsonField {
   algorithm: String!
   level: Int
