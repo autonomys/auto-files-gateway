@@ -1,0 +1,31 @@
+{
+  "node": {
+    "batchSize": 10,
+    "workerThreads": 1,
+    "concurrentBlocks": 1,
+    "fetchBatchSize": 5,
+    "fetchTimeout": 30000,
+    "fetchRetryCount": 3,
+    "fetchRetryDelay": 5000,
+    "timeout": 60000,
+    "maxConnectionRetries": 5,
+    "connectionRetryDelay": 10000,
+    "rateLimit": {
+      "requestsPerSecond": 20,
+      "burstSize": 5
+    }
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "password",
+    "database": "subquery"
+  },
+  "logging": {
+    "level": "info"
+  },
+  "sandbox": {
+    "wasm": true
+  }
+}
