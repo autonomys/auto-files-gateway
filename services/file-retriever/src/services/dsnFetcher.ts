@@ -29,6 +29,7 @@ import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
+import { dagIndexerRepository, DagNode } from '../repositories/dag-indexer.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -391,39 +392,51 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   return objectsByCID[cid]
 }
 
+const getFileChunks = async (cid: string): Promise<DagNode[]> => {
+  const root = await dagIndexerRepository.getDagNode(cid)
+  if (!root) {
+    throw new HttpError(500, 'Internal server error: Failed to get file chunks')
+  }
+
+  let chunks: DagNode[] = [root]
+  while (chunks.some((e) => e.links.length > 0)) {
+    const newChunks = await Promise.all(
+      chunks.map((e) =>
+        Promise.all(e.links.map((e) => dagIndexerRepository.getDagNode(e))),
+      ),
+    ).then((e) => e.flat())
+    if (newChunks.some((e) => e === null)) {
+      throw new HttpError(
+        500,
+        'Internal server error: Failed to get file chunks',
+      )
+    }
+
+    chunks = newChunks as DagNode[]
+  }
+
+  return chunks
+}
+
 const getPartial = async (
   cid: string,
   chunk: number,
 ): Promise<Buffer | null> => {
-  let index = 0
-  async function dfs(
-    cid: string,
-    siblings: string[] = [],
-  ): Promise<PBNode | undefined> {
-    const node = await dsnFetcher.fetchNode(cid, siblings)
-    if (index === chunk) {
-      return node
-    }
-    index++
-    for (const sibling of node.Links) {
-      const result = await dfs(
-        cidToString(sibling.Hash),
-        node.Links.map((e) => cidToString(e.Hash)),
-      )
-      if (result) {
-        return result
-      }
-    }
-  }
-
-  const node = await dfs(cid)
-
-  // if the node is not found, the chunk is not present
-  // and therefore the file has finished being downloaded
-  if (!node) {
-    onFileDownloaded(cid)
+  const chunks = await getFileChunks(cid)
+  const chunkDagNode = chunks[chunk]
+  if (!chunkDagNode) {
     return null
   }
+
+  const node = await fetchNode(
+    chunkDagNode.id,
+    chunks.map((e) => e.id),
+  )
+
+  if (chunk === chunks.length - 1) {
+    onFileDownloaded(cid)
+  }
+
   const ipldMetadata = safeIPLDDecode(node)
   if (!ipldMetadata) {
     throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
