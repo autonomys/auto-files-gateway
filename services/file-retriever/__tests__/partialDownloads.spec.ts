@@ -1,16 +1,6 @@
-import {
-  cidToString,
-  processFileToIPLDFormat,
-  stringToCid,
-  decodeNode,
-  NODE_METADATA_SIZE,
-  MetadataType,
-  IPLDNodeData,
-} from '@autonomys/auto-dag-data'
+import { MetadataType, IPLDNodeData } from '@autonomys/auto-dag-data'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
 import { jest } from '@jest/globals'
-import { randomBytes } from 'crypto'
-import { MemoryBlockstore } from 'blockstore-core'
 
 describe('Partial downloads', () => {
   beforeEach(() => {
