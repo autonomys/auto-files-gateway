@@ -28,6 +28,8 @@ services:
       --name object-mapping-node
       --sync full
       --create-object-mappings ${BLOCK_NUMBER_TO_START_FROM}
+      --blocks-pruning archive
+      --state-pruning archive
     healthcheck:
       timeout: 5s
       interval: 30s
