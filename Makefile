@@ -18,5 +18,5 @@ lint:
 
 test:
 	yarn file-retriever test
-	yarn object-mapping-indexer test
+	yarn indexer test
 
