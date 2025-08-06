@@ -158,21 +158,27 @@ const fetchFileAsStream = async (cid: string): Promise<ReadableStream> => {
   // all the links from the root node first and then continue with the next level
   return new ReadableStream({
     start: async (controller) => {
-      for (const chunk of chunks) {
-        const node = await dsnFetcher.fetchNode(
-          chunk.cid,
-          chunks.map((e) => e.cid),
-        )
-        const data = safeIPLDDecode(node)
-        if (!data) {
-          throw new HttpError(
-            400,
-            'Bad request: Not a valid auto-dag-data IPLD node',
+      try {
+        for (const chunk of chunks) {
+          const node = await dsnFetcher.fetchNode(
+            chunk.cid,
+            chunks.map((e) => e.cid),
           )
-        }
+          const data = safeIPLDDecode(node)
+          if (!data) {
+            throw new HttpError(
+              400,
+              'Bad request: Not a valid auto-dag-data IPLD node',
+            )
+          }
 
-        controller.enqueue(Buffer.from(data.data ?? []))
+          controller.enqueue(Buffer.from(data.data ?? []))
+        }
+      } catch (error) {
+        controller.error(error)
       }
+
+      controller.close()
     },
   })
 }
