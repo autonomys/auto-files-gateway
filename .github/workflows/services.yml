@@ -4,13 +4,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'backend/**' # Only trigger on changes within this folder
-      - '.github/**'
   pull_request:
-    paths:
-      - 'backend/**' # Only trigger on changes within this folder
-      - '.github/**'
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
