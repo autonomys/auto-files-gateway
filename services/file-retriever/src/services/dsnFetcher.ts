@@ -7,6 +7,7 @@ import {
   CompressionAlgorithm,
   cidOfNode,
   encodeNode,
+  IPLDNodeData,
 } from '@autonomys/auto-dag-data'
 import { FileResponse } from '@autonomys/file-caching'
 import { z } from 'zod'
@@ -340,6 +341,11 @@ const migrateToFileCache = async (cid: string) => {
     data: Readable.from(dfs(node)),
     ...getFileTraitsFromHead(node),
   })
+}
+
+const fetchNodeMetadata = async (cid: string): Promise<IPLDNodeData> => {
+  const node = await fetchNode(cid, [])
+  return safeIPLDDecode(node)
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
