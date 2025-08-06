@@ -7,7 +7,6 @@ import {
   CompressionAlgorithm,
   cidOfNode,
   encodeNode,
-  IPLDNodeData,
 } from '@autonomys/auto-dag-data'
 import { FileResponse } from '@autonomys/file-caching'
 import { z } from 'zod'
@@ -25,12 +24,12 @@ import {
   weightedRequestConcurrencyController,
 } from '@autonomys/asynchronous'
 import { optimizeBatchFetch } from './batchOptimizer.js'
-import { ObjectMapping } from '@auto-files/models'
+import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
-import { dagIndexerRepository, DagNode } from '../repositories/dag-indexer.js'
+import { dagIndexerRepository } from '../repositories/dag-indexer.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -343,9 +342,14 @@ const migrateToFileCache = async (cid: string) => {
   })
 }
 
-const fetchNodeMetadata = async (cid: string): Promise<IPLDNodeData> => {
-  const node = await fetchNode(cid, [])
-  return safeIPLDDecode(node)
+const fetchNodeMetadata = async (
+  cid: string,
+): Promise<ExtendedIPLDMetadata> => {
+  const node = await dagIndexerRepository.getDagNode(cid)
+  if (!node) {
+    throw new HttpError(404, 'Not found: Failed to get node metadata')
+  }
+  return node
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
@@ -398,13 +402,13 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   return objectsByCID[cid]
 }
 
-const getFileChunks = async (cid: string): Promise<DagNode[]> => {
+const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
   const root = await dagIndexerRepository.getDagNode(cid)
   if (!root) {
     throw new HttpError(500, 'Internal server error: Failed to get file chunks')
   }
 
-  let chunks: DagNode[] = [root]
+  let chunks: ExtendedIPLDMetadata[] = [root]
   while (chunks.some((e) => e.links.length > 0)) {
     const newChunks = await Promise.all(
       chunks.map((e) =>
@@ -418,7 +422,7 @@ const getFileChunks = async (cid: string): Promise<DagNode[]> => {
       )
     }
 
-    chunks = newChunks as DagNode[]
+    chunks = newChunks as ExtendedIPLDMetadata[]
   }
 
   return chunks
@@ -435,8 +439,8 @@ const getPartial = async (
   }
 
   const node = await fetchNode(
-    chunkDagNode.id,
-    chunks.map((e) => e.id),
+    chunkDagNode.cid,
+    chunks.map((e) => e.cid),
   )
 
   if (chunk === chunks.length - 1) {
@@ -455,4 +459,5 @@ export const dsnFetcher = {
   fetchNode,
   fetchObjects,
   getPartial,
+  fetchNodeMetadata,
 }

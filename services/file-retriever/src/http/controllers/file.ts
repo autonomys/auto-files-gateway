@@ -7,7 +7,7 @@ import { asyncSafeHandler } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
-import { isValidCID, safeIPLDDecode } from '../../utils/dagData.js'
+import { isValidCID } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
 
 const fileRouter = Router()
@@ -22,17 +22,8 @@ fileRouter.get(
       throw new HttpError(400, 'Invalid CID')
     }
 
-    const file = await dsnFetcher.fetchNode(cid, [])
-    if (file) {
-      const metadata = safeIPLDDecode(file)
-
-      res.status(200).json({
-        ...metadata,
-        size: metadata?.size?.toString(10),
-      })
-    } else {
-      res.sendStatus(404)
-    }
+    const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+    res.status(200).json(metadata)
   }),
 )
 
