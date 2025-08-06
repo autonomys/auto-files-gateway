@@ -1,5 +1,9 @@
 type Node @entity {
   id: ID!
+  cid: String! @index
+  type: String
+  linkDepth: Int!
+  name: String
   blockHeight: BigInt!
   blockHash: String!
   extrinsicId: String!
