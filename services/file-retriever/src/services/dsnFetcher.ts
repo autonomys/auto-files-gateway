@@ -432,13 +432,13 @@ const getPartial = async (
   cid: string,
   chunk: number,
 ): Promise<Buffer | null> => {
-  const chunks = await getFileChunks(cid)
+  const chunks = await dsnFetcher.getFileChunks(cid)
   const chunkDagNode = chunks[chunk]
   if (!chunkDagNode) {
     return null
   }
 
-  const node = await fetchNode(
+  const node = await dsnFetcher.fetchNode(
     chunkDagNode.cid,
     chunks.map((e) => e.cid),
   )
@@ -460,4 +460,5 @@ export const dsnFetcher = {
   fetchObjects,
   getPartial,
   fetchNodeMetadata,
+  getFileChunks,
 }
