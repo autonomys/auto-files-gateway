@@ -1,6 +1,6 @@
 import { IPLDNodeData } from '@autonomys/auto-dag-data'
 
-export interface ExtendedIPLDMetadata extends IPLDNodeData {
+export interface ExtendedIPLDMetadata extends Omit<IPLDNodeData, 'data'> {
   cid: string
   blockHeight: number
   blockHash: string
