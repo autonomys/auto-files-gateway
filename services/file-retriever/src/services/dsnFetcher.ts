@@ -275,10 +275,10 @@ const migrateToFileCache = async (cid: string) => {
           }
 
           const canContinue = this.push(Buffer.from(data.data ?? []))
+          index++
           if (!canContinue) {
             break
           }
-          index++
         }
       },
     }),
