@@ -12,6 +12,7 @@
     "benchmark": "node --loader ts-node/esm benchmarks/taurus.ts",
     "models": "yarn workspace @auto-files/models",
     "rpc": "yarn workspace @auto-files/rpc-apis",
+    "dag-indexer": "yarn workspace dag-indexer",
     "build": "yarn workspaces foreach --topological --verbose --all run build",
     "lint": "yarn workspaces foreach --topological --verbose --all run lint",
     "test": "yarn workspaces foreach --topological --verbose --all run test"

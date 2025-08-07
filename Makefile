@@ -17,5 +17,6 @@ lint:
 	yarn lint
 
 test:
-	yarn test
+	yarn file-retriever test
+	yarn indexer test
 

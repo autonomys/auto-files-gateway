@@ -2,11 +2,12 @@ import {
   blake3HashFromCid,
   stringToCid,
   decodeNode,
-  MetadataType,
   cidToString,
   CompressionAlgorithm,
   cidOfNode,
   encodeNode,
+  IPLDNodeData,
+  MetadataType,
 } from '@autonomys/auto-dag-data'
 import { FileResponse } from '@autonomys/file-caching'
 import { z } from 'zod'
@@ -18,17 +19,16 @@ import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 import axios from 'axios'
 import { objectMappingIndexer } from './objectMappingIndexer.js'
-import { fromEntries, promiseAll } from '../utils/array.js'
 import {
   streamToBuffer,
   weightedRequestConcurrencyController,
 } from '@autonomys/asynchronous'
-import { optimizeBatchFetch } from './batchOptimizer.js'
-import { ObjectMapping } from '@auto-files/models'
+import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
+import { dagIndexerRepository } from '../repositories/dag-indexer.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -150,99 +150,42 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
  * @param node - The root node of the file
  * @returns A readable stream of the file
  */
-const fetchFileAsStream = (node: PBNode): ReadableStream => {
-  const metadata = safeIPLDDecode(node)
+const fetchFileAsStream = async (cid: string): Promise<ReadableStream> => {
+  const chunks = await dsnFetcher.getFileChunks(cid)
 
-  // if a file is a single node (< 64KB) no additional fetching is needed
-  if (node.Links.length === 0) {
-    logger.debug(
-      `File resolved to single node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata?.size})`,
-    )
-    return new ReadableStream({
-      start: async (controller) => {
-        controller.enqueue(Buffer.from(metadata?.data ?? []))
-        controller.close()
-      },
-    })
-  }
-
-  logger.debug(
-    `File resolved to multi-node file: (cid=${cidToString(cidOfNode(node))}, size=${metadata?.size})`,
-  )
   // if a file is a multi-node file, we need to fetch the nodes in the correct order
   // bearing in mind there might be multiple levels of links, we need to fetch
   // all the links from the root node first and then continue with the next level
   return new ReadableStream({
     start: async (controller) => {
       try {
-        logger.debug('Starting to fetch file')
-        // for the first iteration, we need to fetch all the links from the root node
-        let requestsPending = node.Links.map(({ Hash }) =>
-          getObjectMappingHash(cidToString(Hash)),
-        )
-        while (requestsPending.length > 0) {
-          // we fetch the object mappings in parallel
-          const objectMappings = await objectMappingIndexer.get_object_mappings(
-            {
-              hashes: requestsPending,
-            },
+        for (const chunk of chunks) {
+          const node = await dsnFetcher.fetchNode(
+            chunk.cid,
+            chunks.map((e) => e.cid),
           )
-          // we group the object mapping by the piece index
-          const nodes = optimizeBatchFetch(objectMappings)
-
-          // we fetch the nodes in parallel grouped by the piece index
-          // and we create a map of the nodes by their hash
-          const objectsByHash = fromEntries(
-            await promiseAll(
-              nodes.map((list) =>
-                fetchObjects(list).then((nodes) =>
-                  list.map((e, i) => [e[0], nodes[i]] as [string, PBNode]),
-                ),
-              ),
-            ).then((array) => array.flat()),
-          )
-
-          // we map the object mappings to the nodes
-          const retrievedNodes = objectMappings.map((e) => objectsByHash[e[0]])
-
-          let newLinks: string[] = []
-          for (const node of retrievedNodes) {
-            const ipldMetadata = safeIPLDDecode(node)
-            // if the node has no links or has data (is the same thing), we write into the stream
-            if (ipldMetadata?.data) {
-              controller.enqueue(ipldMetadata.data)
-            } else {
-              // if the node has links, we need to fetch them in the next iteration
-              newLinks = newLinks.concat(
-                node.Links.map((e) =>
-                  getObjectMappingHash(cidToString(e.Hash)),
-                ),
-              )
-            }
+          const data = safeIPLDDecode(node)
+          if (!data) {
+            throw new HttpError(
+              400,
+              'Bad request: Not a valid auto-dag-data IPLD node',
+            )
           }
 
-          // we update the list of pending requests with the new links
-          requestsPending = newLinks
+          controller.enqueue(Buffer.from(data.data ?? []))
         }
+
         controller.close()
       } catch (error) {
-        logger.error(
-          `Failed to fetch file as stream (cid=${cidToString(cidOfNode(node))}); error=${error}`,
-        )
         controller.error(error)
       }
     },
   })
 }
 
-const getFileTraitsFromHead = (head: PBNode): Omit<FileResponse, 'data'> => {
-  const nodeMetadata = safeIPLDDecode(head)
-  if (!nodeMetadata) {
-    throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
-  }
-  if (nodeMetadata?.type !== MetadataType.File) {
-    throw new HttpError(400, 'Bad request: Not a file')
-  }
+const getFileMetadata = (
+  nodeMetadata: IPLDNodeData,
+): Omit<FileResponse, 'data'> => {
   const isCompressedAndNotEncrypted =
     nodeMetadata.uploadOptions?.encryption === undefined &&
     nodeMetadata.uploadOptions?.compression?.algorithm ===
@@ -261,28 +204,20 @@ const getFileTraitsFromHead = (head: PBNode): Omit<FileResponse, 'data'> => {
 
 const fetchFile = async (cid: string): Promise<FileResponse> => {
   try {
-    const [objectMapping] = await objectMappingIndexer.get_object_mappings({
-      hashes: [getObjectMappingHash(cid)],
-    })
-    const head = await fetchObjects([objectMapping]).then((nodes) => nodes[0])
-    logger.info(
-      `Fetched hash=${objectMapping[0]} pieceIndex=${objectMapping[1]} pieceOffset=${objectMapping[2]}`,
-    )
-    const nodeMetadata = safeIPLDDecode(head)
-
-    if (!nodeMetadata) {
-      throw new HttpError(
-        400,
-        'Bad request: Not a valid auto-dag-data IPLD node',
-      )
-    }
-    if (nodeMetadata?.type !== MetadataType.File) {
+    const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+    if (metadata.type !== MetadataType.File) {
       throw new HttpError(400, 'Bad request: Not a file')
     }
 
+    const traits = getFileMetadata(metadata)
+
+    logger.debug(
+      `Fetching file (cid=${cid}, size=${traits.size}, mimeType=${traits.mimeType}, filename=${traits.filename}, encoding=${traits.encoding})`,
+    )
+
     return {
-      data: Readable.fromWeb(fetchFileAsStream(head)),
-      ...getFileTraitsFromHead(head),
+      data: Readable.fromWeb(await fetchFileAsStream(cid)),
+      ...traits,
     }
   } catch (error) {
     logger.error(`Failed to fetch file (cid=${cid}); error=${error}`)
@@ -314,31 +249,57 @@ const migrateToFileCache = async (cid: string) => {
     return
   }
 
-  async function* dfs(node: PBNode): AsyncGenerator<Buffer> {
-    if (node.Links.length > 0) {
-      for (const link of node.Links) {
-        const child = await getNodeFromCache(cidToString(link.Hash))
-        if (!child)
-          throw new Error(
-            `Failed to migrate to file cache: Node not found in cache (cid=${cid})`,
-          )
-        for await (const chunk of dfs(child)) {
-          yield chunk
-        }
-      }
-    } else {
-      const data = safeIPLDDecode(node)
-      if (!data) {
-        logger.error(`Failed to migrate to file cache (cid=${cid})`)
-      }
-      yield Buffer.from(data?.data ?? [])
-    }
+  const chunks = await dsnFetcher.getFileChunks(cid)
+
+  const ipldNodeData = safeIPLDDecode(node)
+  if (!ipldNodeData) {
+    logger.error(`Failed to migrate to file cache (cid=${cid})`)
+    return
   }
 
+  let index = 0
   fileCache.set(cid, {
-    data: Readable.from(dfs(node)),
-    ...getFileTraitsFromHead(node),
+    data: new Readable({
+      read: async function () {
+        if (index >= chunks.length) {
+          this.push(null)
+          return
+        }
+
+        while (index < chunks.length) {
+          const chunk = chunks[index]
+          const node = await getNodeFromCache(chunk.cid)
+          if (!node) {
+            logger.error(`Failed to migrate to file cache (cid=${cid})`)
+            return
+          }
+
+          const data = safeIPLDDecode(node)
+          if (!data) {
+            logger.error(`Failed to migrate to file cache (cid=${cid})`)
+            return
+          }
+
+          const canContinue = this.push(Buffer.from(data.data ?? []))
+          index++
+          if (!canContinue) {
+            break
+          }
+        }
+      },
+    }),
+    ...getFileMetadata(ipldNodeData),
   })
+}
+
+const fetchNodeMetadata = async (
+  cid: string,
+): Promise<ExtendedIPLDMetadata> => {
+  const node = await dagIndexerRepository.getDagNode(cid)
+  if (!node) {
+    throw new HttpError(404, 'Not found: Failed to get node metadata')
+  }
+  return node
 }
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
@@ -391,39 +352,38 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   return objectsByCID[cid]
 }
 
+const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
+  const root = await dagIndexerRepository.getDagNode(cid)
+  if (!root) {
+    throw new HttpError(500, 'Internal server error: Failed to get file chunks')
+  }
+
+  if (root.type !== MetadataType.File) {
+    throw new HttpError(400, 'Bad request: Not a file')
+  }
+
+  return dagIndexerRepository.getSortedChunksByCid(cid)
+}
+
 const getPartial = async (
   cid: string,
   chunk: number,
 ): Promise<Buffer | null> => {
-  let index = 0
-  async function dfs(
-    cid: string,
-    siblings: string[] = [],
-  ): Promise<PBNode | undefined> {
-    const node = await dsnFetcher.fetchNode(cid, siblings)
-    if (index === chunk) {
-      return node
-    }
-    index++
-    for (const sibling of node.Links) {
-      const result = await dfs(
-        cidToString(sibling.Hash),
-        node.Links.map((e) => cidToString(e.Hash)),
-      )
-      if (result) {
-        return result
-      }
-    }
-  }
-
-  const node = await dfs(cid)
-
-  // if the node is not found, the chunk is not present
-  // and therefore the file has finished being downloaded
-  if (!node) {
-    onFileDownloaded(cid)
+  const chunks = await dsnFetcher.getFileChunks(cid)
+  const chunkDagNode = chunks[chunk]
+  if (!chunkDagNode) {
     return null
   }
+
+  const node = await dsnFetcher.fetchNode(
+    chunkDagNode.cid,
+    chunks.map((e) => e.cid),
+  )
+
+  if (chunk === chunks.length - 1) {
+    onFileDownloaded(cid)
+  }
+
   const ipldMetadata = safeIPLDDecode(node)
   if (!ipldMetadata) {
     throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
@@ -436,4 +396,6 @@ export const dsnFetcher = {
   fetchNode,
   fetchObjects,
   getPartial,
+  fetchNodeMetadata,
+  getFileChunks,
 }

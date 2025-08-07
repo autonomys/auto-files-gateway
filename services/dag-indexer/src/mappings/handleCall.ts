@@ -56,6 +56,10 @@ export async function handleCall(_call: SubstrateExtrinsic): Promise<void> {
     const size = ipldNodeData?.size ?? BigInt(0)
     await Node.create({
       id: cid,
+      cid,
+      type: ipldNodeData.type,
+      linkDepth: ipldNodeData.linkDepth,
+      name: ipldNodeData.name,
       blockHeight,
       blockHash,
       extrinsicId,
