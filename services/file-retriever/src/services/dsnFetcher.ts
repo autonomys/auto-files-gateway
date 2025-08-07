@@ -174,11 +174,11 @@ const fetchFileAsStream = async (cid: string): Promise<ReadableStream> => {
 
           controller.enqueue(Buffer.from(data.data ?? []))
         }
+
+        controller.close()
       } catch (error) {
         controller.error(error)
       }
-
-      controller.close()
     },
   })
 }
