@@ -278,6 +278,57 @@ const getDagNodesCount = async (): Promise<number> => {
   }
 }
 
+const getSortedChunksByCid = async (
+  cid: string,
+): Promise<ExtendedIPLDMetadata[]> => {
+  logger.info(`Getting chunks by CID: ${cid}`)
+
+  try {
+    const db = await getDatabase()
+    const result = await db.query<ExtendedIPLDMetadataDB>(
+      `WITH RECURSIVE file_chunks AS (
+        SELECT 
+          *,
+          0 AS depth,
+          ARRAY[cid] AS path,
+          NULL::text AS parent,
+          NULL::int AS link_order
+        FROM "dag-indexer".nodes
+        WHERE cid = $1
+
+        UNION ALL
+
+        SELECT 
+          n.*,
+          fc.depth + 1,
+          fc.path || n.cid,
+          fc.cid AS parent,
+          link_with_idx.ordinality::int  -- 🔧 Cast to int
+        FROM file_chunks fc
+        JOIN LATERAL (
+          SELECT value::text AS cid, ordinality
+          FROM jsonb_array_elements_text(fc.links) WITH ORDINALITY
+        ) AS link_with_idx ON TRUE
+        JOIN "dag-indexer".nodes n ON n.cid = link_with_idx.cid
+      )
+
+      SELECT *
+      FROM file_chunks
+      WHERE links IS NULL OR jsonb_array_length(links) = 0
+      ORDER BY link_order;
+    `,
+      [cid],
+    )
+
+    return result.rows.map(mapToDomain)
+  } catch (error) {
+    logger.error(
+      `Failed to get chunks by CID: ${cid} - ${error instanceof Error ? error.message : String(error)}`,
+    )
+    throw error
+  }
+}
+
 export const dagIndexerRepository = {
   getDagNode,
   getDagNodesByBlockHash,
@@ -287,4 +338,5 @@ export const dagIndexerRepository = {
   getDagNodesPaginated,
   searchDagNodesByUploadOptions,
   getDagNodesCount,
+  getSortedChunksByCid,
 }

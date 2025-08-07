@@ -358,24 +358,11 @@ const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
     throw new HttpError(500, 'Internal server error: Failed to get file chunks')
   }
 
-  let chunks: ExtendedIPLDMetadata[] = [root]
-  while (chunks.some((e) => e.links.length > 0)) {
-    const newChunks = await Promise.all(
-      chunks.map((e) =>
-        Promise.all(e.links.map((e) => dagIndexerRepository.getDagNode(e))),
-      ),
-    ).then((e) => e.flat())
-    if (newChunks.some((e) => e === null)) {
-      throw new HttpError(
-        500,
-        'Internal server error: Failed to get file chunks',
-      )
-    }
-
-    chunks = newChunks as ExtendedIPLDMetadata[]
+  if (root.type !== MetadataType.File) {
+    throw new HttpError(400, 'Bad request: Not a file')
   }
 
-  return chunks
+  return dagIndexerRepository.getSortedChunksByCid(cid)
 }
 
 const getPartial = async (
