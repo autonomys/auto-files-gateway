@@ -82,6 +82,9 @@ fileRouter.get(
       )
     }
 
+    // Advertise range support
+    res.set('Accept-Ranges', 'bytes')
+
     if (byteRange && file.size != null) {
       const fileSizeNumber = Number(file.size)
       const startIndex = byteRange[0]
@@ -107,7 +110,7 @@ fileRouter.get(
     } else if (file.size != null) {
       res.set('Content-Length', file.size.toString())
     }
-    if (file.encoding && !rawMode) {
+    if (file.encoding && !rawMode && !byteRange) {
       res.set('Content-Encoding', file.encoding)
     }
 
