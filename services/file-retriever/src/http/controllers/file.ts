@@ -81,7 +81,16 @@ fileRouter.get(
         `filename="${encodeURIComponent(file.filename)}"`,
       )
     }
-    if (file.size) {
+
+    if (byteRange && file.size) {
+      res.set(
+        'Content-Range',
+        `bytes ${byteRange[0]}-${byteRange[1] ?? '*'}/${file.size}`,
+      )
+      const endIndex = byteRange[1] ?? Number(file.size)
+      const startIndex = byteRange[0]
+      res.set('Content-Length', (endIndex - startIndex + 1).toString())
+    } else if (file.size) {
       res.set('Content-Length', file.size.toString())
     }
     if (file.encoding && !rawMode) {
