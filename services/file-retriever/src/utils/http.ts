@@ -18,12 +18,14 @@ export const getByteRange = (req: Request): ByteRange | undefined => {
 
   const [start, end] = byteRange.slice(header.length).split('-')
   const startNumber = Number(start)
-  const endNumber = end && end !== '*' ? Number(end) : undefined
+  const endNumber =
+    end !== undefined && end !== '' && end !== '*' ? Number(end) : undefined
 
   if (
+    Number.isNaN(startNumber) ||
     startNumber < 0 ||
-    (endNumber && endNumber < 0) ||
-    (endNumber && startNumber > endNumber)
+    (endNumber != null &&
+      (Number.isNaN(endNumber) || endNumber < 0 || startNumber > endNumber))
   ) {
     return undefined
   }

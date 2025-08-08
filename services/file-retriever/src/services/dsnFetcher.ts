@@ -251,10 +251,15 @@ const fetchFileAsStreamWithByteRange = async (
     },
   })
 
+  const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+  const fileSize = Number(metadata.size)
+  const endIndex = byteRange[1] ?? fileSize - 1
+  const length = endIndex - byteRange[0] + 1
+
   return sliceReadable(
     Readable.fromWeb(stream),
     byteRange[0] - firstNodeFileOffset,
-    byteRange[1] ? byteRange[1] - byteRange[0] + 1 : Number.POSITIVE_INFINITY,
+    length,
   )
 }
 

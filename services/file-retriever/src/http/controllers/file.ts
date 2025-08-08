@@ -82,15 +82,29 @@ fileRouter.get(
       )
     }
 
-    if (byteRange && file.size) {
+    if (byteRange && file.size != null) {
+      const fileSizeNumber = Number(file.size)
+      const startIndex = byteRange[0]
+      // If the range start is beyond EOF, respond 416
+      if (startIndex >= fileSizeNumber) {
+        res.set('Content-Range', `bytes */${fileSizeNumber}`)
+        res.sendStatus(416)
+        return
+      }
+
+      const effectiveEnd = Math.min(
+        byteRange[1] != null ? byteRange[1] : fileSizeNumber - 1,
+        fileSizeNumber - 1,
+      )
+      const contentLength = effectiveEnd - startIndex + 1
+
+      res.status(206)
       res.set(
         'Content-Range',
-        `bytes ${byteRange[0]}-${byteRange[1] ?? '*'}/${file.size}`,
+        `bytes ${startIndex}-${effectiveEnd}/${fileSizeNumber}`,
       )
-      const endIndex = byteRange[1] ?? Number(file.size)
-      const startIndex = byteRange[0]
-      res.set('Content-Length', (endIndex - startIndex + 1).toString())
-    } else if (file.size) {
+      res.set('Content-Length', contentLength.toString())
+    } else if (file.size != null) {
       res.set('Content-Length', file.size.toString())
     }
     if (file.encoding && !rawMode) {
