@@ -220,6 +220,10 @@ const fetchFileAsStreamWithByteRange = async (
     byteRange,
   )
 
+  logger.debug(
+    `getNodesForPartialRetrieval called (byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) nodes=${JSON.stringify(nodes)} firstNodeFileOffset=${firstNodeFileOffset}`,
+  )
+
   // We pass all the chunks to the fetchNode function
   // So that we can fetch all the nodes within the same piece
   // in one go
