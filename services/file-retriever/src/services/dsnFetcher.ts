@@ -253,7 +253,7 @@ const fetchFileAsStreamWithByteRange = async (
 
   return sliceReadable(
     Readable.fromWeb(stream),
-    firstNodeFileOffset,
+    byteRange[0] - firstNodeFileOffset,
     byteRange[1] ? byteRange[1] - byteRange[0] + 1 : Number.POSITIVE_INFINITY,
   )
 }
