@@ -27,6 +27,7 @@ const mapToDomain = (db: ExtendedIPLDMetadataDB): ExtendedIPLDMetadata => {
     type: db.type as MetadataType,
     linkDepth: db.link_depth,
     name: db.name,
+    size: BigInt(db.size),
     blockHeight: db.block_height,
     blockHash: db.block_hash,
     extrinsicId: db.extrinsic_id,
