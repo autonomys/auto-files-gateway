@@ -14,6 +14,7 @@ const get = async (
   cid: string,
   options: DownloadOptions = {},
 ): Promise<[fromCache: boolean, FileResponse]> => {
+  const isPartialRequest = options.byteRange != null
   const isBanned = await moderationService.isFileBanned(cid)
   if (isBanned) {
     logger.warn(`File download blocked: ${cid}`)
@@ -34,6 +35,11 @@ const get = async (
   let end = performance.now()
   logger.debug(`Fetching file from DSN ${cid} took ${end - start}ms`)
 
+  // Do not cache partial responses
+  if (isPartialRequest) {
+    return [false, file]
+  }
+
   start = performance.now()
   const [data, cachingStream] = await forkStream(file.data)
   end = performance.now()
@@ -48,13 +54,7 @@ const get = async (
       console.error('Error caching file', e)
     })
 
-  return [
-    false,
-    {
-      ...file,
-      data,
-    },
-  ]
+  return [false, { ...file, data }]
 }
 
 export const fileComposer = {
