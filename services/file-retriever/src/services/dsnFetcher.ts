@@ -162,7 +162,7 @@ const getNodesForPartialRetrieval = async (
     `getNodesForPartialRetrieval called (byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}])`,
   )
 
-  // Searchs for the first node that contains the byte range
+  // Searches for the first node that contains the byte range
   while (nodeRange[0] === null && i < chunks.length) {
     const chunk = chunks[i]
     const chunkSize = Number((chunk.size ?? 0).valueOf())
