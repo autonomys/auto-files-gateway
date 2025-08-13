@@ -14,15 +14,15 @@ on:
           - files_gateway_mainnet_production
       gateway_image_tag:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/subspace/pkgs/container/gateway)'
-        required: true
+        required: false
         type: string
       indexer_image_tag:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/auto-files-gateway/pkgs/container/object-mapping-indexer)'
-        required: true
+        required: false
         type: string
       file_retriever_image_tag:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/auto-files-gateway/pkgs/container/file-retriever)'
-        required: true
+        required: false
         type: string
 env:
   INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
