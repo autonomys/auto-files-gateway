@@ -62,6 +62,15 @@ fileRouter.get(
       uniqueHeaderValue(req.headers['x-origin-control'])?.toLowerCase() ===
         'no-cache'
 
+    const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+    if (byteRange) {
+      if (byteRange[0] > Number(metadata.size)) {
+        res.set('Content-Range', `bytes */${metadata.size}`)
+        res.sendStatus(416)
+        return
+      }
+    }
+
     const [fromCache, file] = await fileComposer.get(cid, {
       ignoreCache,
       byteRange,
@@ -88,12 +97,6 @@ fileRouter.get(
     if (byteRange && file.size != null) {
       const fileSizeNumber = Number(file.size)
       const startIndex = byteRange[0]
-      // If the range start is beyond EOF, respond 416
-      if (startIndex >= fileSizeNumber) {
-        res.set('Content-Range', `bytes */${fileSizeNumber}`)
-        res.sendStatus(416)
-        return
-      }
 
       const effectiveEnd = Math.min(
         byteRange[1] != null ? byteRange[1] : fileSizeNumber - 1,
