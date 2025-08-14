@@ -2,6 +2,7 @@ import {
   createFileCache,
   defaultMemoryAndSqliteConfig,
   ensureDirectoryExists,
+  FileCacheOptions,
   FileResponse,
 } from '@autonomys/file-caching'
 import path from 'path'
@@ -17,7 +18,8 @@ export const cache = createFileCache(
 
 const cacheWithNamespace = (namespace: string) => {
   return {
-    get: (cid: string) => cache.get(`${namespace}:${cid}`),
+    get: (cid: string, options?: FileCacheOptions) =>
+      cache.get(`${namespace}:${cid}`, options),
     set: (cid: string, fileResponse: FileResponse) =>
       cache.set(`${namespace}:${cid}`, fileResponse),
     has: (cid: string) => cache.has(`${namespace}:${cid}`),
