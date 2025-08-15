@@ -4,7 +4,7 @@ import {
   ensureDirectoryExists,
   FileCacheOptions,
   FileResponse,
-} from '@autonomys/file-caching'
+} from '@autonomys/file-server'
 import path from 'path'
 import { config } from '../config.js'
 

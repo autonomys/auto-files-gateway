@@ -1,7 +1,7 @@
 import { dsnFetcher } from './dsnFetcher.js'
 import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
-import { FileCacheOptions, FileResponse } from '@autonomys/file-caching'
+import { FileCacheOptions, FileResponse } from '@autonomys/file-server'
 import { fileCache } from './cache.js'
 import { moderationService } from './moderation.js'
 import { HttpError } from '../http/middlewares/error.js'

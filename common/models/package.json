@@ -4,7 +4,7 @@
   "packageManager": "yarn@4.2.2",
   "type": "module",
   "dependencies": {
-    "@autonomys/rpc": "^1.4.31",
+    "@autonomys/rpc": "^1.5.14",
     "zod": "^3.24.2"
   },
   "exports": {

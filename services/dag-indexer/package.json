@@ -33,7 +33,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@autonomys/auto-dag-data": "^1.4.31",
+    "@autonomys/auto-dag-data": "^1.5.14",
     "@polkadot/util": "^13.5.3",
     "@subql/cli": "^6.0.2",
     "@subql/common-substrate": "^4.3.7",
