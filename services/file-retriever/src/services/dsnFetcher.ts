@@ -13,7 +13,7 @@ import {
   ByteRange,
   FileCacheOptions,
   FileResponse,
-} from '@autonomys/file-caching'
+} from '@autonomys/file-server'
 import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
@@ -529,4 +529,5 @@ export const dsnFetcher = {
   getPartial,
   fetchNodeMetadata,
   getFileChunks,
+  getFileMetadata,
 }

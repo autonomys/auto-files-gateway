@@ -4,11 +4,16 @@ import { fileComposer } from '../../services/fileComposer.js'
 import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
 import { asyncSafeHandler } from '../../utils/express.js'
-import { getByteRange, uniqueHeaderValue } from '../../utils/http.js'
+import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
 import { isValidCID } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
+import {
+  DownloadMetadataFactory,
+  handleDownloadResponseHeaders,
+  getByteRange,
+} from '@autonomys/file-server'
 
 const fileRouter = Router()
 
@@ -75,47 +80,17 @@ fileRouter.get(
       ignoreCache,
       byteRange,
     })
-    if (fromCache) {
-      res.setHeader('x-file-origin', 'cache')
-    } else {
-      res.setHeader('x-file-origin', 'gateway')
-    }
+    res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
 
-    if (file.mimeType) {
-      res.set('Content-Type', file.mimeType)
-    }
-    if (file.filename) {
-      res.set(
-        'Content-Disposition',
-        `filename="${encodeURIComponent(file.filename)}"`,
-      )
-    }
-
-    // Advertise range support
-    res.set('Accept-Ranges', 'bytes')
-
-    if (byteRange && file.size != null) {
-      const fileSizeNumber = Number(file.size)
-      const startIndex = byteRange[0]
-
-      const effectiveEnd = Math.min(
-        byteRange[1] != null ? byteRange[1] : fileSizeNumber - 1,
-        fileSizeNumber - 1,
-      )
-      const contentLength = effectiveEnd - startIndex + 1
-
-      res.status(206)
-      res.set(
-        'Content-Range',
-        `bytes ${startIndex}-${effectiveEnd}/${fileSizeNumber}`,
-      )
-      res.set('Content-Length', contentLength.toString())
-    } else if (file.size != null) {
-      res.set('Content-Length', file.size.toString())
-    }
-    if (file.encoding && !rawMode && !byteRange) {
-      res.set('Content-Encoding', file.encoding)
-    }
+    handleDownloadResponseHeaders(
+      req,
+      res,
+      DownloadMetadataFactory.fromIPLDData(metadata),
+      {
+        byteRange,
+        rawMode,
+      },
+    )
 
     logger.debug(
       `Streaming file ${req.params.cid} to ${req.ip} with ${file.size} bytes`,
