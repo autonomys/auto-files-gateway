@@ -1,6 +1,5 @@
 import express from 'express'
 import { objectMappingUseCase } from '../../useCases/objectMapping.js'
-import { stringify } from '@autonomys/auto-utils'
 
 export const objectsController = express.Router()
 
@@ -20,10 +19,7 @@ objectsController.get('/:hash', async (req, res, next) => {
       return
     }
 
-    res
-      .set('Content-Type', 'application/json')
-      .send(stringify(object))
-      .sendStatus(200)
+    res.json(object)
 
     return
   } catch (err) {
