@@ -36,7 +36,10 @@ ipldNodesController.get('/by-block-height-range', async (req, res, next) => {
         parsedToBlock,
       )
 
-      res.json(stringify(objects))
+      res
+        .status(200)
+        .set('Content-Type', 'application/json')
+        .send(stringify(objects))
     } catch (error) {
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Internal server error',
