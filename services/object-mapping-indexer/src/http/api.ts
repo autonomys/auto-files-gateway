@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express'
 import { objectsController } from './controllers/objects.js'
 import { config } from '../config.js'
 import cors from 'cors'
+import { ipldNodesController } from './controllers/IPLDNodes.js'
 
 export const expressApp = express()
 
@@ -17,6 +18,7 @@ if (config.corsAllowOrigins) {
 
 expressApp.use('/objects', objectsController)
 expressApp.use('/health', healthController)
+expressApp.use('/ipld-nodes', ipldNodesController)
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-unused-vars
 expressApp.use((err: unknown, _: Request, res: Response, __: Function) => {
