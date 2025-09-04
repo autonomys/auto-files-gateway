@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { ipldNodesRepository } from '../../repositories/IPLDNodes.js'
 import { config } from '../../config.js'
+import { stringify } from '@autonomys/auto-utils'
 
 export const ipldNodesController = Router()
 
@@ -35,7 +36,7 @@ ipldNodesController.get('/by-block-height-range', async (req, res, next) => {
         parsedToBlock,
       )
 
-      res.json(objects)
+      res.json(stringify(objects))
     } catch (error) {
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Internal server error',
