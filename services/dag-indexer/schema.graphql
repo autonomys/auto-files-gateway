@@ -1,10 +1,7 @@
 type Node
   @entity
   @compositeIndexes(
-    fields: [
-      ["blockHeight", "indexInBlock"]
-      ["timestamp", "blockHeight", "indexInBlock"]
-    ]
+    fields: [["blockHeight", "indexInBlock"], ["timestamp", "indexInBlock"]]
   ) {
   id: ID!
   cid: String! @index
