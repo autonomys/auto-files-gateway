@@ -128,6 +128,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@autonomys/auto-utils@npm:^1.4.35":
+  version: 1.5.14
+  resolution: "@autonomys/auto-utils@npm:1.5.14"
+  dependencies:
+    "@polkadot/api": "npm:^15.8.1"
+    "@polkadot/extension-dapp": "npm:^0.58.6"
+  checksum: 10c0/d1c4d6a38d6b9029191dcae5e777b48717025f30b60f963772ee1d1220f4426cbfa96a27541962024c0dec0ee0a7c4ab35850edb7abbf53a04d8fb3378806951
+  languageName: node
+  linkType: hard
+
 "@autonomys/auto-utils@npm:^1.5.12":
   version: 1.5.12
   resolution: "@autonomys/auto-utils@npm:1.5.12"
@@ -11250,6 +11260,7 @@ __metadata:
     "@auto-files/models": "workspace:*"
     "@auto-files/rpc-apis": "workspace:*"
     "@autonomys/auto-dag-data": "npm:^1.4.35"
+    "@autonomys/auto-utils": "npm:^1.4.35"
     "@autonomys/rpc": "npm:^1.4.31"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@types/cors": "npm:^2.8.17"
