@@ -13,12 +13,23 @@ ipldNodesController.get('/by-block-height-range', async (req, res, next) => {
     const parsedToBlock = parseInt(toBlock as string)
 
     if (isNaN(parsedFromBlock) || isNaN(parsedToBlock)) {
-      res.status(400).json({ error: 'Invalid block height range' })
+      res
+        .status(400)
+        .json({ error: 'Invalid block height range: not a number' })
+      return
+    }
+
+    if (parsedFromBlock < 0 || parsedToBlock < 0) {
+      res
+        .status(400)
+        .json({ error: 'Invalid block height range: negative values' })
       return
     }
 
     if (parsedFromBlock > parsedToBlock) {
-      res.status(400).json({ error: 'Invalid block height range' })
+      res
+        .status(400)
+        .json({ error: 'Invalid block height range: fromBlock > toBlock' })
       return
     }
 
