@@ -31,6 +31,7 @@ SubQuery-based indexer that listens to `system.remark` extrinsics and indexes DA
 - File Retriever queries DAG Indexer storage to get:
   - Node metadata for `/:cid/metadata` and validation.
   - Sorted chunks for multi-node files.
+  - Object mapping indexer `/ipld-nodes` service.
 
 ### Notes
 
