@@ -34,3 +34,10 @@ sequenceDiagram
     Node->>DAGIndexer: Sends blocks
     Gateway->>Node: Retrieve object metadata from the node
 ```
+
+For a more detailed over on each service check out:
+
+- [File retriever](docs/file-retriever.md)
+- [DAG Indexer](docs/dag-indexer.md)
+- [Object Mapping Indexer](docs/object-mapping-indexer.md)
+- [Subspace Node & Gateway](https://github.com/autonomys/subspace)
