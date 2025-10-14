@@ -8,9 +8,29 @@ This service is used for retrieving already archived files from the Autonomy's D
 
 ## How it works?
 
-When a user requests the download of a file, the file retriever asks the object mapping indexer the position of the CID in the DSN and uses the subspace gateway to download it. For big files if there are more objects to be retrieved this process is repeated until all the object are downloaded.
+The flow illustrates how a file retrieval is performed in **Files Gateway**:.
 
-Meanwhile, the object mapping indexer is constantly listening to the Autonomy's network for keeping track of the position of uploaded objects in the DSN.
+- When a **user requests a specific content identifier (CID)**, the **File Retriever** coordinates the process by querying various indexers to obtain both metadata and storage location details.
+- The **Object Indexer** and **DAG Indexer** maintain a constantly updated map of where data resides across the network and how it is structured within content-addressable graphs.
+- Once the necessary information is gathered, the **Gateway** and participating **Nodes** manage the actual data transfer, retrieving the requested file from the decentralized storage and delivering it back to the user efficiently and securely.
+- This coordinated interaction ensures that even though data is stored in a distributed manner, retrieval remains seamless and transparent to the end user.
 
-![File Download Diagram](https://github.com/autonomys/auto-files-gateway/blob/main/.github/diagrams/file-download.png)
+```mermaid
+sequenceDiagram
+    participant User
+    participant FileRetriever as FILE-RETRIEVER
+    participant ObjectIndexer as ObjectIndexer
+    participant DAGIndexer as DAGIndexer
+    participant Gateway as GATEWAY
+    participant Node as NODE
 
+    User->>FileRetriever: 1. Asks for a CID
+    FileRetriever->>DAGIndexer: 2. Requests the list of nodes needed<br/> for retrieving the requested CID (partial retrieval posibly)
+    FileRetriever->>ObjectIndexer: 3. Requests the position of the object on the DSN
+    Note over ObjectIndexer: Listens to every object upload,<br/>saving its position in the DSN<br/>for use during file download.
+    Note over DAGIndexer: Listens to every "System.remark" extrinsic,<br/> and decodes saving IPLD metadata.
+    FileRetriever->>Gateway: 4. Fetches the object using<br/>the Subspace Gateway
+    Node->>ObjectIndexer: Sends object mappings
+    Node->>DAGIndexer: Sends blocks
+    Gateway->>Node: Retrieve object metadata from the node
+```
