@@ -11214,6 +11214,7 @@ __metadata:
     "@auto-files/models": "workspace:*"
     "@auto-files/rpc-apis": "workspace:*"
     "@autonomys/auto-dag-data": "npm:^1.5.14"
+    "@autonomys/auto-utils": "npm:^1.5.14"
     "@autonomys/rpc": "npm:^1.5.14"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@types/cors": "npm:^2.8.17"

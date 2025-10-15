@@ -1,4 +1,8 @@
-type Node @entity {
+type Node
+  @entity
+  @compositeIndexes(
+    fields: [["blockHeight", "indexInBlock"], ["timestamp", "indexInBlock"]]
+  ) {
   id: ID!
   cid: String! @index
   type: String
