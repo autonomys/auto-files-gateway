@@ -41,6 +41,7 @@ services:
       - VICTORIA_PASSWORD=${VICTORIA_PASSWORD}
       - OBJECT_MAPPING_INDEXER_URL=http://object-mapping-app:3000/ws
       - DATABASE_URL=${DATABASE_URL}
+      - ACCEPT_UNAUTHORIZED_CERTS=${ACCEPT_UNAUTHORIZED_CERTS}
     depends_on:
       subspace-node:
         condition: service_healthy
