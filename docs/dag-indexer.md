@@ -1,6 +1,6 @@
 ### DAG Indexer — Service Overview
 
-SubQuery-based indexer that listens to `system.remark` extrinsics and indexes DAG-PB nodes produced by `@autonomys/auto-dag-data`. Persists node metadata, links, sizes, and upload options for downstream services like File Retriever.
+SubQuery-based indexer that listens to `system.remark` and `system.remark_with_event` extrinsics and indexes DAG-PB nodes produced by `@autonomys/auto-dag-data`. Persists node metadata, links, sizes, and upload options for downstream services like File Retriever.
 
 ### Flow
 
@@ -22,7 +22,7 @@ SubQuery-based indexer that listens to `system.remark` extrinsics and indexes DA
 
 ### Configuration (project.yaml)
 
-- `dataSources[0]` kind: `substrate/Runtime` with handler `handleCall` and filter `{ module: system, method: remark }`.
+- `dataSources[0]` kind: `substrate/Runtime` with handler `handleCall` and filter `{ module: system, method: remark }` or `{ module: system, method: remarkWithEvent }`.
 - Network `chainId` and endpoint set to Subspace Mainnet.
 - Runner `@subql/node` `>=5.2.9` with `unsafe: true`, `historical: false`.
 
