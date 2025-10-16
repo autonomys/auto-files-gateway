@@ -4,7 +4,7 @@ This service is used for retrieving already archived files from the Autonomy's D
 
 ## FAQs
 
-- **What means a file to be archived?:** When a file is uploaded to Autonomy’s network as a series of transactions, it is not immediately distributed as segmented pieces from which farmers generate storage proofs. There's some variable delay between the transaction submission and the file availability that depends on the network congestion among other factors.
+- **What does it mean for a file to be archived?:** When a file is uploaded to Autonomy’s network as a series of transactions, it is not immediately distributed as segmented pieces from which farmers generate storage proofs. There's some variable delay between the transaction submission and the file availability that depends on the network congestion among other factors.
 
 ## How it works?
 
