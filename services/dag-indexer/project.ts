@@ -59,6 +59,14 @@ const project: SubstrateProject = {
               method: 'remark',
             },
           },
+          {
+            kind: SubstrateHandlerKind.Call,
+            handler: 'handleCall',
+            filter: {
+              module: 'system',
+              method: 'remarkWithEvent',
+            },
+          },
         ],
       },
     },
