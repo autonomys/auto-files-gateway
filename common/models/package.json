@@ -1,7 +1,7 @@
 {
   "name": "@auto-files/models",
   "version": "0.0.1",
-  "packageManager": "yarn@4.2.2",
+  "packageManager": "yarn@4.10.3",
   "type": "module",
   "dependencies": {
     "@autonomys/rpc": "^1.4.31",
