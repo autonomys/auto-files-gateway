@@ -10,6 +10,9 @@ common: models rpc
 indexer: common
 	yarn indexer build
 
+dag-indexer: common
+	yarn dag-indexer build
+
 file-retriever: common
 	yarn file-retriever build
 

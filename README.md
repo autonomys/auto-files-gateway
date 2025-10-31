@@ -35,6 +35,10 @@ sequenceDiagram
     Gateway->>Node: Retrieve object metadata from the node
 ```
 
+## Getting Started
+
+- [Local Development Guide](docs/development.md) - Run the gateway locally for development
+
 For a more detailed over on each service check out:
 
 - [File retriever](docs/file-retriever.md)
