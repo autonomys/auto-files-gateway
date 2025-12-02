@@ -61,6 +61,10 @@
         echo "$env_file" > {{ env_file_path }}
       register: env_output
 
+    - name: Pull docker images
+      ansible.builtin.shell: |
+        /usr/bin/docker compose --env-file {{ env_file_path }} -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.prod.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.prod.yml pull
+
     - name: Launch docker compose
       ansible.builtin.shell: |
         /usr/bin/docker compose --env-file {{ env_file_path }} -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/file-retriever/docker-compose.prod.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.yml -f ~/deploy/auto-files-gateway/docker/object-mapping-indexer/docker-compose.prod.yml up -d

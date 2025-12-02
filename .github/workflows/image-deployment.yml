@@ -8,9 +8,7 @@ on:
         required: true
         type: choice
         options:
-          - files_gateway_taurus_staging
           - files_gateway_mainnet_staging
-          - files_gateway_taurus_production
           - files_gateway_mainnet_production
       gateway_image_tag:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/subspace/pkgs/container/gateway)'
@@ -53,7 +51,7 @@ jobs:
             echo "Using manual inputs"
           else
             # Push trigger - use defaults
-            TARGET_MACHINES="files_gateway_taurus_staging"
+            TARGET_MACHINES="files_gateway_mainnet_staging"
             GATEWAY_IMAGE_TAG=""  # or set a default like "latest"
             INDEXER_IMAGE_TAG=""  # or set a default like "latest"
             FILE_RETRIEVER_IMAGE_TAG=""  # or set a default like "latest"

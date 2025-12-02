@@ -3,7 +3,7 @@ import { authMiddleware } from '../middlewares/auth.js'
 import { fileComposer } from '../../services/fileComposer.js'
 import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
-import { asyncSafeHandler } from '../../utils/express.js'
+import { asyncSafeHandler, toSerializable } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
@@ -28,7 +28,7 @@ fileRouter.get(
     }
 
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
-    res.status(200).json(metadata)
+    res.status(200).json(toSerializable(metadata))
   }),
 )
 
