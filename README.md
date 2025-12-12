@@ -39,9 +39,19 @@ sequenceDiagram
 
 - [Local Development Guide](docs/development.md) - Run the gateway locally for development
 
-For a more detailed over on each service check out:
+## Documentation
 
-- [File retriever](docs/file-retriever.md)
-- [DAG Indexer](docs/dag-indexer.md)
-- [Object Mapping Indexer](docs/object-mapping-indexer.md)
-- [Subspace Node & Gateway](https://github.com/autonomys/subspace)
+### Architecture & Concepts
+
+- [Architecture Overview](docs/architecture.md) - **Start here** - comprehensive system design, protocol concepts, and data flows
+
+### Service Documentation
+
+- [File Retriever](docs/file-retriever.md) - HTTP API for file downloads
+- [DAG Indexer](docs/dag-indexer.md) - IPLD metadata indexer
+- [Object Mapping Indexer](docs/object-mapping-indexer.md) - DSN location tracking
+
+### External Resources
+
+- [Autonomys Protocol (Subspace)](https://github.com/autonomys/subspace) - Core blockchain and DSN implementation
+- [@autonomys/auto-dag-data](https://www.npmjs.com/package/@autonomys/auto-dag-data) - IPLD data format library
