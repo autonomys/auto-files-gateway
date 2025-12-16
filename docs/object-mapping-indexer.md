@@ -1,52 +1,105 @@
-### Object Mapping Indexer — Service Overview
+# Object Mapping Indexer
 
-Indexes and serves DSN object mappings that locate objects within archived pieces. Provides HTTP APIs for lookups and a JSON-RPC/WebSocket interface for realtime and recovery distribution of mappings to consumers (e.g., File Retriever).
+The Object Mapping Indexer tracks where objects are located within the DSN (piece index + offset). It subscribes to the Autonomys Node for object mapping events emitted during archiving, persists them to PostgreSQL, and provides HTTP and WebSocket APIs for lookups.
 
-### Flow
+## How It Works
 
-- Listener subscribes to Subspace RPC (`subspace_subscribeObjectMappings`).
-- On notification, persist `[hash, pieceIndex, pieceOffset]` with `blockNumber`.
-- HTTP API exposes lookups by hash, CID, block number, and piece index.
-- RPC server streams mappings to subscribers in batches and supports catch-up (recovery) from a given `pieceIndex`.
+1. Subscribes to `subspace_subscribeObjectMappings` on the Autonomys Node
+2. On each notification, persists `[hash, pieceIndex, pieceOffset, blockNumber]` to the database
+3. Exposes HTTP API for lookups by hash, CID, block number, or piece index
+4. Provides WebSocket RPC for real-time streaming and recovery (catch-up) subscriptions
 
-### HTTP Endpoints
+## HTTP Endpoints
 
-- `GET /health` — 200 OK.
-- `GET /objects/:hash` — Returns `GlobalObjectMapping` for a BLAKE3 `hash`.
-- `GET /objects/by-cid/:cid` — Returns `[hash, pieceIndex, pieceOffset]` for a CID.
-- `GET /objects/by-block/:blockNumber` — Returns array of `[hash, pieceIndex, pieceOffset]`.
-- `GET /objects/by-piece-index/:pieceIndex` — Returns array of `[hash, pieceIndex, pieceOffset]`.
-- `GET /ipld-nodes/by-block-height-range?fromBlock&toBlock` — Returns DAG nodes indexed within the range (size-limited by config).
+### Health
 
-### RPC (JSON-RPC over WebSocket)
+- `GET /health` — Returns 200 OK
 
-- `subscribe_object_mappings` → `{ subscriptionId }` then server emits `object_mapping_list([...])` batches.
-- `unsubscribe_object_mappings({ subscriptionId })` → `{ success }`.
-- `subscribe_recover_object_mappings({ pieceIndex, step })` → `{ subscriptionId }` for bounded catch-up; auto-switches to realtime when caught up.
-- `unsubscribe_recover_object_mappings({ subscriptionId })` → `{ success }`.
-- `get_object_mappings({ hashes })` → ordered array of mappings matching input hash order.
+### Object Lookups
 
-Batching and throttling are controlled to avoid overwhelming clients; only archived segments are distributed.
+- `GET /objects/:hash` — Returns `GlobalObjectMapping` for a BLAKE3 hash
+- `GET /objects/by-cid/:cid` — Returns `[hash, pieceIndex, pieceOffset]` for a CID
+- `GET /objects/by-block/:blockNumber` — Returns array of mappings for a block
+- `GET /objects/by-piece-index/:pieceIndex` — Returns array of mappings for a piece
 
-### Persistence
+### DAG Node Lookups
 
-- Stores mappings with `hash`, `pieceIndex`, `pieceOffset`, `blockNumber`.
-- Lookup helpers provide ordering and ranges for efficient streaming.
+Queries the DAG Indexer database for IPLD node metadata:
 
-### Key Environment Variables
+- `GET /ipld-nodes/by-block-height-range?fromBlock=N&toBlock=M` — Returns DAG nodes indexed within the block range (limited by `MAX_BLOCK_HEIGHT_RANGE`)
 
-- `OBJECT_MAPPING_INDEXER_PORT` (default: 3000)
-- `REQUEST_SIZE_LIMIT` (default: `200mb`)
-- `CORS_ALLOW_ORIGINS`
-- `NODE_RPC_URL` (required)
-- `RECOVERY_INTERVAL` (ms, default: 1000)
-- `MAX_RECOVERY_STEP` (default: 1000)
-- `LOG_LEVEL` (default: `debug` in dev, `info` in prod)
-- `DATABASE_URL` (required)
-- Distribution: `MAX_OBJECTS_PER_MESSAGE` (1000), `TIME_BETWEEN_MESSAGES` (ms, default: 1000)
-- IPLD Nodes API: `MAX_BLOCK_HEIGHT_RANGE` (default: 1000)
+## WebSocket RPC (JSON-RPC)
 
-### Notes
+### Real-time Subscriptions
 
-- Uses BLAKE3 hash derived from CID when querying by CID.
-- Recovery subscription respects latest archived segment boundaries.
+- `subscribe_object_mappings` → Returns `{ subscriptionId }`
+  - Server emits `object_mapping_list([...])` batches as new mappings arrive
+- `unsubscribe_object_mappings({ subscriptionId })` → Returns `{ success }`
+
+### Recovery (Catch-up) Subscriptions
+
+For clients that need to catch up from a specific point:
+
+- `subscribe_recover_object_mappings({ pieceIndex, step })` → Returns `{ subscriptionId }`
+  - Streams historical mappings starting from `pieceIndex`
+  - Automatically switches to real-time when caught up
+- `unsubscribe_recover_object_mappings({ subscriptionId })` → Returns `{ success }`
+
+### Batch Lookups
+
+- `get_object_mappings({ hashes })` → Returns ordered array of mappings matching input hash order
+
+## Data Model
+
+Each object mapping record contains:
+
+| Field         | Type   | Description                     |
+| ------------- | ------ | ------------------------------- |
+| `hash`        | string | BLAKE3 hash (32 bytes, hex)     |
+| `pieceIndex`  | number | Global piece index in DSN       |
+| `pieceOffset` | number | Byte offset within the piece    |
+| `blockNumber` | number | Block where mapping was emitted |
+
+## Environment Variables
+
+### Required
+
+| Variable       | Description                  |
+| -------------- | ---------------------------- |
+| `NODE_RPC_URL` | Autonomys Node WebSocket URL |
+| `DATABASE_URL` | PostgreSQL connection string |
+
+### Optional
+
+| Variable                      | Default                       | Description                |
+| ----------------------------- | ----------------------------- | -------------------------- |
+| `OBJECT_MAPPING_INDEXER_PORT` | `3000`                        | HTTP/WebSocket server port |
+| `LOG_LEVEL`                   | `info` (prod) / `debug` (dev) | Logging verbosity          |
+| `REQUEST_SIZE_LIMIT`          | `200mb`                       | Max request body size      |
+| `CORS_ALLOW_ORIGINS`          | —                             | Allowed CORS origins       |
+
+### Recovery
+
+| Variable            | Default | Description                            |
+| ------------------- | ------- | -------------------------------------- |
+| `RECOVERY_INTERVAL` | `1000`  | Interval between recovery batches (ms) |
+| `MAX_RECOVERY_STEP` | `1000`  | Max mappings per recovery batch        |
+
+### Distribution (WebSocket)
+
+| Variable                  | Default | Description                             |
+| ------------------------- | ------- | --------------------------------------- |
+| `MAX_OBJECTS_PER_MESSAGE` | `1000`  | Max mappings per WebSocket message      |
+| `TIME_BETWEEN_MESSAGES`   | `1000`  | Throttle interval between messages (ms) |
+
+### DAG Node API
+
+| Variable                 | Default | Description                           |
+| ------------------------ | ------- | ------------------------------------- |
+| `MAX_BLOCK_HEIGHT_RANGE` | `1000`  | Max block range for IPLD node queries |
+
+## Notes
+
+- Uses BLAKE3 hash derived from CID when querying by CID
+- Recovery subscriptions respect archived segment boundaries
+- Only mappings from archived segments are distributed
