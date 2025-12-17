@@ -6,10 +6,11 @@ The File Retriever serves content from the Autonomys DSN by composing IPLD DAG-P
 
 1. Request arrives at `GET /files/:cid` with API authentication
 2. Validate CID format and optional byte range; check moderation ban list
-3. Fetch node metadata from DAG Indexer (size, filename, mime type, encoding)
-4. Resolve object mappings (piece index + offset) via Object Mapping Indexer
-5. Batch-fetch nodes from Subspace Gateway
-6. Stream file (DFS traversal over chunks) or partial range; cache full responses
+3. **Check cache**: If file is cached and not bypassed (via `originControl=no-cache`), return from cache
+4. Fetch node metadata from DAG Indexer (size, filename, mime type, encoding)
+5. Resolve object mappings (piece index + offset) via Object Mapping Indexer
+6. Batch-fetch nodes from Subspace Gateway
+7. Stream file (DFS traversal over chunks) or partial range; cache full responses
 
 ## Endpoints
 
@@ -57,10 +58,11 @@ All `/files/*` and `/moderation/*` endpoints require authentication:
 
 ## Caching
 
-Two-layer caching system:
+Two-tier caching system using LRU (Least Recently Used) eviction:
 
-- **Node cache**: Stores fetched PBNodes in memory for batch optimization during file composition
-- **File cache**: Stores complete file streams on disk, keyed by CID
+- **In-memory LRU cache**: Fast metadata lookups, evicts oldest entries when `CACHE_MAX_SIZE` is reached
+- **SQLite persistence**: Metadata stored in `$CACHE_DIR/files/files.sqlite` with TTL-based expiration
+- **File storage**: Complete files stored on disk at `$CACHE_DIR/files/` with partitioned directory structure
 
 Partial range responses (206) are not cached.
 

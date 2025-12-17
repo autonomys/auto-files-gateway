@@ -5,7 +5,7 @@ SubQuery-based indexer that listens to `system.remark` and `system.remarkWithEve
 ### How It Works
 
 1. SubQuery runtime connects to Autonomys network via configured RPC endpoints
-2. For each successful `system.remark` extrinsic:
+2. For each successful `system.remark` or `system.remarkWithEvent` extrinsic:
    - Decode DAG-PB from hex remark data
    - Compute CID and BLAKE3 hash
    - Extract links and IPLD metadata
