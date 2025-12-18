@@ -17,8 +17,8 @@
   "dependencies": {
     "@auto-files/models": "workspace:*",
     "@auto-files/rpc-apis": "workspace:*",
-    "@autonomys/auto-dag-data": "^1.4.35",
-    "@autonomys/rpc": "^1.4.31",
+    "@autonomys/auto-dag-data": "1.6.5",
+    "@autonomys/rpc": "1.6.5",
     "@peculiar/webcrypto": "^1.5.0",
     "@types/node": "^22.10.2",
     "cors": "^2.8.5",
