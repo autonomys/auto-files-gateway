@@ -1,0 +1,37 @@
+type Node
+  @entity
+  @compositeIndexes(
+    fields: [["blockHeight", "indexInBlock"], ["timestamp", "indexInBlock"]]
+  ) {
+  id: ID!
+  cid: String! @index
+  type: String
+  linkDepth: Int!
+  name: String
+  blockHeight: BigInt!
+  blockHash: String!
+  extrinsicId: String!
+  extrinsicHash: String!
+  indexInBlock: Int!
+  links: [String]!
+  size: BigInt!
+  blake3Hash: String!
+  timestamp: Date!
+  uploadOptions: FileUploadOptions
+}
+
+type CompressionOptions @jsonField {
+  algorithm: String!
+  level: Int
+  chunkSize: Int
+}
+
+type EncryptionOptions @jsonField {
+  algorithm: String!
+  chunkSize: Int
+}
+
+type FileUploadOptions @jsonField {
+  compression: CompressionOptions
+  encryption: EncryptionOptions
+}

@@ -19,4 +19,7 @@ export const config = {
     ),
     timeBetweenMessages: notNaN(Number(env('TIME_BETWEEN_MESSAGES', '1000'))),
   },
+  ipldNodesAPI: {
+    maxBlockHeightRange: notNaN(Number(env('MAX_BLOCK_HEIGHT_RANGE', '1000'))),
+  },
 }

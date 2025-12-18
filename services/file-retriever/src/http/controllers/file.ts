@@ -3,12 +3,17 @@ import { authMiddleware } from '../middlewares/auth.js'
 import { fileComposer } from '../../services/fileComposer.js'
 import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
-import { asyncSafeHandler } from '../../utils/express.js'
+import { asyncSafeHandler, toSerializable } from '../../utils/express.js'
 import { uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
-import { safeIPLDDecode } from '../../utils/dagData.js'
+import { isValidCID } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
+import {
+  DownloadMetadataFactory,
+  handleDownloadResponseHeaders,
+  getByteRange,
+} from '@autonomys/file-server'
 
 const fileRouter = Router()
 
@@ -18,17 +23,12 @@ fileRouter.get(
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
 
-    const file = await dsnFetcher.fetchNode(cid, [])
-    if (file) {
-      const metadata = safeIPLDDecode(file)
-
-      res.status(200).json({
-        ...metadata,
-        size: metadata?.size?.toString(10),
-      })
-    } else {
-      res.sendStatus(404)
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
     }
+
+    const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+    res.status(200).json(toSerializable(metadata))
   }),
 )
 
@@ -37,6 +37,9 @@ fileRouter.get(
   authMiddleware,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
 
     const isCached = await fileCache.has(cid)
 
@@ -53,34 +56,41 @@ fileRouter.get(
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
     const cid = req.params.cid
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
+    }
+
     const rawMode = req.query.raw === 'true'
+    const byteRange = getByteRange(req)
     const ignoreCache =
       req.query.originControl === 'no-cache' ||
       uniqueHeaderValue(req.headers['x-origin-control'])?.toLowerCase() ===
         'no-cache'
 
-    const [fromCache, file] = await fileComposer.get(cid, ignoreCache)
-    if (fromCache) {
-      res.setHeader('x-file-origin', 'cache')
-    } else {
-      res.setHeader('x-file-origin', 'gateway')
+    const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+    if (byteRange) {
+      if (byteRange[0] > Number(metadata.size)) {
+        res.set('Content-Range', `bytes */${metadata.size}`)
+        res.sendStatus(416)
+        return
+      }
     }
 
-    if (file.mimeType) {
-      res.set('Content-Type', file.mimeType)
-    }
-    if (file.filename) {
-      res.set(
-        'Content-Disposition',
-        `filename="${encodeURIComponent(file.filename)}"`,
-      )
-    }
-    if (file.size) {
-      res.set('Content-Length', file.size.toString())
-    }
-    if (file.encoding && !rawMode) {
-      res.set('Content-Encoding', file.encoding)
-    }
+    const [fromCache, file] = await fileComposer.get(cid, {
+      ignoreCache,
+      byteRange,
+    })
+    res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
+
+    handleDownloadResponseHeaders(
+      req,
+      res,
+      DownloadMetadataFactory.fromIPLDData(metadata),
+      {
+        byteRange,
+        rawMode,
+      },
+    )
 
     logger.debug(
       `Streaming file ${req.params.cid} to ${req.ip} with ${file.size} bytes`,
@@ -107,6 +117,10 @@ fileRouter.get(
     const chunk = parseInt(req.query.chunk as string)
     if (isNaN(chunk)) {
       throw new HttpError(400, 'Invalid chunk')
+    }
+
+    if (!isValidCID(cid)) {
+      throw new HttpError(400, 'Invalid CID')
     }
 
     const fileData = await dsnFetcher.getPartial(cid, chunk)

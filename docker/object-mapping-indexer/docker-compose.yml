@@ -5,6 +5,9 @@ volumes:
 services:
   subspace-node:
     image: ${NODE_DOCKER_TAG}
+    profiles:
+      - node
+      - production
     volumes:
       - subspace-node-data:/var/subspace:rw
     ports:
@@ -28,6 +31,8 @@ services:
       --name object-mapping-node
       --sync full
       --create-object-mappings ${BLOCK_NUMBER_TO_START_FROM}
+      --blocks-pruning archive
+      --state-pruning archive
     healthcheck:
       timeout: 5s
       interval: 30s
@@ -37,6 +42,8 @@ services:
     image: ${OBJECT_MAPPING_INDEXER_DOCKER_TAG}
     container_name: object-mapping-app
     working_dir: /app
+    profiles:
+      - production
     ports:
       - '${OBJECT_MAPPING_INDEXER_PORT:-3000}:3000'
     environment:

@@ -10,6 +10,9 @@ common: models rpc
 indexer: common
 	yarn indexer build
 
+dag-indexer: common
+	yarn dag-indexer build
+
 file-retriever: common
 	yarn file-retriever build
 
@@ -17,5 +20,6 @@ lint:
 	yarn lint
 
 test:
-	yarn test
+	yarn file-retriever test
+	yarn indexer test
 
