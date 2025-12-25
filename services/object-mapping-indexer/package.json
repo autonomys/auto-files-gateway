@@ -1,6 +1,6 @@
 {
   "name": "object-mapping-indexer",
-  "packageManager": "yarn@4.2.2",
+  "packageManager": "yarn@4.12.0",
   "type": "module",
   "author": {
     "name": "Autonomys",

@@ -1,7 +1,7 @@
 {
   "name": "@auto-files/rpc-apis",
   "version": "0.0.1",
-  "packageManager": "yarn@4.2.2",
+  "packageManager": "yarn@4.12.0",
   "type": "module",
   "dependencies": {
     "@auto-files/models": "workspace:*",
