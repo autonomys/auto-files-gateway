@@ -15,7 +15,7 @@
     "@polkadot/api": "^15.0.1",
     "@polkadot/util": "^13.2.3",
     "@types/cors": "^2.8.17",
-    "@types/mime-types": "^2.1.4",
+    "@types/mime-types": "^3.0.0",
     "@types/node": "^22.10.1",
     "cache-manager": "^6.3.0",
     "cache-sqlite-lru-ttl": "^1.0.0",
