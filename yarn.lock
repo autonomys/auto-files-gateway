@@ -1822,11 +1822,11 @@ __metadata:
   linkType: hard
 
 "@keyvhq/core@npm:^2.1.1":
-  version: 2.1.7
-  resolution: "@keyvhq/core@npm:2.1.7"
+  version: 2.1.11
+  resolution: "@keyvhq/core@npm:2.1.11"
   dependencies:
     json-buffer: "npm:~3.0.1"
-  checksum: 10c0/fbc8590ae3cccc8ef19b21b7a2f5be0c8aa26281c3121648cb4eea876699c8cd401b3e1b6f3e16a5c3b14753b6591c7024b0dcebe0451f9ec6f227bcba47ce50
+  checksum: 10c0/f40106a7268a36adda3817c232fea2f627d196598a43d43aed7d1bdcf76c8956fef5f2d97dc7c38711d1546686670fefbec6c01c3ddf7bf56d7b3e990496d3e9
   languageName: node
   linkType: hard
 
