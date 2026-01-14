@@ -34,14 +34,37 @@ const mockSubscribeToArchivedSegmentHeader = () => {
             client?.api.subspace_subscribeArchivedSegmentHeader()
             client?.onNotification(
               'subspace_archived_segment_header',
-              (event) => {
+              async (event: {
+                v0: {
+                  segmentIndex: number
+                  segmentCommitment: string
+                  prevSegmentHeaderHash: string
+                  lastArchivedBlock: {
+                    number: number
+                    archivedProgress: { partial: number }
+                  }
+                }
+              }) => {
+                const segmentIndex = event.v0.segmentIndex
                 logger.info(
-                  `Processing archived segment header (segmentIndex=${event.v0.segmentIndex})`,
+                  `Processing archived segment header (segmentIndex=${segmentIndex})`,
                 )
                 logger.debug(
                   `Archived segment header: ${JSON.stringify(event)}`,
                 )
-                onArchivedSegmentHeader?.(event.v0.segmentIndex)
+
+                // Acknowledge receipt of the segment header to the node
+                try {
+                  await client?.api.subspace_acknowledgeArchivedSegmentHeader([
+                    segmentIndex,
+                  ])
+                } catch (error) {
+                  logger.error(
+                    `Failed to acknowledge archived segment header (segmentIndex=${segmentIndex}): ${error}`,
+                  )
+                }
+
+                onArchivedSegmentHeader?.(segmentIndex)
               },
             )
           },
@@ -50,6 +73,7 @@ const mockSubscribeToArchivedSegmentHeader = () => {
           subspace_lastSegmentHeaders: async () => [],
           subspace_subscribeObjectMappings: () => '123',
           subspace_subscribeArchivedSegmentHeader: () => '456',
+          subspace_acknowledgeArchivedSegmentHeader: () => undefined,
         },
       })
     })

@@ -33,6 +33,10 @@ export const SubspaceRPCApi = createApiDefinition({
       params: defineUnvalidatedType<[number]>(),
       returns: defineUnvalidatedType<ArchivedSegmentHeader[]>(),
     },
+    subspace_acknowledgeArchivedSegmentHeader: {
+      params: defineUnvalidatedType<[number]>(),
+      returns: defineUnvalidatedType<void>(),
+    },
   },
   notifications: {
     subspace_object_mappings: {
