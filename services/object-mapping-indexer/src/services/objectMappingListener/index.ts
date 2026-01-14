@@ -16,7 +16,13 @@ export const createObjectMappingListener = (): ObjectMappingListener => {
             await client.api.subspace_subscribeObjectMappings()
           },
           onReconnection: () => {
-            logger.warn('Reconnecting to object mapping indexer')
+            logger.warn('Reconnecting to object mapping subscription')
+          },
+          onClose: () => {
+            logger.warn('Object mapping subscription closed')
+          },
+          onError: (error) => {
+            logger.error(`Object mapping subscription error: ${error}`)
           },
         },
       })

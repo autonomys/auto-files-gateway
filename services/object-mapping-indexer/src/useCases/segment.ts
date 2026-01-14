@@ -50,6 +50,15 @@ const subscribeToArchivedSegmentHeader = async (
         // using client.onNotification('subspace_archived_segment_header')
         client!.api.subspace_subscribeArchivedSegmentHeader()
       },
+      onReconnection: () => {
+        logger.warn('Reconnecting to archived segment header subscription')
+      },
+      onClose: () => {
+        logger.warn('Archived segment header subscription closed')
+      },
+      onError: (error) => {
+        logger.error(`Archived segment header subscription error: ${error}`)
+      },
     },
   })
 
