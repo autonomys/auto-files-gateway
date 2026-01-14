@@ -26,7 +26,14 @@ const getLastSegment = async () => {
 const subscribeToArchivedSegmentHeader = async (
   onArchivedSegmentHeader?: (segmentIndex: number) => void,
 ) => {
-  const client = SubspaceRPCApi.createClient({
+  // Close existing client if set to prevent multiple connections
+  if (client) {
+    logger.info('Closing existing archived segment header subscription')
+    client.close()
+  }
+
+  // Assign to module-level client (not a local const!) so unsubscribe works
+  client = SubspaceRPCApi.createClient({
     endpoint: config.nodeRpcUrl,
     callbacks: {
       onEveryOpen: async () => {
@@ -41,8 +48,8 @@ const subscribeToArchivedSegmentHeader = async (
         // triggers a new subscription to archived segment headers
         // ignores subscriptionId and processed events by name
         // using client.onNotification('subspace_archived_segment_header')
-        client.api.subspace_subscribeArchivedSegmentHeader()
-        client.onNotification(
+        client!.api.subspace_subscribeArchivedSegmentHeader()
+        client!.onNotification(
           'subspace_archived_segment_header',
           async (event) => {
             const segmentIndex = event.v0.segmentIndex
@@ -53,7 +60,7 @@ const subscribeToArchivedSegmentHeader = async (
 
             // Acknowledge receipt of the segment header to the node
             try {
-              await client.api.subspace_acknowledgeArchivedSegmentHeader([
+              await client!.api.subspace_acknowledgeArchivedSegmentHeader([
                 segmentIndex,
               ])
               logger.debug(
@@ -74,8 +81,11 @@ const subscribeToArchivedSegmentHeader = async (
 }
 
 const unsubscribeFromArchivedSegmentHeader = () => {
-  client?.close()
-  client = null
+  if (client) {
+    logger.info('Unsubscribing from archived segment headers')
+    client.close()
+    client = null
+  }
 }
 
 const getSegmentByPieceIndex = (pieceIndex: number) => {
