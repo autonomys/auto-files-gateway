@@ -44,7 +44,7 @@ export const SubspaceRPCApi = createApiDefinition({
         defineUnvalidatedType<SubscriptionResult<ObjectMappingListEntry>>(),
     },
     subspace_archived_segment_header: {
-      content: defineUnvalidatedType<ArchivedSegmentHeader>(),
+      content: defineUnvalidatedType<SubscriptionResult<ArchivedSegmentHeader>>(),
     },
   },
 })

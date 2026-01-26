@@ -65,7 +65,7 @@ const subscribeToArchivedSegmentHeader = async (
   // Register notification handler ONCE, outside of onEveryOpen
   // This prevents duplicate handlers from accumulating on reconnect
   client.onNotification('subspace_archived_segment_header', async (event) => {
-    const segmentIndex = event.v0.segmentIndex
+    const segmentIndex = event.result.v0.segmentIndex
     logger.info(
       `Processing archived segment header (segmentIndex=${segmentIndex})`,
     )
