@@ -23,6 +23,7 @@ describe('Object Mapping Listener', () => {
           subspace_subscribeObjectMappings: () => '123',
           subspace_subscribeArchivedSegmentHeader: () => '456',
           subspace_lastSegmentHeaders: () => [],
+          subspace_acknowledgeArchivedSegmentHeader: () => undefined,
         },
         callbacks: {
           onEveryOpen: params.callbacks?.onEveryOpen,

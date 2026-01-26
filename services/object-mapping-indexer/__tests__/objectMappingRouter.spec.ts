@@ -29,29 +29,40 @@ const mockSubscribeToArchivedSegmentHeader = () => {
               `Subscribing to archived segment headers (lastSegmentIndex=${lastSegmentIndex})`,
             )
             // triggers a new subscription to archived segment headers
-            // ignores subscriptionId and processed events by name
-            // using client.onNotification('subspace_archived_segment_header')
             client?.api.subspace_subscribeArchivedSegmentHeader()
-            client?.onNotification(
-              'subspace_archived_segment_header',
-              (event) => {
-                logger.info(
-                  `Processing archived segment header (segmentIndex=${event.v0.segmentIndex})`,
-                )
-                logger.debug(
-                  `Archived segment header: ${JSON.stringify(event)}`,
-                )
-                onArchivedSegmentHeader?.(event.v0.segmentIndex)
-              },
-            )
           },
         },
         handlers: {
           subspace_lastSegmentHeaders: async () => [],
           subspace_subscribeObjectMappings: () => '123',
           subspace_subscribeArchivedSegmentHeader: () => '456',
+          subspace_acknowledgeArchivedSegmentHeader: () => undefined,
         },
       })
+
+      // Register notification handler ONCE, outside of onEveryOpen
+      // This prevents duplicate handlers from accumulating on reconnect
+      client.onNotification('subspace_archived_segment_header', async (event) => {
+        const segmentIndex = event.result.v0.segmentIndex
+          logger.info(
+            `Processing archived segment header (segmentIndex=${segmentIndex})`,
+          )
+          logger.debug(`Archived segment header: ${JSON.stringify(event)}`)
+
+          // Acknowledge receipt of the segment header to the node
+          try {
+            await client?.api.subspace_acknowledgeArchivedSegmentHeader([
+              segmentIndex,
+            ])
+          } catch (error) {
+            logger.error(
+              `Failed to acknowledge archived segment header (segmentIndex=${segmentIndex}): ${error}`,
+            )
+          }
+
+          onArchivedSegmentHeader?.(segmentIndex)
+        },
+      )
     })
 }
 
@@ -121,14 +132,17 @@ describe('Object Mapping Router', () => {
         client?.notificationClient.subspace_archived_segment_header(
           connection,
           {
-            v0: {
-              segmentIndex,
-              segmentCommitment: '',
-              prevSegmentHeaderHash: '',
-              lastArchivedBlock: {
-                number: 0,
-                archivedProgress: {
-                  partial: 0,
+            subscriptionId: 'test-subscription',
+            result: {
+              v0: {
+                segmentIndex,
+                segmentCommitment: '',
+                prevSegmentHeaderHash: '',
+                lastArchivedBlock: {
+                  number: 0,
+                  archivedProgress: {
+                    partial: 0,
+                  },
                 },
               },
             },

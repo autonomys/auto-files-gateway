@@ -7,28 +7,34 @@ import { config } from '../../config.js'
 export const createObjectMappingListener = (): ObjectMappingListener => {
   return {
     start: () => {
-      const init = async () => {
-        logger.info('Subscribing to object mappings')
-        await client.api.subspace_subscribeObjectMappings()
-
-        client.onNotification('subspace_object_mappings', async (event) => {
-          logger.info(
-            `Processing object mapping (blockNumber=${event.result.blockNumber})`,
-          )
-          logger.debug(`Object mapping: ${JSON.stringify(event)}`)
-          await objectMappingUseCase.processObjectMapping(event.result)
-        })
-      }
-
       const client = SubspaceRPCApi.createClient({
         endpoint: config.nodeRpcUrl,
         reconnectInterval: 60_000,
         callbacks: {
-          onEveryOpen: init,
+          onEveryOpen: async () => {
+            logger.info('Subscribing to object mappings')
+            await client.api.subspace_subscribeObjectMappings()
+          },
           onReconnection: () => {
-            logger.warn('Reconnecting to object mapping indexer')
+            logger.warn('Reconnecting to object mapping subscription')
+          },
+          onClose: () => {
+            logger.warn('Object mapping subscription closed')
+          },
+          onError: (error) => {
+            logger.error(`Object mapping subscription error: ${error}`)
           },
         },
+      })
+
+      // Register notification handler ONCE, outside of onEveryOpen
+      // This prevents duplicate handlers from accumulating on reconnect
+      client.onNotification('subspace_object_mappings', async (event) => {
+        logger.info(
+          `Processing object mapping (blockNumber=${event.result.blockNumber})`,
+        )
+        logger.debug(`Object mapping: ${JSON.stringify(event)}`)
+        await objectMappingUseCase.processObjectMapping(event.result)
       })
     },
   }
