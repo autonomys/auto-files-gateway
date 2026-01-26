@@ -13,18 +13,6 @@ import { config } from '../src/config.js'
 let client: ReturnType<typeof SubspaceRPCApi.createMockServerClient> | null =
   null
 
-type ArchivedSegmentHeader = {
-  v0: {
-    segmentIndex: number
-    segmentCommitment: string
-    prevSegmentHeaderHash: string
-    lastArchivedBlock: {
-      number: number
-      archivedProgress: { partial: number }
-    }
-  }
-}
-
 const mockSubscribeToArchivedSegmentHeader = () => {
   jest
     .spyOn(segmentUseCase, 'subscribeToArchivedSegmentHeader')
