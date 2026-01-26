@@ -64,6 +64,8 @@ const subscribeToArchivedSegmentHeader = async (
 
   // Register notification handler ONCE, outside of onEveryOpen
   // This prevents duplicate handlers from accumulating on reconnect
+  // Capture client reference at registration time to avoid stale reference issues
+  const registeredClient = client
   client.onNotification('subspace_archived_segment_header', async (event) => {
     const segmentIndex = event.result.v0.segmentIndex
     logger.info(
@@ -73,7 +75,7 @@ const subscribeToArchivedSegmentHeader = async (
 
     // Acknowledge receipt of the segment header to the node
     try {
-      await client!.api.subspace_acknowledgeArchivedSegmentHeader([
+      await registeredClient!.api.subspace_acknowledgeArchivedSegmentHeader([
         segmentIndex,
       ])
       logger.debug(
