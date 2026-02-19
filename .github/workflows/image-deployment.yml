@@ -22,6 +22,10 @@ on:
         description: 'Docker image tag visit in the releases page at (https://github.com/autonomys/auto-files-gateway/pkgs/container/file-retriever)'
         required: false
         type: string
+      node_image_tag:
+        description: 'Docker image tag for the subspace-node service (https://github.com/autonomys/subspace/pkgs/container/node)'
+        required: false
+        type: string
 env:
   INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
   INFISICAL_SECRET: ${{ secrets.INFISICAL_SECRET }}
@@ -48,6 +52,7 @@ jobs:
             GATEWAY_IMAGE_TAG="${{ github.event.inputs.gateway_image_tag }}"
             INDEXER_IMAGE_TAG="${{ github.event.inputs.indexer_image_tag }}"
             FILE_RETRIEVER_IMAGE_TAG="${{ github.event.inputs.file_retriever_image_tag }}"
+            NODE_IMAGE_TAG="${{ github.event.inputs.node_image_tag }}"
             echo "Using manual inputs"
           else
             # Push trigger - use defaults
@@ -55,6 +60,7 @@ jobs:
             GATEWAY_IMAGE_TAG=""  # or set a default like "latest"
             INDEXER_IMAGE_TAG=""  # or set a default like "latest"
             FILE_RETRIEVER_IMAGE_TAG=""  # or set a default like "latest"
+            NODE_IMAGE_TAG=""
             echo "Using push defaults"
           fi
 
@@ -62,6 +68,7 @@ jobs:
           echo "gateway_image_tag=$GATEWAY_IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "indexer_image_tag=$INDEXER_IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "file_retriever_image_tag=$FILE_RETRIEVER_IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "node_image_tag=$NODE_IMAGE_TAG" >> $GITHUB_OUTPUT
 
           echo "Final parameters:"
           echo "  Target machines: $TARGET_MACHINES"
@@ -101,6 +108,7 @@ jobs:
             -e "gateway_image_tag=${{ steps.params.outputs.gateway_image_tag }}" \
             -e "indexer_image_tag=${{ steps.params.outputs.indexer_image_tag }}" \
             -e "file_retriever_image_tag=${{ steps.params.outputs.file_retriever_image_tag }}" \
+            -e "node_image_tag=${{ steps.params.outputs.node_image_tag }}" \
             -e "infisical_client_id=${{ secrets.INFISICAL_CLIENT_ID }}" \
             -e "infisical_secret=${{ secrets.INFISICAL_SECRET }}" \
             -e "infisical_project_id=${{ secrets.INFISICAL_PROJECT_ID }}" \
