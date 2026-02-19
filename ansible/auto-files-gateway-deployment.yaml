@@ -48,6 +48,12 @@
       when: gateway_image_tag is defined and gateway_image_tag != ''
       register: hello_output
 
+    - name: Update NODE_DOCKER_TAG in folder '/{{ matched_group }}' to {{ node_image_tag }}
+      ansible.builtin.shell: |
+        infisical secrets --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }} set NODE_DOCKER_TAG={{ node_image_tag }}
+      when: node_image_tag is defined and node_image_tag != ''
+      register: hello_output
+
     - name: Update .env
       ansible.builtin.shell: |
         env_file=$(infisical export --projectId {{ infisical_project_id }} --path /{{ matched_group }} --env prod --token {{ login_cmd.stdout }})
