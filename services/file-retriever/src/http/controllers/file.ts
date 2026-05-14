@@ -88,8 +88,13 @@ fileRouter.get(
 
     pipeline(file.data, res, (err) => {
       if (err) {
-        if (res.headersSent) return
-        console.error('Error streaming data:', err)
+        logger.error(
+          `Error streaming data for cid=${req.params.cid}: ${err.message}`,
+        )
+        if (res.headersSent) {
+          res.destroy()
+          return
+        }
         res.status(500).json({
           error: 'Failed to stream data',
           details: err.message,
