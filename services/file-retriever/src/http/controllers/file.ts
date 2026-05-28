@@ -75,11 +75,18 @@ fileRouter.get(
         `filename="${encodeURIComponent(file.filename)}"`,
       )
     }
-    if (file.size) {
+    // Only advertise a fixed Content-Length when the bytes on the wire match
+    // file.size. For ZLIB-compressed files the gateway streams the *compressed*
+    // bytes while file.size is the *decompressed* size, so sending Content-Length
+    // would corrupt the transfer (Content-Length/body mismatch makes clients
+    // fail the body read — e.g. browsers show "Failed to fetch" / broken images
+    // when previewing). In that case we omit it and rely on chunked transfer.
+    if (file.encoding) {
+      if (!rawMode) {
+        res.set('Content-Encoding', file.encoding)
+      }
+    } else if (file.size) {
       res.set('Content-Length', file.size.toString())
-    }
-    if (file.encoding && !rawMode) {
-      res.set('Content-Encoding', file.encoding)
     }
 
     logger.debug(
