@@ -12,6 +12,7 @@ import { fileCache } from '../../services/cache.js'
 import {
   DownloadMetadataFactory,
   handleDownloadResponseHeaders,
+  createResponseBodyTransform,
   getByteRange,
 } from '@autonomys/file-server'
 
@@ -82,7 +83,7 @@ fileRouter.get(
     })
     res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
 
-    handleDownloadResponseHeaders(
+    const downloadResult = handleDownloadResponseHeaders(
       req,
       res,
       DownloadMetadataFactory.fromIPLDData(metadata),
@@ -96,21 +97,26 @@ fileRouter.get(
       `Streaming file ${req.params.cid} to ${req.ip} with ${file.size} bytes`,
     )
 
-    pipeline(file.data, res, (err) => {
-      if (err) {
-        logger.error(
-          `Error streaming data for cid=${req.params.cid}: ${err.message}`,
-        )
-        if (res.headersSent) {
-          res.destroy()
-          return
+    pipeline(
+      file.data,
+      createResponseBodyTransform(downloadResult),
+      res,
+      (err) => {
+        if (err) {
+          logger.error(
+            `Error streaming data for cid=${req.params.cid}: ${err.message}`,
+          )
+          if (res.headersSent) {
+            res.destroy()
+            return
+          }
+          res.status(500).json({
+            error: 'Failed to stream data',
+            details: err.message,
+          })
         }
-        res.status(500).json({
-          error: 'Failed to stream data',
-          details: err.message,
-        })
-      }
-    })
+      },
+    )
   }),
 )
 

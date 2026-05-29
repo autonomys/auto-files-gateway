@@ -55,7 +55,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@auto-files/models@workspace:common/models"
   dependencies:
-    "@autonomys/rpc": "npm:1.6.5"
+    "@autonomys/rpc": "npm:1.6.13"
     typescript: "npm:^5.6.3"
     zod: "npm:^3.24.2"
   languageName: unknown
@@ -66,26 +66,26 @@ __metadata:
   resolution: "@auto-files/rpc-apis@workspace:common/rpc-apis"
   dependencies:
     "@auto-files/models": "workspace:*"
-    "@autonomys/rpc": "npm:1.6.5"
+    "@autonomys/rpc": "npm:1.6.13"
     typescript: "npm:^5.6.3"
     zod: "npm:^3.24.2"
   languageName: unknown
   linkType: soft
 
-"@autonomys/asynchronous@npm:1.6.5, @autonomys/asynchronous@npm:^1.6.5":
-  version: 1.6.5
-  resolution: "@autonomys/asynchronous@npm:1.6.5"
+"@autonomys/asynchronous@npm:1.6.13, @autonomys/asynchronous@npm:^1.6.13":
+  version: 1.6.13
+  resolution: "@autonomys/asynchronous@npm:1.6.13"
   dependencies:
     stream-fork: "npm:^1.0.5"
-  checksum: 10c0/16a1f2e7d58ae06e6899ca47c734ca85dad7cd63a59acfa1f9b964c0c901470577ace700fdedbaf2e22b0be454c55c08d738cdcaec33874e4f8a7716a36d766e
+  checksum: 10c0/67d50ff8b2e9acec9bb3a966e81b1fdd5c640968d2e80c6d1ae15d2ccda8f7ebced157447bcbf22019d3397eb5f071547414b9fb41eb0d4bdf20d346f71e8243
   languageName: node
   linkType: hard
 
-"@autonomys/auto-dag-data@npm:1.6.5, @autonomys/auto-dag-data@npm:^1.6.5":
-  version: 1.6.5
-  resolution: "@autonomys/auto-dag-data@npm:1.6.5"
+"@autonomys/auto-dag-data@npm:1.6.13, @autonomys/auto-dag-data@npm:^1.6.13":
+  version: 1.6.13
+  resolution: "@autonomys/auto-dag-data@npm:1.6.13"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.6.5"
+    "@autonomys/asynchronous": "npm:^1.6.13"
     "@ipld/dag-pb": "npm:^4.1.3"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@webbuf/blake3": "npm:^3.0.26"
@@ -93,30 +93,30 @@ __metadata:
     "@webbuf/webbuf": "npm:^3.0.26"
     fflate: "npm:^0.8.2"
     multiformats: "npm:^13.3.2"
-    protobufjs: "npm:^7.4.0"
+    protobufjs: "npm:^7.5.6"
     protons: "npm:^7.6.0"
     protons-runtime: "npm:^5.5.0"
-  checksum: 10c0/e00b1475486f181339922f205f5961c1e361c4f9e9b09cecb580722ac08bd78d5ec997f887052fb139fd265feafeb9c656432f9baef89c997a5525f38d03eebc
+  checksum: 10c0/c6b897219fe696cfc2eab270b5d0ab42fcf3e378fa89bde312e9127c63f909350057ab497c7951433184e9def155cc75508b19cb55716785344069cdc2cfe5f0
   languageName: node
   linkType: hard
 
-"@autonomys/auto-utils@npm:1.6.5, @autonomys/auto-utils@npm:^1.6.5":
-  version: 1.6.5
-  resolution: "@autonomys/auto-utils@npm:1.6.5"
+"@autonomys/auto-utils@npm:1.6.13, @autonomys/auto-utils@npm:^1.6.13":
+  version: 1.6.13
+  resolution: "@autonomys/auto-utils@npm:1.6.13"
   dependencies:
     "@polkadot/api": "npm:^15.8.1"
     "@polkadot/extension-dapp": "npm:^0.58.6"
-  checksum: 10c0/8c510023caa67d6356bcf71e40b8532396340ae46ae62d57dbf26e1db4cc360d962d45103ce2f9a26f95bfeaf85d5457eb052c268fa64e7a28e8519ea63884ac
+  checksum: 10c0/01b203e22f56253f9b7f2f163c506dd1d8e7c5b82ba519fa2b51459ae9224aa6167e0eccbe820d29f8eef557290dc7d69c0713a425ba3e834bdbb2136d551b19
   languageName: node
   linkType: hard
 
-"@autonomys/file-server@npm:1.6.5":
-  version: 1.6.5
-  resolution: "@autonomys/file-server@npm:1.6.5"
+"@autonomys/file-server@npm:1.6.13":
+  version: 1.6.13
+  resolution: "@autonomys/file-server@npm:1.6.13"
   dependencies:
-    "@autonomys/asynchronous": "npm:^1.6.5"
-    "@autonomys/auto-dag-data": "npm:^1.6.5"
-    "@autonomys/auto-utils": "npm:^1.6.5"
+    "@autonomys/asynchronous": "npm:^1.6.13"
+    "@autonomys/auto-dag-data": "npm:^1.6.13"
+    "@autonomys/auto-utils": "npm:^1.6.13"
     "@keyvhq/sqlite": "npm:^2.1.7"
     cache-manager: "npm:^6.4.2"
     express: "npm:^4.19.2"
@@ -125,19 +125,19 @@ __metadata:
     mime-types: "npm:^3.0.2"
     process: "npm:^0.11.10"
     stream: "npm:^0.0.3"
-    uuid: "npm:^11.1.0"
+    uuid: "npm:^11.1.1"
     zod: "npm:^3.24.2"
-  checksum: 10c0/a9eb4651fbd7d8fab14089daee36a2050749602c221df45c61cd2a14ea8ad5e1184ea699c0e1e34c603b2a25f183edd24da22b6a680b82b286e9f294b2361b32
+  checksum: 10c0/bad7ece720b44d2a19144f80441ccadb00665eaa37e0d0d3ce8ef18188d0798bd428e7614f42396b8d396dc00532e4a2c0c681b275c4a14f5d7277249896051f
   languageName: node
   linkType: hard
 
-"@autonomys/rpc@npm:1.6.5":
-  version: 1.6.5
-  resolution: "@autonomys/rpc@npm:1.6.5"
+"@autonomys/rpc@npm:1.6.13":
+  version: 1.6.13
+  resolution: "@autonomys/rpc@npm:1.6.13"
   dependencies:
     websocket: "npm:^1.0.35"
     zod: "npm:^3.24.2"
-  checksum: 10c0/0f77abb1603410a6b2a814e4c2079786b8515ea7a841692b1a6609eeaed607584c10f70765b2ada2caff7ecc225353e58a0f96b8bad7e2e2dd986c3722ab4258
+  checksum: 10c0/652cd8278ab5233e9faa0d6035643f68797f37b442cc5be7a74665ca6ba22565caaa63add6eff259c5378332c13ca06efbffb4a679ca468869053a304555adc3
   languageName: node
   linkType: hard
 
@@ -3277,27 +3277,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@protobufjs/codegen@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "@protobufjs/codegen@npm:2.0.4"
-  checksum: 10c0/26ae337c5659e41f091606d16465bbcc1df1f37cc1ed462438b1f67be0c1e28dfb2ca9f294f39100c52161aef82edf758c95d6d75650a1ddf31f7ddee1440b43
+"@protobufjs/codegen@npm:^2.0.5":
+  version: 2.0.5
+  resolution: "@protobufjs/codegen@npm:2.0.5"
+  checksum: 10c0/1b8a2ae56ee60a56e9d205cd4b6072a1503c5069b8ebb905710f974ff0098a0d0700641c137e0a8d98dedf14423156a106a9433695cbf52574810f55000fdcab
   languageName: node
   linkType: hard
 
-"@protobufjs/eventemitter@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@protobufjs/eventemitter@npm:1.1.0"
-  checksum: 10c0/1eb0a75180e5206d1033e4138212a8c7089a3d418c6dfa5a6ce42e593a4ae2e5892c4ef7421f38092badba4040ea6a45f0928869989411001d8c1018ea9a6e70
+"@protobufjs/eventemitter@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "@protobufjs/eventemitter@npm:1.1.1"
+  checksum: 10c0/8e06193d4629c5e7c09d4f8c2ddba8fc4dfa739f0149f33a1d901568d35bb7b8b5277a4e8452baf3bdd0b302fd599cf255d193267aa93a0a4747e23cd073c4ac
   languageName: node
   linkType: hard
 
-"@protobufjs/fetch@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@protobufjs/fetch@npm:1.1.0"
+"@protobufjs/fetch@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "@protobufjs/fetch@npm:1.1.1"
   dependencies:
     "@protobufjs/aspromise": "npm:^1.1.1"
-    "@protobufjs/inquire": "npm:^1.1.0"
-  checksum: 10c0/cda6a3dc2d50a182c5865b160f72077aac197046600091dbb005dd0a66db9cce3c5eaed6d470ac8ed49d7bcbeef6ee5f0bc288db5ff9a70cbd003e5909065233
+  checksum: 10c0/a497ff5433854e8577f0427983ea39b9113b49a8120f94515291d763327061d2c3013e60e24ea436d091dafae01a0f6eb1867e3b1616045d96a31d8b3c646ed4
   languageName: node
   linkType: hard
 
@@ -3308,10 +3307,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@protobufjs/inquire@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@protobufjs/inquire@npm:1.1.0"
-  checksum: 10c0/64372482efcba1fb4d166a2664a6395fa978b557803857c9c03500e0ac1013eb4b1aacc9ed851dd5fc22f81583670b4f4431bae186f3373fedcfde863ef5921a
+"@protobufjs/inquire@npm:^1.1.2":
+  version: 1.1.2
+  resolution: "@protobufjs/inquire@npm:1.1.2"
+  checksum: 10c0/af69597818a14cac6a00a74cd5b3fb85aa96658b9dbbae73e6d907cb154ebf470953a8c537b3e6095a43de565ec4e6c5b40227c72f4a7d762d34fbec7ac179e7
   languageName: node
   linkType: hard
 
@@ -3329,10 +3328,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@protobufjs/utf8@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@protobufjs/utf8@npm:1.1.0"
-  checksum: 10c0/a3fe31fe3fa29aa3349e2e04ee13dc170cc6af7c23d92ad49e3eeaf79b9766264544d3da824dba93b7855bd6a2982fb40032ef40693da98a136d835752beb487
+"@protobufjs/utf8@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "@protobufjs/utf8@npm:1.1.1"
+  checksum: 10c0/641fc145f00626405e8984b6e90b9edcbcc072ffc82d0647ca3176e09c730b2d022f988e65f011a7a17e2e4d77cde7733643aa10d8ac2bfa30f134dbcad553fd
   languageName: node
   linkType: hard
 
@@ -5127,7 +5126,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "auto-files-gateway@workspace:."
   dependencies:
-    "@autonomys/rpc": "npm:1.6.5"
+    "@autonomys/rpc": "npm:1.6.13"
     "@subql/types": "npm:^3.14.1"
     "@types/k6": "npm:^1.0.0"
     "@types/node": "npm:^22.10.2"
@@ -6279,7 +6278,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "dag-indexer@workspace:services/dag-indexer"
   dependencies:
-    "@autonomys/auto-dag-data": "npm:1.6.5"
+    "@autonomys/auto-dag-data": "npm:1.6.13"
     "@polkadot/api": "npm:^10.11.2"
     "@polkadot/util": "npm:^13.5.3"
     "@subql/cli": "npm:^6.0.2"
@@ -7746,11 +7745,11 @@ __metadata:
   resolution: "file-retriever@workspace:services/file-retriever"
   dependencies:
     "@auto-files/rpc-apis": "workspace:*"
-    "@autonomys/asynchronous": "npm:1.6.5"
-    "@autonomys/auto-dag-data": "npm:1.6.5"
-    "@autonomys/auto-utils": "npm:1.6.5"
-    "@autonomys/file-server": "npm:1.6.5"
-    "@autonomys/rpc": "npm:1.6.5"
+    "@autonomys/asynchronous": "npm:1.6.13"
+    "@autonomys/auto-dag-data": "npm:1.6.13"
+    "@autonomys/auto-utils": "npm:1.6.13"
+    "@autonomys/file-server": "npm:1.6.13"
+    "@autonomys/rpc": "npm:1.6.13"
     "@ipld/dag-pb": "npm:^4.1.3"
     "@keyvhq/core": "npm:^2.1.1"
     "@keyvhq/sqlite": "npm:^2.1.6"
@@ -10472,7 +10471,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"long@npm:^5.0.0":
+"long@npm:^5.3.2":
   version: 5.3.2
   resolution: "long@npm:5.3.2"
   checksum: 10c0/7130fe1cbce2dca06734b35b70d380ca3f70271c7f8852c922a7c62c86c4e35f0c39290565eca7133c625908d40e126ac57c02b1b1a4636b9457d77e1e60b981
@@ -11297,9 +11296,9 @@ __metadata:
   dependencies:
     "@auto-files/models": "workspace:*"
     "@auto-files/rpc-apis": "workspace:*"
-    "@autonomys/auto-dag-data": "npm:1.6.5"
-    "@autonomys/auto-utils": "npm:1.6.5"
-    "@autonomys/rpc": "npm:1.6.5"
+    "@autonomys/auto-dag-data": "npm:1.6.13"
+    "@autonomys/auto-utils": "npm:1.6.13"
+    "@autonomys/rpc": "npm:1.6.13"
     "@peculiar/webcrypto": "npm:^1.5.0"
     "@types/cors": "npm:^2.8.17"
     "@types/express": "npm:^5.0.0"
@@ -12159,23 +12158,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"protobufjs@npm:^7.4.0":
-  version: 7.5.3
-  resolution: "protobufjs@npm:7.5.3"
+"protobufjs@npm:^7.5.6":
+  version: 7.6.1
+  resolution: "protobufjs@npm:7.6.1"
   dependencies:
     "@protobufjs/aspromise": "npm:^1.1.2"
     "@protobufjs/base64": "npm:^1.1.2"
-    "@protobufjs/codegen": "npm:^2.0.4"
-    "@protobufjs/eventemitter": "npm:^1.1.0"
-    "@protobufjs/fetch": "npm:^1.1.0"
+    "@protobufjs/codegen": "npm:^2.0.5"
+    "@protobufjs/eventemitter": "npm:^1.1.1"
+    "@protobufjs/fetch": "npm:^1.1.1"
     "@protobufjs/float": "npm:^1.0.2"
-    "@protobufjs/inquire": "npm:^1.1.0"
+    "@protobufjs/inquire": "npm:^1.1.2"
     "@protobufjs/path": "npm:^1.1.2"
     "@protobufjs/pool": "npm:^1.1.0"
-    "@protobufjs/utf8": "npm:^1.1.0"
+    "@protobufjs/utf8": "npm:^1.1.1"
     "@types/node": "npm:>=13.7.0"
-    long: "npm:^5.0.0"
-  checksum: 10c0/9dc131a7e7a610b8291a0b0033b313f8754ef419b57c44d27874dd4edf1afc2a9a77d7a5bc2df9a744cba014de67c92756759c73200b702a11f13360e907b0dd
+    long: "npm:^5.3.2"
+  checksum: 10c0/364c6914facac19ace915e353f71c5d5996bfa8177a3a68c09bd2513a3ecf780538aca06cb3439237f50489db2fae321c4a4db60fd7f9ec65315b7ad66bea029
   languageName: node
   linkType: hard
 
@@ -14366,12 +14365,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:^11.0.3, uuid@npm:^11.1.0":
+"uuid@npm:^11.0.3":
   version: 11.1.0
   resolution: "uuid@npm:11.1.0"
   bin:
     uuid: dist/esm/bin/uuid
   checksum: 10c0/34aa51b9874ae398c2b799c88a127701408cd581ee89ec3baa53509dd8728cbb25826f2a038f9465f8b7be446f0fbf11558862965b18d21c993684297628d4d3
+  languageName: node
+  linkType: hard
+
+"uuid@npm:^11.1.1":
+  version: 11.1.1
+  resolution: "uuid@npm:11.1.1"
+  bin:
+    uuid: dist/esm/bin/uuid
+  checksum: 10c0/9e3af58eba872ece5a5e76f4773a94fc78a0ef2c2444c38dbe6b42f41dadf76c01850fd783604f27986f6195e6286aef064d45987d401b2a33127b98ddf7c0c5
   languageName: node
   linkType: hard
 
