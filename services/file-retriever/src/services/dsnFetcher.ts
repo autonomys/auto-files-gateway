@@ -18,6 +18,7 @@ import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
 import { safeIPLDDecode } from '../utils/dagData.js'
+import { isZlibCompressed } from '../utils/compression.js'
 import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
@@ -326,6 +327,46 @@ const getFileMetadata = (
   }
 }
 
+/**
+ * Verifies whether a file flagged as ZLIB-compressed is *actually* stored as a
+ * valid zlib stream by inspecting the leading bytes of its first chunk.
+ *
+ * Some stored objects carry `compression: ZLIB` metadata while their node bytes
+ * are plain (uncompressed) — see autonomys/auto-files-gateway#169. Serving those
+ * with `Content-Encoding: deflate` (or inflating them server-side) corrupts the
+ * response, so callers should use this to decide how to treat the body rather
+ * than trusting the metadata flag alone.
+ *
+ * @returns true if the first chunk's bytes are a valid zlib stream; false when
+ *   the file is not actually compressed (or the bytes can't be inspected).
+ */
+const isActuallyCompressed = async (cid: string): Promise<boolean> => {
+  try {
+    const chunks = await dsnFetcher.getFileChunks(cid)
+    const firstChunk = chunks[0]
+    if (!firstChunk) {
+      return false
+    }
+
+    const node = await dsnFetcher.fetchNode(
+      firstChunk.cid,
+      chunks.map((e) => e.cid),
+    )
+    const decoded = safeIPLDDecode(node)
+    const data = decoded?.data
+    if (!data || data.length === 0) {
+      return false
+    }
+
+    return isZlibCompressed(Buffer.from(data))
+  } catch (error) {
+    logger.warn(
+      `Failed to verify actual compression (cid=${cid}); assuming uncompressed; error=${error}`,
+    )
+    return false
+  }
+}
+
 const fetchFile = async (
   cid: string,
   options?: FileCacheOptions,
@@ -530,4 +571,5 @@ export const dsnFetcher = {
   fetchNodeMetadata,
   getFileChunks,
   getFileMetadata,
+  isActuallyCompressed,
 }

@@ -83,10 +83,23 @@ fileRouter.get(
     })
     res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
 
+    const downloadMetadata = DownloadMetadataFactory.fromIPLDData(metadata)
+
+    // Some stored objects are flagged `compression: ZLIB` in their metadata while
+    // their actual node bytes are uncompressed (autonomys/auto-files-gateway#169).
+    // Trusting the flag makes the gateway advertise `Content-Encoding: deflate`
+    // (full-body path) or attempt a server-side inflate (range path) over plaintext,
+    // breaking the response for any client that honors the encoding. Verify against
+    // the real bytes and serve as uncompressed when the flag doesn't match. This
+    // runs for both full-body and range responses since both flow through here.
+    if (downloadMetadata.isCompressed && !downloadMetadata.isEncrypted) {
+      downloadMetadata.isCompressed = await dsnFetcher.isActuallyCompressed(cid)
+    }
+
     const downloadResult = handleDownloadResponseHeaders(
       req,
       res,
-      DownloadMetadataFactory.fromIPLDData(metadata),
+      downloadMetadata,
       {
         byteRange,
         rawMode,
