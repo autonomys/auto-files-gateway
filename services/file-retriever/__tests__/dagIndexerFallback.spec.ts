@@ -773,6 +773,46 @@ describe('DAG indexer fallback', () => {
           config.dagIndexerFallback.enabled = true
         }
       })
+
+      /**
+       * The head being indexed is what makes this path expensive: it means the
+       * chunk-list query runs, and only its result reveals that the file is
+       * truncated. Discovering that per request — the SDK calls `getFileChunks`
+       * once per chunk — re-runs a recursive CTE over the whole DAG, re-emits
+       * `chunk_list_incomplete` and re-logs its warning, all to arrive at a
+       * rebuild that was already cached. A fully unindexed file never had this
+       * problem, because it reaches the cache before the indexer is asked.
+       */
+      it('does not re-ask the indexer once the rebuild is cached', async () => {
+        const { chunks, firstInlink, secondInlink, head } =
+          partiallyIndexedFile()
+        const cid = cidOf(head)
+
+        jest.spyOn(dagIndexerRepository, 'getDagNode').mockResolvedValue({
+          ...metadataOf(head, cid),
+          type: MetadataType.File,
+        })
+        const sortedChunks = jest
+          .spyOn(dagIndexerRepository, 'getSortedChunksByCid')
+          .mockResolvedValue({
+            chunks: chunks.slice(0, 2).map((node) => metadataOf(node)),
+            unindexedLinks: [cidOf(secondInlink)],
+          })
+        const { requested } = stubDsnNodes([
+          head,
+          firstInlink,
+          secondInlink,
+          ...chunks,
+        ])
+
+        const first = await dsnFetcher.getFileChunks(cid)
+        const walked = requested.length
+        const second = await dsnFetcher.getFileChunks(cid)
+
+        expect(second.map((e) => e.cid)).toEqual(first.map((e) => e.cid))
+        expect(sortedChunks).toHaveBeenCalledTimes(1)
+        expect(requested).toHaveLength(walked)
+      })
     })
   })
 

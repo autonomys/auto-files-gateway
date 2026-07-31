@@ -889,6 +889,47 @@ const dsnChunkListCache = new LRUCache<string, ExtendedIPLDMetadata[]>({
 })
 
 /**
+ * A chunk list already rebuilt from the DSN, if one is cached, counted as the
+ * cache hit it is.
+ *
+ * Callers consult this *before* asking the indexer anything. That matters for a
+ * file the indexer has only partially indexed: its head is present, so the
+ * expensive chunk-list query runs, and only its result reveals that the file is
+ * truncated — after which the cached rebuild is returned anyway. Since the SDK
+ * calls `getFileChunks` once per chunk, a single download re-ran a recursive CTE
+ * over the whole DAG, re-emitted `chunk_list_incomplete` and re-logged its
+ * warning, once per chunk of the file. A fully unindexed file never paid that,
+ * because a missing head reaches the cache immediately.
+ *
+ * Returning a cached rebuild without consulting the indexer costs nothing in
+ * correctness even for a file indexed since: a rebuild is a full depth-first walk
+ * of content-addressed nodes, so it carries the same leaves in the same order as
+ * the indexed query, and the fields read downstream (`cid`, `size`) are decoded
+ * from the node bytes the CID commits to. Chain provenance is the only thing it
+ * lacks, and nothing on the retrieval path reads it. The TTL bounds how long the
+ * indexer stays unasked.
+ */
+const cachedChunkListFromDsn = (cid: string): ExtendedIPLDMetadata[] | null => {
+  const cached = dsnChunkListCache.get(cid)
+  if (!cached) {
+    return null
+  }
+
+  // Counted separately: a served-from-cache hit still means this file is
+  // unindexed, but it costs no DSN traffic. Conflating the two would make the
+  // fallback look far more expensive than it is — and reporting the chunk count
+  // as nodes *walked* did exactly that. This is called once per chunk request, so
+  // a 5000-chunk download reported 25M walked nodes for a rebuild that visited
+  // ~5000.
+  recordDagIndexerFallback('chunk_list_cached', {
+    nodesWalked: 0,
+    chunkCount: cached.length,
+  })
+
+  return cached
+}
+
+/**
  * CIDs whose DAG we refused to walk because it exceeds the node limit. The
  * verdict is deterministic for a content-addressed CID, so caching it keeps a
  * retrying client from re-walking thousands of nodes only to fail identically.
@@ -921,18 +962,8 @@ const dsnChunkListRebuilds = new Map<string, Promise<ExtendedIPLDMetadata[]>>()
 const getFileChunksFromDsn = async (
   cid: string,
 ): Promise<ExtendedIPLDMetadata[]> => {
-  const cached = dsnChunkListCache.get(cid)
+  const cached = cachedChunkListFromDsn(cid)
   if (cached) {
-    // Counted separately: a served-from-cache hit still means this file is
-    // unindexed, but it costs no DSN traffic. Conflating the two would make the
-    // fallback look far more expensive than it is — and reporting the chunk count
-    // as nodes *walked* did exactly that. The SDK calls this once per chunk
-    // request, so a 5000-chunk download reported 25M walked nodes for a rebuild
-    // that visited ~5000.
-    recordDagIndexerFallback('chunk_list_cached', {
-      nodesWalked: 0,
-      chunkCount: cached.length,
-    })
     return cached
   }
 
@@ -1155,6 +1186,15 @@ const fetchNode = async (
 }
 
 const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
+  // Before the indexer, not after it: see `cachedChunkListFromDsn`. A partially
+  // indexed file would otherwise re-run the chunk-list query, and re-report
+  // itself as incomplete, on every one of the per-chunk requests a download is
+  // made of.
+  const rebuilt = cachedChunkListFromDsn(cid)
+  if (rebuilt) {
+    return rebuilt
+  }
+
   const root = await dagIndexerRepository.getDagNode(cid)
   if (!root) {
     if (!config.dagIndexerFallback.enabled) {
