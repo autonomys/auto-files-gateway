@@ -28,9 +28,7 @@ const indexerStatus = (
 }
 
 const stubIndexerStatus = (status: DagIndexerStatus) =>
-  jest
-    .spyOn(dagIndexerRepository, 'getIndexerStatus')
-    .mockResolvedValue(status)
+  jest.spyOn(dagIndexerRepository, 'getIndexerStatus').mockResolvedValue(status)
 
 describe('getDagIndexerHealth', () => {
   const originalThreshold = config.dagIndexerFallback.lagAlertBlocks

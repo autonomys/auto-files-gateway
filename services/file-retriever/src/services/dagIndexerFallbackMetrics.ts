@@ -54,7 +54,11 @@ export interface DagIndexerFallbackCounts {
 
 export const recordDagIndexerFallback = (
   outcome: DagIndexerFallbackOutcome,
-  { nodesWalked = 0, chunkCount = 0, unindexedLinks = 0 }: DagIndexerFallbackCounts = {},
+  {
+    nodesWalked = 0,
+    chunkCount = 0,
+    unindexedLinks = 0,
+  }: DagIndexerFallbackCounts = {},
 ) => {
   if (!config.monitoring.active) {
     return
@@ -65,11 +69,13 @@ export const recordDagIndexerFallback = (
     tag: `${config.monitoring.metricEnvironmentTag},outcome=${outcome}`,
     fields: {
       count: 1,
-      // Quoted: these are line-protocol field names, where snake_case is the
-      // convention, not JS identifiers.
-      'nodes_walked': nodesWalked,
-      'chunk_count': chunkCount,
-      'unindexed_links': unindexedLinks,
+      // snake_case on purpose: these are line-protocol field names, where that is
+      // the convention, not JS identifiers.
+      /* eslint-disable camelcase */
+      nodes_walked: nodesWalked,
+      chunk_count: chunkCount,
+      unindexed_links: unindexedLinks,
+      /* eslint-enable camelcase */
     },
   }).catch((error) => {
     logger.warn(`Failed to send DAG indexer fallback metric: ${error}`)

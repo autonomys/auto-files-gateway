@@ -41,19 +41,28 @@ re-derived once per TTL rather than being remembered forever.
 
 Reconstruction is bounded by `DAG_INDEXER_FALLBACK_DEADLINE_MS`, and that budget
 covers each individual gateway fetch as well as the walk as a whole: a fetch is
-given no more than the time left, because `FETCH_TIMEOUT` (180s, retried three
-times) would otherwise let one slow call overrun the budget many times over and
-outlive the caller regardless. The budget applies to rebuilding *metadata* too,
-not only chunk lists — a single node is enough to hang for the full
-`FETCH_TIMEOUT` × retries, and `GET /files/:cid/metadata` is the endpoint an
-indexer gap shows up on first.
+given no more than the time left, and once the budget is spent no further attempt
+is started — including the retries, which `FETCH_TIMEOUT` (180s, three attempts
+with a delay between them) would otherwise let run seconds past a deadline that
+had already passed when the first attempt failed. Checking the clock only
+_between_ fetches cannot undo that, because the check happens after the whole
+retry loop has finished.
+
+One second is the residual overrun: a clamped attempt is floored at that, so an
+attempt starting with a few milliseconds left still runs for up to a second. The
+floor is deliberate — a timeout of a few milliseconds fails every request it is
+applied to — and it is one attempt's worth, not one per retry.
+
+The budget applies to rebuilding _metadata_ too, not only chunk lists — a single
+node is enough to hang for the full `FETCH_TIMEOUT` × retries, and
+`GET /files/:cid/metadata` is the endpoint an indexer gap shows up on first.
 
 ### Partially indexed files
 
 A missing head is not the only failure mode. Nodes are indexed one extrinsic at a
 time, so a file's head can be indexed while nodes below it are not — the indexer
 stopped mid-file, or dropped a node permanently. The indexed chunk list is then a
-*truncated* view of the file, which would be served as a `200` carrying the wrong
+_truncated_ view of the file, which would be served as a `200` carrying the wrong
 bytes (an empty body, in the case where nothing under the head was indexed).
 
 The chunk-list query therefore reports links it could not resolve rather than
@@ -61,8 +70,11 @@ dropping them, and any unresolved link is treated exactly like a missing head:
 the chunk list is rebuilt from the DSN. So a partially indexed file is served
 correctly or fails honestly, never truncated.
 
-Set `DAG_INDEXER_FALLBACK_ENABLED=false` to restore the previous behaviour of
-failing on an indexer miss.
+Set `DAG_INDEXER_FALLBACK_ENABLED=false` to stop reconstructing and fail on an
+indexer miss instead. Note that a partially indexed file then fails too rather
+than serving a truncated body, which is a deliberate departure from the behaviour
+before this fallback existed: silently short bytes under a `200` is the one
+outcome worth ruling out either way.
 
 ### Monitoring the gap
 
@@ -77,12 +89,12 @@ taken from SubQuery's `_metadata`:
 
 | Field                         | Meaning                                                                       |
 | ----------------------------- | ----------------------------------------------------------------------------- |
-| `lastProcessedBlockTimestamp` | Chain timestamp of the frontier block — how stale the indexed *data* is.      |
-| `lastProcessedTimestamp`      | Wall-clock time the indexer last processed anything — whether it is *moving*.  |
+| `lastProcessedBlockTimestamp` | Chain timestamp of the frontier block — how stale the indexed _data_ is.      |
+| `lastProcessedTimestamp`      | Wall-clock time the indexer last processed anything — whether it is _moving_. |
 
 The difference between them is what identifies a wedge. A frontier far behind
 head with `lastProcessedTimestamp` advancing is an indexer working through a
-backlog, which resolves itself; a frontier that does not move *and* a
+backlog, which resolves itself; a frontier that does not move _and_ a
 `lastProcessedTimestamp` that does not advance is the failure seen in production,
 where the frontier sat on one block for a 53-minute observation window. Alerting
 on lag alone cannot tell those apart.
@@ -108,14 +120,14 @@ counter tagged with `outcome`, which says how much traffic the gap is costing:
 
 Three fields accompany the outcome, each measuring a different thing:
 
-| Field             | Meaning                                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Field             | Meaning                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `nodes_walked`    | Nodes visited, head included — the cost, and the quantity `MAX_NODES` bounds, so the two are directly comparable. `0` for a cache hit. |
-| `chunk_count`     | Leaf chunks in the resulting list — the size signal for the chunk-list cache, which is bounded in chunks, not nodes.  |
-| `unindexed_links` | Links the DAG references that the indexer had no row for.                                                            |
+| `chunk_count`     | Leaf chunks in the resulting list — the size signal for the chunk-list cache, which is bounded in chunks, not nodes.                   |
+| `unindexed_links` | Links the DAG references that the indexer had no row for.                                                                              |
 
 Keeping them separate matters for reading the numbers at all: `nodes_walked` once
-carried the leaf count for a rebuild, the *cached* chunk count for a cache hit,
+carried the leaf count for a rebuild, the _cached_ chunk count for a cache hit,
 and the count of missing links for a partial index. Since the SDK calls into the
 chunk list once per chunk request, that made a 5000-chunk download report 25M
 walked nodes for a rebuild that visited 5000, while multi-level rebuilds
@@ -266,13 +278,23 @@ Partial range responses (206) are not cached.
 Bodies of `404`/`503` responses carry a machine-readable `reason` so callers can
 pick a retry strategy instead of parsing messages:
 
-| Reason                         | Status | Meaning                                                                                                      | Retry?                     |
-| ------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------ | -------------------------- |
-| `object_not_found`             | `404`  | The Object Mapping Indexer has no mapping for the CID. May still appear once its segment is archived.        | Later, with long backoff   |
-| `object_not_retrievable_yet`   | `503`  | Mapping exists, bytes aren't available yet (e.g. segment still plotting).                                    | Yes, per `Retry-After`     |
-| `object_mapping_lookup_failed` | `503`  | The mapping lookup itself failed (indexer timeout/unreachable/faulting). Says nothing about the object.      | Yes, per `Retry-After`     |
-| `dag_too_large_for_fallback`   | `503`  | The DAG exceeds `DAG_INDEXER_FALLBACK_MAX_NODES`. Only indexing resolves this, so no `Retry-After` is given. | No — the verdict is cached |
-| `dag_indexer_fallback_timed_out` | `503` | Reconstruction exceeded `DAG_INDEXER_FALLBACK_DEADLINE_MS`. The DSN was too slow, not necessarily unhealthy.  | Yes, per `Retry-After`     |
+| Reason                           | Status | Meaning                                                                                                      | Retry?                     |
+| -------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| `object_not_found`               | `404`  | The Object Mapping Indexer has no mapping for the CID. May still appear once its segment is archived.        | Later, with long backoff   |
+| `object_not_retrievable_yet`     | `503`  | Mapping exists, bytes aren't available yet (e.g. segment still plotting).                                    | Yes, per `Retry-After`     |
+| `object_mapping_lookup_failed`   | `503`  | The mapping lookup itself failed (indexer timeout/unreachable/faulting). Says nothing about the object.      | Yes, per `Retry-After`     |
+| `dag_too_large_for_fallback`     | `503`  | The DAG exceeds `DAG_INDEXER_FALLBACK_MAX_NODES`. Only indexing resolves this, so no `Retry-After` is given. | No — the verdict is cached |
+| `dag_indexer_fallback_timed_out` | `503`  | Reconstruction exceeded `DAG_INDEXER_FALLBACK_DEADLINE_MS`. The DSN was too slow, not necessarily unhealthy. | Yes, per `Retry-After`     |
+| `dsn_gateway_fetch_failed`       | `503`  | The Subspace Gateway could not be reached or did not answer (timeout, refused connection, non-2xx).          | Yes, per `Retry-After`     |
+
+`dsn_gateway_fetch_failed` covers the transport itself, and it is reachable on
+every path that fetches nodes, including `GET /files/:cid/metadata` — which never
+consulted the gateway before the fallback existed. It is separate from
+`object_not_retrievable_yet` on purpose: that one is a verdict about the object
+(the mapping resolved, the bytes are not there yet), while this one is the absence
+of a verdict. A gateway that has stopped answering says nothing about any
+particular CID, and reporting it as a fault (`500`, no `reason`, no `Retry-After`)
+told callers to give up on the one failure most likely to clear on its own.
 
 The `reason` is delivered as `{"error": "<message>", "reason": "<code>"}`, from the
 error middleware registered in `index.ts`. Express identifies an error handler by

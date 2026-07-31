@@ -75,7 +75,12 @@ export const UNAVAILABLE_REASON = {
   dagTooLargeForFallback: 'dag_too_large_for_fallback',
   /** Reconstruction ran out of time; the DSN was too slow to answer. */
   fallbackTimedOut: 'dag_indexer_fallback_timed_out',
+  /** The Subspace Gateway itself could not be reached, or did not answer. */
+  gatewayFetchFailed: 'dsn_gateway_fetch_failed',
 } as const
+
+const describeError = (error: unknown) =>
+  error instanceof Error ? error.message : String(error)
 
 const objectNotFoundError = (cid: string) =>
   new HttpError(404, `Not found: no object mapping for cid=${cid}`, {
@@ -106,9 +111,31 @@ const notRetrievableYetError = (cid: string, detail: string) =>
 const mappingLookupFailedError = (cid: string, error: unknown) =>
   new HttpError(
     503,
-    `Object mapping lookup failed (cid=${cid}): ${error instanceof Error ? error.message : String(error)}`,
+    `Object mapping lookup failed (cid=${cid}): ${describeError(error)}`,
     {
       reason: UNAVAILABLE_REASON.mappingLookupFailed,
+      headers: retryAfterHeader(),
+    },
+  )
+
+/**
+ * The Subspace Gateway did not answer usably — refused connection, timeout,
+ * socket reset, a non-2xx status. Like a failed mapping lookup this says nothing
+ * about whether the object exists, so it must be retryable.
+ *
+ * It needs its own reason because it is a *transport* failure rather than a
+ * verdict, and because the fallback makes it reachable on `GET /files/:cid/metadata`,
+ * where the gateway was never consulted before. Left raw, an axios error escapes
+ * every typed branch here and the error middleware answers a bare 500 with no
+ * `reason` and no `Retry-After` — indistinguishable, to a caller, from a fault
+ * that will not clear.
+ */
+const gatewayFetchFailedError = (objects: ObjectMapping[], error: unknown) =>
+  new HttpError(
+    503,
+    `Subspace Gateway fetch failed (objects=${objects.length}, firstHash=${objects[0]?.[0] ?? 'none'}): ${describeError(error)}`,
+    {
+      reason: UNAVAILABLE_REASON.gatewayFetchFailed,
       headers: retryAfterHeader(),
     },
   )
@@ -202,7 +229,15 @@ const withDeadlineReporting = async <T>(
   }
 }
 
-/** Never let a clamped timeout collapse to something no request could satisfy. */
+/**
+ * Never let a clamped timeout collapse to something no request could satisfy.
+ *
+ * This floor is the one way a reconstruction can still overrun its budget: an
+ * attempt that starts with a few milliseconds left runs for up to a second. That
+ * is the whole of the overrun — an attempt is not started once the budget is
+ * spent, and retries stop there too (see `fetchObjects`), so it is one attempt's
+ * floor rather than `maxRetries` floors plus the delays between them.
+ */
 const MIN_BUDGETED_FETCH_TIMEOUT_MS = 1_000
 
 /**
@@ -279,67 +314,137 @@ const fetchObjects = async (
     id: requestId,
   }
 
-  return concurrencyController(
-    async () =>
-      withRetries(
-        async () => {
-          logger.debug(
-            `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
-          )
-          const fetchStart = performance.now()
-          // Re-read the budget per attempt, not once per call: retries each need
-          // to fit in what is left, or three attempts would each get the full
-          // remaining budget as measured before the first one.
-          const response = await axios.post(gatewayUrl, body, {
-            timeout: budgetedFetchTimeout(remainingMs?.()),
-            responseType: 'json',
-          })
-          if (response.status !== 200) {
-            console.error(
-              'Failed to fetch nodes',
-              response.status,
+  /**
+   * Unbudgeted callers get `undefined` here, and a disabled deadline gets
+   * `Infinity`, so both keep the previous behaviour: three attempts at the full
+   * FETCH_TIMEOUT.
+   */
+  const budgetSpent = () => {
+    const remaining = remainingMs?.()
+    return remaining !== undefined && remaining <= 0
+  }
+
+  /**
+   * A budgeted attempt must not *start* once the budget is gone, and its retries
+   * must not either.
+   *
+   * Clamping each attempt's timeout is not enough on its own. The mapping lookup
+   * that precedes this fetch is not itself budgeted, so a fetch can be reached
+   * with nothing left; and `withRetries` runs three attempts with a delay between
+   * them, each attempt floored at MIN_BUDGETED_FETCH_TIMEOUT_MS, while the
+   * deadline is only re-checked once the whole loop has finished. A single fetch
+   * could therefore run several seconds past DAG_INDEXER_FALLBACK_DEADLINE_MS,
+   * which no amount of checking *between* fetches can undo.
+   *
+   * The enclosing `withDeadlineReporting` re-checks the deadline on the way out
+   * and replaces this with the timeout error carrying the CID and the elapsed
+   * time, so this message is only a fallback for a caller that has no deadline
+   * to report against.
+   */
+  const budgetExhaustedError = () =>
+    new HttpError(
+      503,
+      `Subspace Gateway fetch not attempted (objects=${objects.length}): the reconstruction budget was already spent`,
+      {
+        reason: UNAVAILABLE_REASON.fallbackTimedOut,
+        headers: retryAfterHeader(),
+      },
+    )
+
+  try {
+    return await concurrencyController(
+      async () =>
+        withRetries(
+          async () => {
+            if (budgetSpent()) {
+              throw budgetExhaustedError()
+            }
+
+            logger.debug(
+              `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+            )
+            const fetchStart = performance.now()
+            // Re-read the budget per attempt, not once per call: retries each
+            // need to fit in what is left, or three attempts would each get the
+            // full remaining budget as measured before the first one.
+            const response = await axios.post(gatewayUrl, body, {
+              timeout: budgetedFetchTimeout(remainingMs?.()),
+              responseType: 'json',
+            })
+            if (response.status !== 200) {
+              console.error(
+                'Failed to fetch nodes',
+                response.status,
+                response.data,
+              )
+              throw new HttpError(
+                500,
+                'Internal server error: Failed to fetch nodes',
+              )
+            }
+
+            const validatedResponseData = fetchNodesSchema.safeParse(
               response.data,
             )
-            throw new HttpError(
-              500,
-              'Internal server error: Failed to fetch nodes',
-            )
-          }
+            if (!validatedResponseData.success) {
+              logger.error(
+                `Failed to parse fetch nodes response: ${JSON.stringify(
+                  validatedResponseData.error,
+                )}`,
+              )
+              logger.debug(
+                `Fetch nodes response: ${JSON.stringify(response.data)}`,
+              )
+              throw new HttpError(
+                500,
+                'Internal server error: Failed to parse fetch nodes response',
+              )
+            }
 
-          const validatedResponseData = fetchNodesSchema.safeParse(
-            response.data,
-          )
-          if (!validatedResponseData.success) {
-            logger.error(
-              `Failed to parse fetch nodes response: ${JSON.stringify(
-                validatedResponseData.error,
-              )}`,
-            )
+            const end = performance.now()
             logger.debug(
-              `Fetch nodes response: ${JSON.stringify(response.data)}`,
+              `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
             )
-            throw new HttpError(
-              500,
-              'Internal server error: Failed to parse fetch nodes response',
+
+            return validatedResponseData.data.result.map((hex) =>
+              decodeNode(Buffer.from(hex, 'hex')),
             )
-          }
+          },
+          {
+            maxRetries: 3,
+            delay: 500,
+            shouldRetry: () => !budgetSpent(),
+          },
+        ),
+      objects.length,
+    )
+  } catch (error) {
+    // Everything raised above this point must be typed. A raw axios rejection —
+    // the ordinary shape of a flaky or unreachable gateway — has no status and no
+    // reason, so it reaches the error middleware as a bare 500 that tells callers
+    // to give up on a failure that is very likely to clear.
+    if (error instanceof HttpError) {
+      throw error
+    }
 
-          const end = performance.now()
-          logger.debug(
-            `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
-          )
+    if (axios.isAxiosError(error)) {
+      logger.error(
+        `Subspace Gateway fetch failed (requestId=${requestId}); reporting as retryable; error=${error}`,
+      )
+      throw gatewayFetchFailedError(objects, error)
+    }
 
-          return validatedResponseData.data.result.map((hex) =>
-            decodeNode(Buffer.from(hex, 'hex')),
-          )
-        },
-        {
-          maxRetries: 3,
-          delay: 500,
-        },
-      ),
-    objects.length,
-  )
+    // Anything else is us, not the gateway: a response that parsed but would not
+    // decode, or a misconfiguration. Kept a 500 so it stays loud rather than
+    // being advertised as retryable, but typed so the body carries the message.
+    logger.error(
+      `Unexpected failure fetching nodes (requestId=${requestId}); error=${error}`,
+    )
+    throw new HttpError(
+      500,
+      `Internal server error: Failed to fetch nodes: ${describeError(error)}`,
+    )
+  }
 }
 
 const getNodesForPartialRetrieval = async (

@@ -10,6 +10,7 @@ import {
 } from '@autonomys/auto-dag-data'
 import { ExtendedIPLDMetadata } from '@auto-files/models'
 import { jest } from '@jest/globals'
+import axios from 'axios'
 import zlib from 'zlib'
 import { config } from '../src/config.js'
 import {
@@ -889,6 +890,131 @@ describe('DAG indexer fallback', () => {
     })
   })
 
+  /**
+   * The gateway is the one dependency the fallback cannot avoid, and a flaky one
+   * is the normal case during the incident this fallback exists for. Its failures
+   * have to arrive typed: an untyped rejection reaches the error middleware as a
+   * bare `500` with no `reason` and no `Retry-After`, which tells callers to stop
+   * retrying something that is very likely to clear.
+   */
+  describe('fetchObjects', () => {
+    const mapping = (pieceIndex = 1, pieceOffset = 0) =>
+      ['a'.repeat(64), pieceIndex, pieceOffset] as [string, number, number]
+
+    const transportFailure = () =>
+      new axios.AxiosError(
+        'connect ECONNREFUSED 127.0.0.1:9944',
+        'ECONNREFUSED',
+      )
+
+    it('reports a gateway transport failure as retryable, not as a fault', async () => {
+      const post = jest
+        .spyOn(axios, 'post')
+        .mockRejectedValue(transportFailure())
+
+      const error = await dsnFetcher
+        .fetchObjects([mapping()], () => 5_000)
+        .catch((e) => e)
+
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error.statusCode).toBe(503)
+      expect(error.reason).toBe('dsn_gateway_fetch_failed')
+      expect(error.headers?.['Retry-After']).toBeDefined()
+      expect(post).toHaveBeenCalled()
+    })
+
+    // Not every failure here is the gateway's: a response that parsed but would
+    // not decode is ours. Those must stay loud rather than being advertised as
+    // retryable, but still typed so the body carries a message.
+    it('keeps a non-transport failure a 500 without advertising a retry', async () => {
+      jest.spyOn(axios, 'post').mockRejectedValue(new Error('not axios'))
+
+      const error = await dsnFetcher.fetchObjects([mapping()]).catch((e) => e)
+
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error.statusCode).toBe(500)
+      expect(error.reason).toBeUndefined()
+      expect(error.headers).toBeUndefined()
+      expect(error.message).toContain('not axios')
+    })
+
+    /**
+     * Clamping each attempt's timeout to the time left is not enough on its own.
+     * `withRetries` runs three attempts with a delay between them and the
+     * deadline is only re-checked once the whole loop has finished, so a fetch
+     * whose budget was already spent used to keep attempting — each attempt
+     * floored at a second — several seconds past
+     * `DAG_INDEXER_FALLBACK_DEADLINE_MS`.
+     */
+    it('does not attempt a fetch once the budget is spent', async () => {
+      const post = jest
+        .spyOn(axios, 'post')
+        .mockRejectedValue(transportFailure())
+
+      const error = await dsnFetcher
+        .fetchObjects([mapping()], () => 0)
+        .catch((e) => e)
+
+      // The mapping lookup ahead of this fetch is not itself budgeted, so a fetch
+      // really can be reached with nothing left. A clamped attempt is still
+      // floored at a second, and there would be three of them.
+      expect(post).not.toHaveBeenCalled()
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error.statusCode).toBe(503)
+      expect(error.reason).toBe('dag_indexer_fallback_timed_out')
+    })
+
+    it('stops retrying when an attempt consumes the rest of the budget', async () => {
+      let remaining = 5_000
+      const post = jest.spyOn(axios, 'post').mockImplementation(async () => {
+        remaining = 0
+        throw transportFailure()
+      })
+
+      await dsnFetcher
+        .fetchObjects([mapping()], () => remaining)
+        .catch(() => undefined)
+
+      expect(post).toHaveBeenCalledTimes(1)
+    })
+
+    it('still retries for callers that have no budget', async () => {
+      const post = jest
+        .spyOn(axios, 'post')
+        .mockRejectedValue(transportFailure())
+
+      await dsnFetcher.fetchObjects([mapping()]).catch(() => undefined)
+
+      expect(post).toHaveBeenCalledTimes(3)
+    })
+
+    // The endpoint the incident was reported on, and the one the fallback newly
+    // routes to the gateway: before it, a miss answered 404 without ever calling
+    // out, so a gateway failure could not surface here at all.
+    it('surfaces a typed failure through GET /files/:cid/metadata', async () => {
+      const cid = cidOf(chunkNode('gateway down'))
+      jest.spyOn(dagIndexerRepository, 'getDagNode').mockResolvedValue(null)
+      jest.spyOn(nodeCache, 'has').mockResolvedValue(false)
+      jest
+        .spyOn(objectMappingIndexer, 'get_object_mappings')
+        .mockResolvedValue([
+          [
+            Buffer.from(blake3HashFromCid(stringToCid(cid))).toString('hex'),
+            1,
+            0,
+          ],
+        ])
+      jest.spyOn(axios, 'post').mockRejectedValue(transportFailure())
+
+      const error = await dsnFetcher.fetchNodeMetadata(cid).catch((e) => e)
+
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error.statusCode).toBe(503)
+      expect(error.reason).toBe('dsn_gateway_fetch_failed')
+      expect(error.headers?.['Retry-After']).toBeDefined()
+    })
+  })
+
   describe('fetchFile', () => {
     it('keeps the underlying status instead of flattening it to 500', async () => {
       jest.spyOn(dsnFetcher, 'fetchNodeMetadata').mockRejectedValue(
@@ -953,13 +1079,11 @@ describe('DAG indexer fallback', () => {
     })
 
     it('propagates a typed failure instead of guessing "uncompressed"', async () => {
-      jest
-        .spyOn(dsnFetcher, 'getFileChunks')
-        .mockRejectedValue(
-          new HttpError(503, 'DAG Indexer fallback timed out', {
-            reason: 'dag_indexer_fallback_timed_out',
-          }),
-        )
+      jest.spyOn(dsnFetcher, 'getFileChunks').mockRejectedValue(
+        new HttpError(503, 'DAG Indexer fallback timed out', {
+          reason: 'dag_indexer_fallback_timed_out',
+        }),
+      )
 
       await expect(
         dsnFetcher.isActuallyCompressed('bafk-whatever'),

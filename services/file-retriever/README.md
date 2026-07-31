@@ -46,16 +46,16 @@ no row for a CID (it trails the chain, and a failed mapping leaves a permanent
 gap), the service reconstructs both from the DSN instead of reporting the file as
 missing.
 
-| Variable                                           | Default   | Description                                                       |
-| -------------------------------------------------- | --------- | ----------------------------------------------------------------- |
-| `DAG_INDEXER_FALLBACK_ENABLED`                     | `true`    | Reconstruct metadata/chunks from the DSN on indexer miss           |
-| `DAG_INDEXER_FALLBACK_MAX_NODES`                   | `5000`    | Max nodes walked to rebuild one file's chunk list                  |
-| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_SIZE`       | `500`     | Rebuilt chunk lists kept in memory (entry count)                   |
-| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_MAX_CHUNKS` | `100000`  | Total chunk records across all cached lists — the real memory cap  |
-| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_TTL`        | `600000`  | Chunk list cache idle TTL in milliseconds (10 minutes)             |
-| `DAG_INDEXER_FALLBACK_DEADLINE_MS`                 | `45000`   | Wall-clock budget for one reconstruction (`0` disables)            |
-| `DAG_INDEXER_LAG_ALERT_BLOCKS`                     | `1000`    | Lag at which `/health/dag-indexer` reports degraded                |
-| `UNAVAILABLE_RETRY_AFTER_SECONDS`                  | `60`      | `Retry-After` advertised on a `503`                                |
+| Variable                                           | Default  | Description                                                       |
+| -------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| `DAG_INDEXER_FALLBACK_ENABLED`                     | `true`   | Reconstruct metadata/chunks from the DSN on indexer miss          |
+| `DAG_INDEXER_FALLBACK_MAX_NODES`                   | `5000`   | Max nodes walked to rebuild one file's chunk list                 |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_SIZE`       | `500`    | Rebuilt chunk lists kept in memory (entry count)                  |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_MAX_CHUNKS` | `100000` | Total chunk records across all cached lists — the real memory cap |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_TTL`        | `600000` | Chunk list cache idle TTL in milliseconds (10 minutes)            |
+| `DAG_INDEXER_FALLBACK_DEADLINE_MS`                 | `45000`  | Wall-clock budget for one reconstruction (`0` disables)           |
+| `DAG_INDEXER_LAG_ALERT_BLOCKS`                     | `1000`   | Lag at which `/health/dag-indexer` reports degraded               |
+| `UNAVAILABLE_RETRY_AFTER_SECONDS`                  | `60`     | `Retry-After` advertised on a `503`                               |
 
 Keep `DEADLINE_MS` below the caller's own timeout — auto-drive allows the
 gateway 60s via `FILES_GATEWAY_FETCH_TIMEOUT_MS`. A single node fetch may take
@@ -173,7 +173,7 @@ yarn file-retriever test
 
 Tests use supertest for HTTP endpoint testing with mocked dependencies.
 
-`getSortedChunksByCid` is not covered: its behaviour *is* its SQL — a recursive
+`getSortedChunksByCid` is not covered: its behaviour _is_ its SQL — a recursive
 CTE's ordering and its join semantics — and a mocked `pg` client asserts nothing
 about either. Both were wrong at one point in ways that return a `200` carrying
 the wrong bytes (see the chunk-ordering and partially-indexed notes in

@@ -60,9 +60,7 @@ export const errorMiddleware: ErrorRequestHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
 ) => {
-  logger.error(
-    err instanceof Error ? (err.stack ?? err.message) : String(err),
-  )
+  logger.error(err instanceof Error ? (err.stack ?? err.message) : String(err))
 
   if (err instanceof HttpError) {
     applyHttpErrorHeaders(err, res)

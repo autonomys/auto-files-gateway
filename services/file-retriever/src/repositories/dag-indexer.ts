@@ -352,8 +352,7 @@ const getIndexerStatus = async (): Promise<DagIndexerStatus> => {
   return {
     lastProcessedHeight,
     targetHeight,
-    indexerHealthy:
-      typeof indexerHealthy === 'boolean' ? indexerHealthy : null,
+    indexerHealthy: typeof indexerHealthy === 'boolean' ? indexerHealthy : null,
     lastProcessedBlockTimestamp: asNumber('lastProcessedBlockTimestamp'),
     lastProcessedTimestamp: asNumber('lastProcessedTimestamp'),
     lagBlocks:
@@ -373,9 +372,7 @@ export interface IndexedChunkList {
   unindexedLinks: string[]
 }
 
-const getSortedChunksByCid = async (
-  cid: string,
-): Promise<IndexedChunkList> => {
+const getSortedChunksByCid = async (cid: string): Promise<IndexedChunkList> => {
   logger.info(`Getting chunks by CID: ${cid}`)
 
   try {
