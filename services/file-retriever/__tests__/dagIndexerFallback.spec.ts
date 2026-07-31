@@ -19,8 +19,9 @@ import {
 } from '../src/services/dsnFetcher.js'
 import { dagIndexerRepository } from '../src/repositories/dag-indexer.js'
 import { objectMappingIndexer } from '../src/services/objectMappingIndexer.js'
-import { nodeCache } from '../src/services/cache.js'
+import { fileCache, nodeCache } from '../src/services/cache.js'
 import { HttpError } from '../src/http/middlewares/error.js'
+import { Readable } from 'stream'
 
 const chunkNode = (content: string): PBNode => ({
   Data: IPLDNodeData.encode({
@@ -1079,6 +1080,19 @@ describe('DAG indexer fallback', () => {
    * that really is compressed, so the client gets undecodable bytes with a 200.
    */
   describe('isActuallyCompressed', () => {
+    /** A cached `FileResponse` whose body is exactly these stored bytes. */
+    const stubCachedFile = (body: Buffer) =>
+      jest.spyOn(fileCache, 'get').mockImplementation(async () => ({
+        data: Readable.from(body),
+        size: BigInt(body.length),
+      }))
+
+    // Pinned rather than left to the real cache: with a stray entry present, a
+    // test asserting the DSN path is consulted would pass for the wrong reason.
+    beforeEach(() => {
+      jest.spyOn(fileCache, 'get').mockResolvedValue(null)
+    })
+
     it('reports a genuinely compressed file as compressed', async () => {
       const compressed = zlib.deflateSync(Buffer.from('compress me'))
       const chunk: PBNode = {
@@ -1141,6 +1155,64 @@ describe('DAG indexer fallback', () => {
       await expect(
         dsnFetcher.isActuallyCompressed('bafk-whatever'),
       ).resolves.toBe(false)
+    })
+
+    /**
+     * The probe runs on every download of a ZLIB-flagged file, including one
+     * served entirely from the file cache — so reading the head from the DSN made
+     * a cached file's download depend on the DSN. The chunk-list cache lives 10
+     * minutes against the file cache's 24 hours, so once it expires the probe
+     * re-walks the DAG, and an unindexed file whose bytes are sitting on local
+     * disk answers 503. During an indexer gap, which is when both the fallback
+     * and the cache matter most.
+     */
+    describe('when the file is already cached', () => {
+      it('answers from the cached bytes without touching the DSN', async () => {
+        stubCachedFile(zlib.deflateSync(Buffer.from('cached and compressed')))
+        const chunks = jest
+          .spyOn(dsnFetcher, 'getFileChunks')
+          .mockRejectedValue(
+            new HttpError(503, 'DAG Indexer fallback timed out', {
+              reason: 'dag_indexer_fallback_timed_out',
+            }),
+          )
+
+        await expect(
+          dsnFetcher.isActuallyCompressed('bafk-cached-zlib'),
+        ).resolves.toBe(true)
+        expect(chunks).not.toHaveBeenCalled()
+      })
+
+      it('still catches plaintext that is flagged as compressed', async () => {
+        stubCachedFile(Buffer.from('cached but not compressed'))
+        const chunks = jest.spyOn(dsnFetcher, 'getFileChunks')
+
+        await expect(
+          dsnFetcher.isActuallyCompressed('bafk-cached-plain'),
+        ).resolves.toBe(false)
+        expect(chunks).not.toHaveBeenCalled()
+      })
+
+      // A cache read that failed is not evidence about the bytes, so it must not
+      // become an answer.
+      it('falls back to the DSN when the cached copy cannot be read', async () => {
+        jest
+          .spyOn(fileCache, 'get')
+          .mockRejectedValue(new Error('cache file missing'))
+
+        const chunk = chunkNode('from the DSN instead')
+        const head = parentNode([chunk], {
+          type: MetadataType.File,
+          name: 'p.txt',
+        })
+        jest.spyOn(dagIndexerRepository, 'getDagNode').mockResolvedValue(null)
+        const { spy } = stubDsnNodes([head, chunk])
+
+        await expect(
+          dsnFetcher.isActuallyCompressed(cidOf(head)),
+        ).resolves.toBe(false)
+        expect(spy).toHaveBeenCalled()
+      })
     })
   })
 

@@ -73,3 +73,36 @@ export const sliceReadable = async (
     setImmediate(() => resolve(pass))
   })
 }
+
+/**
+ * Reads at most `length` bytes from the head of a stream and abandons the rest.
+ *
+ * For inspecting a header without paying for the body: the stream may be a file
+ * of any size, so it is destroyed as soon as enough bytes have arrived rather
+ * than drained. Returns fewer bytes than asked for when the stream is shorter.
+ */
+export const readLeadingBytes = async (
+  readable: Readable,
+  length: number,
+): Promise<Buffer> => {
+  const collected: Buffer[] = []
+  let total = 0
+
+  try {
+    for await (const chunk of readable) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      collected.push(buffer)
+      total += buffer.length
+      if (total >= length) {
+        break
+      }
+    }
+  } finally {
+    // Breaking out of `for await` already destroys the iterator; being explicit
+    // matters because this is usually an open file handle we only wanted two
+    // bytes from. Destroying twice is a no-op.
+    readable.destroy()
+  }
+
+  return Buffer.concat(collected).subarray(0, length)
+}

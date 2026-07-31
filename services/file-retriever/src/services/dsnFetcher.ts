@@ -34,7 +34,7 @@ import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
 import { dagIndexerRepository } from '../repositories/dag-indexer.js'
-import { sliceReadable } from '../utils/readable.js'
+import { readLeadingBytes, sliceReadable } from '../utils/readable.js'
 import { LRUCache } from 'lru-cache'
 import { recordDagIndexerFallback } from './dagIndexerFallbackMetrics.js'
 
@@ -627,9 +627,49 @@ const getFileMetadata = (
   }
 }
 
+/** All `isZlibCompressed` reads: a zlib header is CMF + FLG. */
+const ZLIB_HEADER_BYTES = 2
+
+/**
+ * The head of the file's stored body, read from the cached copy if we have one.
+ *
+ * The file cache is consulted first, and that is the point rather than an
+ * optimisation. The compression probe runs on every download of a ZLIB-flagged
+ * file, *including* one served entirely from `fileCache` — and reading the head
+ * from the DSN instead means an unindexed file can fail a request whose bytes we
+ * already hold: the chunk-list cache lives 10 minutes while the file cache lives
+ * 24 hours, so once the former expires the probe re-walks the DAG and a slow or
+ * unreachable gateway turns a local cache hit into a 503. Precisely during an
+ * indexer gap, when both the fallback and the cache are load-bearing.
+ *
+ * The cached body is the *stored* bytes: `fileComposer` forks the response before
+ * any content transform, so its first two bytes are the first chunk's first two
+ * bytes. Reading them is also valid under `originControl=no-cache` — that asks
+ * for fresh bytes, while this asks whether the content is zlib, and content does
+ * not change under a CID.
+ *
+ * Returns `null` when the cache cannot answer, so the caller falls back to the
+ * DSN rather than guessing from a read that failed.
+ */
+const cachedLeadingBytes = async (cid: string): Promise<Buffer | null> => {
+  try {
+    const cached = await fileCache.get(cid)
+    if (!cached) {
+      return null
+    }
+
+    return await readLeadingBytes(cached.data, ZLIB_HEADER_BYTES)
+  } catch (error) {
+    logger.warn(
+      `Failed to read the cached copy to verify compression (cid=${cid}); falling back to the DSN; error=${error}`,
+    )
+    return null
+  }
+}
+
 /**
  * Verifies whether a file flagged as ZLIB-compressed is *actually* stored as a
- * valid zlib stream by inspecting the leading bytes of its first chunk.
+ * valid zlib stream by inspecting the leading bytes of its body.
  *
  * Some stored objects carry `compression: ZLIB` metadata while their node bytes
  * are plain (uncompressed) — see autonomys/auto-files-gateway#169. Serving those
@@ -637,17 +677,27 @@ const getFileMetadata = (
  * response, so callers should use this to decide how to treat the body rather
  * than trusting the metadata flag alone.
  *
- * @returns true if the first chunk's bytes are a valid zlib stream; false when
- *   the file is not actually compressed.
+ * Reads from the cached copy when there is one and only otherwise from the DSN
+ * (see `cachedLeadingBytes`).
+ *
+ * @returns true if the leading bytes are a valid zlib stream; false when the file
+ *   is not actually compressed.
  * @throws the underlying `HttpError` when the bytes could not be inspected at
  *   all. Answering `false` in that case is not a safe default: for a file that
  *   *is* zlib, it strips `Content-Encoding` from a compressed body and hands the
  *   client something it cannot decode. Unindexed files make this reachable —
  *   `getFileChunks` may walk the whole DAG here and hit its deadline — so the
- *   request must fail honestly instead of succeeding with corrupt bytes.
+ *   request must fail honestly instead of succeeding with corrupt bytes. It only
+ *   applies when nothing local holds the bytes; a file we can serve is a file we
+ *   can inspect.
  */
 const isActuallyCompressed = async (cid: string): Promise<boolean> => {
   try {
+    const cachedHead = await cachedLeadingBytes(cid)
+    if (cachedHead) {
+      return isZlibCompressed(cachedHead)
+    }
+
     const chunks = await dsnFetcher.getFileChunks(cid)
     const firstChunk = chunks[0]
     if (!firstChunk) {

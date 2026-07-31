@@ -212,6 +212,17 @@ Partial range responses (206) are not cached.
 | `Accept-Ranges`       | `bytes` (advertises range support)                 |
 | `x-file-origin`       | `cache` or `gateway` (indicates data source)       |
 
+`Content-Encoding: deflate` is set from the file's _bytes_, not from its
+`compression: ZLIB` metadata: some stored objects carry the flag while their node
+bytes are plain, and advertising the encoding over plaintext corrupts the response
+for any client that honours it (autonomys/auto-files-gateway#169). The check reads
+the leading bytes of the cached copy when there is one and only otherwise from the
+DSN — reading them from the DSN unconditionally would make a download that needs
+no DSN at all fail when the DSN is unavailable, which an unindexed file reaches as
+soon as its rebuilt chunk list expires (10 minutes, against the file cache's 24
+hours). When nothing local holds the bytes the check fails the request rather than
+guessing: both wrong answers corrupt the body, so there is no safe default.
+
 ## Environment Variables
 
 ### Required
