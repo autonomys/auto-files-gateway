@@ -39,6 +39,34 @@ For architecture and API documentation, see [docs/file-retriever.md](../../docs/
 | `MAX_SIMULTANEOUS_FETCHES` | `10`     | Concurrent fetch limit          |
 | `FETCH_TIMEOUT`            | `180000` | Fetch timeout in milliseconds   |
 
+### DAG Indexer Fallback
+
+Node metadata and chunk ordering normally come from the DAG Indexer. When it has
+no row for a CID (it trails the chain, and a failed mapping leaves a permanent
+gap), the service reconstructs both from the DSN instead of reporting the file as
+missing.
+
+| Variable                                           | Default  | Description                                                       |
+| -------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| `DAG_INDEXER_FALLBACK_ENABLED`                     | `true`   | Reconstruct metadata/chunks from the DSN on indexer miss          |
+| `DAG_INDEXER_FALLBACK_MAX_NODES`                   | `5000`   | Max nodes walked to rebuild one file's chunk list                 |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_SIZE`       | `500`    | Rebuilt chunk lists kept in memory (entry count)                  |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_MAX_CHUNKS` | `100000` | Total chunk records across all cached lists — the real memory cap |
+| `DAG_INDEXER_FALLBACK_CHUNK_LIST_CACHE_TTL`        | `600000` | Chunk list cache idle TTL in milliseconds (10 minutes)            |
+| `DAG_INDEXER_FALLBACK_DEADLINE_MS`                 | `45000`  | Wall-clock budget for one reconstruction (`0` disables)           |
+| `DAG_INDEXER_LAG_ALERT_BLOCKS`                     | `1000`   | Lag at which `/health/dag-indexer` reports degraded               |
+| `UNAVAILABLE_RETRY_AFTER_SECONDS`                  | `60`     | `Retry-After` advertised on a `503`                               |
+
+Keep `DEADLINE_MS` below the caller's own timeout — auto-drive allows the
+gateway 60s via `FILES_GATEWAY_FETCH_TIMEOUT_MS`. A single node fetch may take
+`FETCH_TIMEOUT` (180s) and is retried three times, so without this budget one
+slow reconstruction can far outlive the request that asked for it.
+
+`..._CACHE_SIZE` bounds how many files are cached; `..._CACHE_MAX_CHUNKS`
+bounds how much memory they can occupy between them. Keep `MAX_CHUNKS`
+comfortably above `MAX_NODES`, since a list larger than the whole budget is
+silently not cached (each affected request then re-walks the DAG).
+
 ### Monitoring (Optional)
 
 | Variable                 | Description                     |
@@ -68,10 +96,15 @@ docker-compose -f docker/file-retriever/docker-compose.yml up
 ## Health Check
 
 ```
-GET http://localhost:8090/health
+GET http://localhost:8090/health             # liveness
+GET http://localhost:8090/health/dag-indexer # DAG Indexer frontier
 ```
 
-Returns 200 OK when the service is running.
+`/health` returns 200 OK when the service is running. It ignores DAG Indexer lag
+on purpose — the service can still serve cached files and reconstruct unindexed
+ones, so failing liveness would remove the only component still able to serve
+them. `/health/dag-indexer` reports the frontier and returns `503` once the lag
+exceeds `DAG_INDEXER_LAG_ALERT_BLOCKS`; alert on that one.
 
 ## API Endpoints
 
@@ -139,3 +172,18 @@ yarn file-retriever test
 ```
 
 Tests use supertest for HTTP endpoint testing with mocked dependencies.
+
+`getSortedChunksByCid` is not covered: its behaviour _is_ its SQL — a recursive
+CTE's ordering and its join semantics — and a mocked `pg` client asserts nothing
+about either. Both were wrong at one point in ways that return a `200` carrying
+the wrong bytes (see the chunk-ordering and partially-indexed notes in
+`docs/file-retriever.md`), so changes to that query are worth checking by hand
+against a real PostgreSQL:
+
+```bash
+docker run -d --rm -p 55433:5432 -e POSTGRES_PASSWORD=test postgres:17
+```
+
+Create `"dag-indexer".nodes` per `services/dag-indexer/schema.graphql`, insert a
+head with two inlinks over five leaves, and confirm the leaves come back in file
+order and that deleting any referenced node shows up in `unindexedLinks`.

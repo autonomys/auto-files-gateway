@@ -279,49 +279,164 @@ const getDagNodesCount = async (): Promise<number> => {
   }
 }
 
-const getSortedChunksByCid = async (
-  cid: string,
-): Promise<ExtendedIPLDMetadata[]> => {
+export interface DagIndexerStatus {
+  lastProcessedHeight: number | null
+  targetHeight: number | null
+  indexerHealthy: boolean | null
+  /**
+   * Chain timestamp of the frontier block — how stale the indexed *data* is.
+   * SubQuery writes this per indexed block, alongside `lastProcessedHeight`.
+   */
+  lastProcessedBlockTimestamp: number | null
+  /**
+   * Wall-clock time the indexer last processed anything, which is a different
+   * question: it separates "stopped" from "running but behind". A frozen frontier
+   * with a moving `lastProcessedTimestamp` is an indexer working through a
+   * backlog; frozen with a frozen timestamp is the wedge seen in production,
+   * where the frontier sat on one block for the whole observation window.
+   */
+  lastProcessedTimestamp: number | null
+  /** targetHeight - lastProcessedHeight, or null when either is unknown. */
+  lagBlocks: number | null
+}
+
+// Both timestamps are real SubQuery metadata keys and mean different things —
+// see `updateStoreMetadata` in @subql/node-core's base-block-dispatcher, which
+// writes `lastProcessedTimestamp: Date.now()` on every batch and
+// `lastProcessedBlockTimestamp: blockTimestamp` for each block that carries one.
+const METADATA_KEYS = [
+  'lastProcessedHeight',
+  'targetHeight',
+  'indexerHealthy',
+  'lastProcessedBlockTimestamp',
+  'lastProcessedTimestamp',
+] as const
+
+/**
+ * Reads the SubQuery indexer's own progress markers.
+ *
+ * This is how far behind the chain the DAG Indexer is, which decides whether a
+ * CID being absent means "does not exist" or merely "not indexed yet". Nothing
+ * read the markers before, so an indexer sitting ~100k blocks behind chain head
+ * looked identical to a healthy one from the outside.
+ */
+const getIndexerStatus = async (): Promise<DagIndexerStatus> => {
+  const db = await getDatabase()
+  const result = await db.query<{ key: string; value: unknown }>(
+    'SELECT key, value FROM "dag-indexer"._metadata WHERE key = ANY($1)',
+    [[...METADATA_KEYS]],
+  )
+
+  const byKey = new Map(result.rows.map((row) => [row.key, row.value]))
+  const asNumber = (key: string) => {
+    const value = byKey.get(key)
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null
+    }
+
+    // SubQuery's own `MetadataKeys` types `lastProcessedTimestamp` as a string
+    // while the writer passes `Date.now()`, so the stored representation is not
+    // something to rely on. Accept either rather than silently reporting null.
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : null
+    }
+
+    return null
+  }
+
+  const lastProcessedHeight = asNumber('lastProcessedHeight')
+  const targetHeight = asNumber('targetHeight')
+  const indexerHealthy = byKey.get('indexerHealthy')
+
+  return {
+    lastProcessedHeight,
+    targetHeight,
+    indexerHealthy: typeof indexerHealthy === 'boolean' ? indexerHealthy : null,
+    lastProcessedBlockTimestamp: asNumber('lastProcessedBlockTimestamp'),
+    lastProcessedTimestamp: asNumber('lastProcessedTimestamp'),
+    lagBlocks:
+      lastProcessedHeight !== null && targetHeight !== null
+        ? Math.max(0, targetHeight - lastProcessedHeight)
+        : null,
+  }
+}
+
+export interface IndexedChunkList {
+  /** The file's leaf chunks, in file order. */
+  chunks: ExtendedIPLDMetadata[]
+  /**
+   * CIDs the DAG references that the indexer has no row for. Non-empty means
+   * `chunks` is an incomplete view of the file, not the whole file.
+   */
+  unindexedLinks: string[]
+}
+
+const getSortedChunksByCid = async (cid: string): Promise<IndexedChunkList> => {
   logger.info(`Getting chunks by CID: ${cid}`)
 
   try {
     const db = await getDatabase()
-    const result = await db.query<ExtendedIPLDMetadataDB>(
+    const result = await db.query<
+      ExtendedIPLDMetadataDB & { missing: boolean; referenced_cid: string }
+    >(
       `WITH RECURSIVE file_chunks AS (
-        SELECT 
-          *,
+        SELECT
+          n.*,
           0 AS depth,
-          ARRAY[cid] AS path,
+          ARRAY[n.cid] AS path,
           NULL::text AS parent,
-          NULL::int AS link_order
-        FROM "dag-indexer".nodes
-        WHERE cid = $1
+          ARRAY[]::int[] AS link_path,
+          false AS missing,
+          n.cid AS referenced_cid
+        FROM "dag-indexer".nodes n
+        WHERE n.cid = $1
 
         UNION ALL
 
-        SELECT 
+        -- LEFT JOIN, not JOIN: an inner join silently *drops* a link the indexer
+        -- has no row for, so a partially indexed file returned a short chunk list
+        -- that looked complete. Unresolved links come back as rows with
+        -- missing = true so the caller can tell truncation from a whole file.
+        SELECT
           n.*,
           fc.depth + 1,
           fc.path || n.cid,
           fc.cid AS parent,
-          link_with_idx.ordinality::int  -- 🔧 Cast to int
+          fc.link_path || link_with_idx.ordinality::int,
+          n.cid IS NULL AS missing,
+          link_with_idx.cid AS referenced_cid
         FROM file_chunks fc
         JOIN LATERAL (
           SELECT value::text AS cid, ordinality
           FROM jsonb_array_elements_text(fc.links) WITH ORDINALITY
         ) AS link_with_idx ON TRUE
-        JOIN "dag-indexer".nodes n ON n.cid = link_with_idx.cid
+        LEFT JOIN "dag-indexer".nodes n ON n.cid = link_with_idx.cid
+        WHERE NOT fc.missing
       )
 
+      -- Ordered by the *full* path of link positions, not the position within the
+      -- immediate parent. Ordering by the latter interleaves leaves from
+      -- different inlinks (they all restart at 1), which silently corrupts any
+      -- file whose DAG is more than one level deep — i.e. over ~106 MB, where
+      -- chunk count exceeds DEFAULT_MAX_LINK_PER_NODE. Postgres compares int[]
+      -- element by element, which is exactly depth-first order.
       SELECT *
       FROM file_chunks
-      WHERE links IS NULL OR jsonb_array_length(links) = 0
-      ORDER BY link_order;
+      WHERE missing OR links IS NULL OR jsonb_array_length(links) = 0
+      ORDER BY link_path;
     `,
       [cid],
     )
 
-    return result.rows.map(mapToDomain)
+    // Unresolved links carry NULLs in every node column, so they must not reach
+    // `mapToDomain` (`BigInt(null)` throws).
+    return {
+      chunks: result.rows.filter((row) => !row.missing).map(mapToDomain),
+      unindexedLinks: result.rows
+        .filter((row) => row.missing)
+        .map((row) => row.referenced_cid),
+    }
   } catch (error) {
     logger.error(
       `Failed to get chunks by CID: ${cid} - ${error instanceof Error ? error.message : String(error)}`,
@@ -339,5 +454,6 @@ export const dagIndexerRepository = {
   getDagNodesPaginated,
   searchDagNodesByUploadOptions,
   getDagNodesCount,
+  getIndexerStatus,
   getSortedChunksByCid,
 }
