@@ -392,6 +392,9 @@ const fetchFile = async (
       ...traits,
     }
   } catch (error) {
+    if (error instanceof HttpError) {
+      throw error
+    }
     logger.error(`Failed to fetch file (cid=${cid}); error=${error}`)
     throw new HttpError(500, 'Internal server error: Failed to fetch file')
   }
@@ -469,7 +472,14 @@ const fetchNodeMetadata = async (
 ): Promise<ExtendedIPLDMetadata> => {
   const node = await dagIndexerRepository.getDagNode(cid)
   if (!node) {
-    throw new HttpError(404, 'Not found: Failed to get node metadata')
+    throw new HttpError(
+      503,
+      `Service Unavailable: DAG node not indexed yet (cid=${cid})`,
+      {
+        reason: 'not_indexed',
+        headers: { 'Retry-After': '5' },
+      },
+    )
   }
   return node
 }
@@ -527,7 +537,14 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
 const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
   const root = await dagIndexerRepository.getDagNode(cid)
   if (!root) {
-    throw new HttpError(500, 'Internal server error: Failed to get file chunks')
+    throw new HttpError(
+      503,
+      `Service Unavailable: DAG node not indexed yet (cid=${cid})`,
+      {
+        reason: 'not_indexed',
+        headers: { 'Retry-After': '5' },
+      },
+    )
   }
 
   if (root.type !== MetadataType.File) {

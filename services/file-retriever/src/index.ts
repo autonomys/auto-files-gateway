@@ -29,7 +29,15 @@ app.use('/health', healthController)
 app.use((err: unknown, _: Request, res: Response, __: Function) => {
   console.error(err)
   if (err instanceof HttpError) {
-    res.status(err.statusCode).json({ error: err.message })
+    if (err.headers) {
+      for (const [header, value] of Object.entries(err.headers)) {
+        res.setHeader(header, value)
+      }
+    }
+    res.status(err.statusCode).json({
+      error: err.message,
+      ...(err.reason ? { reason: err.reason } : {}),
+    })
   } else {
     res.status(500).send('Internal Server Error')
   }
