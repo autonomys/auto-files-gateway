@@ -1,4 +1,4 @@
-import { ErrorRequestHandler, Request, Response } from 'express'
+import { ErrorRequestHandler, NextFunction, Request, Response } from 'express'
 
 export class HttpError extends Error {
   constructor(
@@ -11,10 +11,13 @@ export class HttpError extends Error {
 }
 
 export const errorMiddleware: ErrorRequestHandler = (
-  err: Error,
+  err: unknown,
   req: Request,
   res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  next: NextFunction,
 ) => {
+  console.error(err)
   if (err instanceof HttpError) {
     res.status(err.statusCode).json({
       error: err.name,
@@ -24,7 +27,7 @@ export const errorMiddleware: ErrorRequestHandler = (
   }
 
   res.status(500).json({
-    error: 'unknown error',
-    message: err.message,
+    error: 'Internal Server Error',
+    message: err instanceof Error ? err.message : 'unknown error',
   })
 }
