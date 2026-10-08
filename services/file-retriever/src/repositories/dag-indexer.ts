@@ -293,7 +293,7 @@ const getSortedChunksByCid = async (
           0 AS depth,
           ARRAY[cid] AS path,
           NULL::text AS parent,
-          NULL::int AS link_order
+          ARRAY[]::int[] AS link_path
         FROM "dag-indexer".nodes
         WHERE cid = $1
 
@@ -304,7 +304,7 @@ const getSortedChunksByCid = async (
           fc.depth + 1,
           fc.path || n.cid,
           fc.cid AS parent,
-          link_with_idx.ordinality::int  -- 🔧 Cast to int
+          fc.link_path || link_with_idx.ordinality::int AS link_path
         FROM file_chunks fc
         JOIN LATERAL (
           SELECT value::text AS cid, ordinality
@@ -316,7 +316,7 @@ const getSortedChunksByCid = async (
       SELECT *
       FROM file_chunks
       WHERE links IS NULL OR jsonb_array_length(links) = 0
-      ORDER BY link_order;
+      ORDER BY link_path;
     `,
       [cid],
     )
