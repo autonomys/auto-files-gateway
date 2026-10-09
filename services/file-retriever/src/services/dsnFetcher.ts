@@ -19,6 +19,7 @@ import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
 import { safeIPLDDecode } from '../utils/dagData.js'
 import { isZlibCompressed } from '../utils/compression.js'
+import { LRUCache } from 'lru-cache'
 import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
@@ -474,6 +475,39 @@ const fetchNodeMetadata = async (
   return node
 }
 
+const objectMappingCache = new LRUCache<string, ObjectMapping>({
+  max: 50_000,
+  ttl: 1000 * 60 * 60, // 1 hour TTL
+})
+
+const getCachedObjectMappings = async (
+  hashes: string[],
+): Promise<ObjectMapping[]> => {
+  const results: ObjectMapping[] = []
+  const missingHashes: string[] = []
+
+  for (const hash of hashes) {
+    const cached = objectMappingCache.get(hash)
+    if (cached) {
+      results.push(cached)
+    } else {
+      missingHashes.push(hash)
+    }
+  }
+
+  if (missingHashes.length > 0) {
+    const fetched = await objectMappingIndexer.get_object_mappings({
+      hashes: missingHashes,
+    })
+    for (const mapping of fetched) {
+      objectMappingCache.set(mapping[0], mapping)
+      results.push(mapping)
+    }
+  }
+
+  return results
+}
+
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const isCached: boolean = await nodeCache.has(cid)
   if (isCached) {
@@ -485,9 +519,7 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
     getObjectMappingHash,
   )
-  const objectMappings = await objectMappingIndexer.get_object_mappings({
-    hashes,
-  })
+  const objectMappings = await getCachedObjectMappings(hashes)
   const nodeObjectMapping = objectMappings.find(
     (e) => e[0] === nodeObjectMappingHash,
   )
@@ -572,4 +604,6 @@ export const dsnFetcher = {
   getFileChunks,
   getFileMetadata,
   isActuallyCompressed,
+  objectMappingCache,
+  getCachedObjectMappings,
 }
