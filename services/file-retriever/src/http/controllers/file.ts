@@ -70,7 +70,7 @@ fileRouter.get(
 
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
     if (byteRange) {
-      if (byteRange[0] > Number(metadata.size)) {
+      if (byteRange[0] >= Number(metadata.size)) {
         res.set('Content-Range', `bytes */${metadata.size}`)
         res.sendStatus(416)
         return
