@@ -39,6 +39,18 @@ export const config = {
     }),
   ),
   cacheTtl: Number(env('CACHE_TTL', { defaultValue: ONE_DAY })),
+  mappingCache: {
+    maxSize: Number(
+      env('MAPPING_CACHE_MAX_SIZE', {
+        defaultValue: 100_000,
+      }),
+    ),
+    ttl: Number(
+      env('MAPPING_CACHE_TTL', {
+        defaultValue: ONE_DAY,
+      }),
+    ),
+  },
   objectMappingIndexerUrl: env<string>('OBJECT_MAPPING_INDEXER_URL'),
   databaseUrl: env<string>('DATABASE_URL'),
   monitoring: {
