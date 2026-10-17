@@ -13,7 +13,8 @@ describe('ObjectMappingService', () => {
 
   beforeEach(() => {
     mockIndexer = {
-      get_object_mappings: jest.fn<ObjectMappingIndexerClient['get_object_mappings']>(),
+      ['get_object_mappings']:
+        jest.fn<ObjectMappingIndexerClient['get_object_mappings']>(),
     }
     service = new ObjectMappingService(mockIndexer, {
       maxSize: 1000,

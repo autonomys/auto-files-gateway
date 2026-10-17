@@ -23,7 +23,6 @@ import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 import axios from 'axios'
-import { objectMappingIndexer } from './objectMappingIndexer.js'
 import { objectMappingService } from './objectMappingService.js'
 import { LRUCache } from 'lru-cache'
 import {
@@ -466,7 +465,12 @@ const migrateToFileCache = async (cid: string) => {
   })
 }
 
-const inFlightPieceFetches = new Map<number, Promise<Record<string, PBNode>>>()
+interface InFlightPieceFetch {
+  requestedHashes: Set<string>
+  promise: Promise<Record<string, PBNode>>
+}
+
+const inFlightPieceFetches = new Map<number, InFlightPieceFetch>()
 const inFlightNodeFetches = new Map<string, Promise<PBNode>>()
 
 const fileChunksCache = new LRUCache<string, ExtendedIPLDMetadata[]>({
@@ -534,15 +538,24 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
       )
     }
 
-    let pieceFetch = inFlightPieceFetches.get(pieceIndex)
-    if (!pieceFetch) {
+    const existingPieceFetch = inFlightPieceFetches.get(pieceIndex)
+    let pieceFetch: Promise<Record<string, PBNode>>
+    if (existingPieceFetch?.requestedHashes.has(nodeObjectMappingHash)) {
+      pieceFetch = existingPieceFetch.promise
+    } else {
+      const requestedHashes = new Set(
+        objectMappingsWithinSamePiece.map((e) => e[0]),
+      )
       pieceFetch = (async () => {
-        const objectsByCID = await dsnFetcher.fetchObjects(objectMappingsWithinSamePiece).then(
-          (nodes) =>
+        const objectsByCID = await dsnFetcher
+          .fetchObjects(objectMappingsWithinSamePiece)
+          .then((nodes) =>
             Object.fromEntries(
-              nodes.map((e) => [cidToString(cidOfNode(e)), e] as [string, PBNode]),
+              nodes.map(
+                (e) => [cidToString(cidOfNode(e)), e] as [string, PBNode],
+              ),
             ),
-        )
+          )
 
         await Promise.all(
           Object.entries(objectsByCID).map(([nodeCid, node]) =>
@@ -555,9 +568,14 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
         return objectsByCID
       })()
 
-      inFlightPieceFetches.set(pieceIndex, pieceFetch)
+      inFlightPieceFetches.set(pieceIndex, {
+        requestedHashes,
+        promise: pieceFetch,
+      })
       pieceFetch.finally(() => {
-        inFlightPieceFetches.delete(pieceIndex)
+        if (inFlightPieceFetches.get(pieceIndex)?.promise === pieceFetch) {
+          inFlightPieceFetches.delete(pieceIndex)
+        }
       })
     }
 

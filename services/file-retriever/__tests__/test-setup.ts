@@ -9,10 +9,10 @@ jest.mock(
   '@vscode/sqlite3',
   () => ({
     Database: class {
-      constructor(_db: any, cb: (err: any) => void) {
-        if (cb) setImmediate(cb)
+      constructor(_db: string, cb?: (err: Error | null) => void) {
+        if (cb) setImmediate(() => cb(null))
       }
-      all(_sql: any, cb: (err: any, rows: any[]) => void) {
+      all(_sql: string, cb?: (err: Error | null, rows: unknown[]) => void) {
         if (cb) cb(null, [])
       }
       configure() {}

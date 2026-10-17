@@ -121,6 +121,53 @@ describe('Request and Mapping Deduplication', () => {
       expect(res2.Data).toEqual(node1.Data)
       expect(fetchObjectsSpy).toHaveBeenCalledTimes(1)
     })
+
+    it('should fetch missing objects when a concurrent request targets an unrelated node in the same piece', async () => {
+      jest
+        .spyOn(objectMappingService, 'getObjectMappings')
+        .mockImplementation(async (hashes) => {
+          const result: [string, number, number][] = []
+          if (hashes.includes(hash0)) result.push([hash0, 42, 0])
+          if (hashes.includes(hash1)) result.push([hash1, 42, 100])
+          return result
+        })
+
+      let resolveFetch0!: (nodes: PBNode[]) => void
+      const fetchPromise0 = new Promise<PBNode[]>((resolve) => {
+        resolveFetch0 = resolve
+      })
+
+      let resolveFetch1!: (nodes: PBNode[]) => void
+      const fetchPromise1 = new Promise<PBNode[]>((resolve) => {
+        resolveFetch1 = resolve
+      })
+
+      const fetchObjectsSpy = jest
+        .spyOn(dsnFetcher, 'fetchObjects')
+        .mockReturnValueOnce(fetchPromise0)
+        .mockReturnValueOnce(fetchPromise1)
+
+      jest.spyOn(nodeCache, 'has').mockResolvedValue(false)
+      jest.spyOn(nodeCache, 'get').mockResolvedValue(null)
+      jest
+        .spyOn(nodeCache, 'set')
+        .mockResolvedValue(undefined as unknown as void)
+
+      // Request 1 only asks for cid0 (no siblings); Request 2 asks for cid1 (no siblings) in the same piece 42
+      const req1 = dsnFetcher.fetchNode(cid0, [])
+      const req2 = dsnFetcher.fetchNode(cid1, [])
+
+      await new Promise((r) => setImmediate(r))
+
+      expect(fetchObjectsSpy).toHaveBeenCalledTimes(2)
+
+      resolveFetch0([node0])
+      resolveFetch1([node1])
+
+      const [res1, res2] = await Promise.all([req1, req2])
+      expect(res1.Data).toEqual(node0.Data)
+      expect(res2.Data).toEqual(node1.Data)
+    })
   })
 
   describe('getFileChunks and metadata caching', () => {
@@ -147,13 +194,22 @@ describe('Request and Mapping Deduplication', () => {
         .mockResolvedValue({
           cid: fileCid,
           type: MetadataType.File,
-          size: 1024,
+          size: BigInt(1024),
           name: 'test.bin',
-        } as any)
+          links: [],
+          linkDepth: 0,
+          blockHeight: 0,
+          blockHash: '',
+          extrinsicId: '',
+          extrinsicHash: '',
+          indexInBlock: 0,
+          blake3Hash: '',
+          timestamp: new Date(),
+        })
 
       const getSortedChunksSpy = jest
         .spyOn(dagIndexerRepository, 'getSortedChunksByCid')
-        .mockResolvedValue(mockChunks as any)
+        .mockResolvedValue(mockChunks)
 
       // First call: queries DB
       const chunks1 = await dsnFetcher.getFileChunks(fileCid)
@@ -171,9 +227,18 @@ describe('Request and Mapping Deduplication', () => {
       const mockMeta = {
         cid: cid0,
         type: MetadataType.File,
-        size: 2048,
+        size: BigInt(2048),
         name: 'meta.txt',
-      } as any
+        links: [],
+        linkDepth: 0,
+        blockHeight: 0,
+        blockHash: '',
+        extrinsicId: '',
+        extrinsicHash: '',
+        indexInBlock: 0,
+        blake3Hash: '',
+        timestamp: new Date(),
+      }
 
       const getDagNodeSpy = jest
         .spyOn(dagIndexerRepository, 'getDagNode')
