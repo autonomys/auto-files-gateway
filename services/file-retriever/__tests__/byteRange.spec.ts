@@ -145,4 +145,23 @@ describe('GET /files/:cid with a Range header', () => {
       byteRange: undefined,
     })
   })
+
+  it('refuses a banned compressed file before fetching anything from the DSN', async () => {
+    jest.spyOn(moderationService, 'isFileBanned').mockResolvedValue(true)
+    jest.spyOn(dsnFetcher, 'fetchNodeMetadata').mockResolvedValue({
+      ...indexed,
+      cid: CID,
+      type: MetadataType.File,
+      name: 'file.txt',
+      size: BigInt(file.length),
+      uploadOptions: { compression: { algorithm: CompressionAlgorithm.ZLIB } },
+    })
+    const fetchNode = mockFetchNode()
+
+    const response = await download(`bytes=${file.length}-`)
+
+    expect(response.status).toBe(451)
+    expect(response.headers['content-range']).toBeUndefined()
+    expect(fetchNode).not.toHaveBeenCalled()
+  })
 })

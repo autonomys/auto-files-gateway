@@ -9,6 +9,7 @@ import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
 import { isValidCID } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
+import { moderationService } from '../../services/moderation.js'
 import {
   DownloadMetadataFactory,
   handleDownloadResponseHeaders,
@@ -69,6 +70,14 @@ fileRouter.get(
         'no-cache'
 
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
+
+    // Checked here as well as in fileComposer.get, because the compression
+    // probe below fetches from the DSN and a 416 would reveal the file's size.
+    if (await moderationService.isFileBanned(cid)) {
+      logger.warn(`File download blocked: ${cid}`)
+      throw new HttpError(451, 'Unavailable for legal reasons')
+    }
+
     const downloadMetadata = DownloadMetadataFactory.fromIPLDData(metadata)
 
     // Some stored objects are flagged `compression: ZLIB` in their metadata while
