@@ -33,6 +33,7 @@ import { withRetries } from '../utils/retries.js'
 import {
   classifyUpstreamError,
   describeUpstreamFailure,
+  UpstreamRpcError,
 } from '../utils/upstreamErrors.js'
 import { sendMetricToVictoria } from '../drivers/metrics.js'
 import { Readable } from 'stream'
@@ -45,6 +46,13 @@ const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
   id: z.number(),
   result: z.array(z.string()),
+})
+
+const rpcErrorSchema = z.object({
+  error: z.object({
+    code: z.number(),
+    message: z.string(),
+  }),
 })
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
@@ -73,6 +81,8 @@ const reportObjectFetch = (fields: {
   outcome: string
   gateway: number
   durationMs: number
+  queueMs: number
+  fetchMs: number
   attempts: number
   objects: number
   pieceIndex: number
@@ -126,6 +136,19 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
 
   let attempts = 0
   let attemptStartedAt = now
+  let firstAttemptStartedAt: number | undefined
+
+  const timings = () => {
+    const total = performance.now() - now
+    const queueMs = Math.round(
+      (firstAttemptStartedAt ?? performance.now()) - now,
+    )
+    return {
+      durationMs: Math.round(total),
+      queueMs,
+      fetchMs: Math.round(total) - queueMs,
+    }
+  }
 
   try {
     const nodes = await concurrencyController(
@@ -134,6 +157,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
           async () => {
             attempts++
             attemptStartedAt = performance.now()
+            firstAttemptStartedAt ??= attemptStartedAt
             logger.debug(
               `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
             )
@@ -145,6 +169,14 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
               throw new HttpError(
                 502,
                 `Bad gateway: fetch nodes returned status ${response.status}`,
+              )
+            }
+
+            const rpcError = rpcErrorSchema.safeParse(response.data)
+            if (rpcError.success) {
+              throw new UpstreamRpcError(
+                rpcError.data.error.code,
+                rpcError.data.error.message,
               )
             }
 
@@ -191,7 +223,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     reportObjectFetch({
       outcome: 'success',
       gateway: index,
-      durationMs: Math.round(performance.now() - now),
+      ...timings(),
       attempts,
       objects: objects.length,
       pieceIndex: pieceIndexes[0] ?? -1,
@@ -201,18 +233,20 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   } catch (error) {
     const failure = classifyUpstreamError(error)
 
+    const { durationMs, queueMs, fetchMs } = timings()
+
     logger.error(
-      `Object fetch failed: ${request} attempts=${attempts} totalMs=${Math.round(
-        performance.now() - now,
-      )} ${describeUpstreamFailure(failure)} hashes=[${objects
-        .map((object) => object[0])
-        .join(',')}]`,
+      `Object fetch failed: ${request} attempts=${attempts} totalMs=${durationMs} queueMs=${queueMs} fetchMs=${fetchMs} ${describeUpstreamFailure(
+        failure,
+      )} hashes=[${objects.map((object) => object[0]).join(',')}]`,
     )
 
     reportObjectFetch({
       outcome: failure.kind,
       gateway: index,
-      durationMs: Math.round(performance.now() - now),
+      durationMs,
+      queueMs,
+      fetchMs,
       attempts,
       objects: objects.length,
       pieceIndex: pieceIndexes[0] ?? -1,
@@ -552,6 +586,8 @@ const fetchNodeMetadata = async (
   return node
 }
 
+const inFlightNodeFetches = new Map<string, Promise<PBNode>>()
+
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const isCached: boolean = await nodeCache.has(cid)
   if (isCached) {
@@ -559,6 +595,26 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
     return decodeNode(buffer)
   }
 
+  // A full download of a compressed file asks for chunk 0 twice concurrently -
+  // once for the response stream, once for isActuallyCompressed - and neither
+  // has populated nodeCache yet. Share the fetch so the piece is pulled once.
+  const inFlight = inFlightNodeFetches.get(cid)
+  if (inFlight) {
+    return inFlight
+  }
+
+  const fetch = fetchNodeFromDsn(cid, siblings).finally(() => {
+    inFlightNodeFetches.delete(cid)
+  })
+  inFlightNodeFetches.set(cid, fetch)
+
+  return fetch
+}
+
+const fetchNodeFromDsn = async (
+  cid: string,
+  siblings: string[],
+): Promise<PBNode> => {
   const nodeObjectMappingHash = getObjectMappingHash(cid)
   const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
     getObjectMappingHash,

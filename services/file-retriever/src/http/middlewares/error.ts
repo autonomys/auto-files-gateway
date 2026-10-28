@@ -18,7 +18,9 @@ export const errorMiddleware: ErrorRequestHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
 ) => {
-  const route = `${req.method} ${req.originalUrl}`
+  // Not originalUrl: authMiddleware accepts the API secret as ?api_key=,
+  // and these logs are shipped off the host.
+  const route = `${req.method} ${req.path}`
 
   if (err instanceof HttpError) {
     const message = `${route} -> ${err.statusCode}: ${err.message}`

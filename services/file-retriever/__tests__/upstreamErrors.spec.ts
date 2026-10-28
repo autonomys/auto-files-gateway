@@ -2,6 +2,7 @@ import { AxiosError, AxiosHeaders } from 'axios'
 import {
   classifyUpstreamError,
   describeUpstreamFailure,
+  UpstreamRpcError,
 } from '../src/utils/upstreamErrors.js'
 import { HttpError } from '../src/http/middlewares/error.js'
 
@@ -27,7 +28,7 @@ const axiosErrorWithStatus = (status: number) => {
 }
 
 describe('classifyUpstreamError', () => {
-  it('maps an axios client timeout to a 504', () => {
+  it('maps the axios client timeout to a 504', () => {
     const failure = classifyUpstreamError(
       axiosErrorWithCode('ECONNABORTED', 'timeout of 180000ms exceeded'),
     )
@@ -38,18 +39,32 @@ describe('classifyUpstreamError', () => {
     expect(failure.detail).toBe('timeout of 180000ms exceeded')
   })
 
-  it('maps ETIMEDOUT to a timeout as well', () => {
-    expect(classifyUpstreamError(axiosErrorWithCode('ETIMEDOUT')).kind).toBe(
-      'upstream-timeout',
-    )
-  })
-
-  it.each(['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET'])(
+  it.each(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH'])(
     'maps %s to an unreachable gateway',
     (code) => {
       const failure = classifyUpstreamError(axiosErrorWithCode(code))
 
       expect(failure.kind).toBe('upstream-unreachable')
+      expect(failure.statusCode).toBe(502)
+    },
+  )
+
+  it('treats ETIMEDOUT as unreachable, not as a gateway that went quiet', () => {
+    // axios surfaces its own `timeout` as ECONNABORTED while
+    // transitional.clarifyTimeoutError is false, so ETIMEDOUT is a socket
+    // connect timeout: the gateway was never reached.
+    const failure = classifyUpstreamError(axiosErrorWithCode('ETIMEDOUT'))
+
+    expect(failure.kind).toBe('upstream-unreachable')
+    expect(failure.statusCode).toBe(502)
+  })
+
+  it.each(['ECONNRESET', 'EPIPE', 'ERR_STREAM_PREMATURE_CLOSE'])(
+    'maps %s to a lost connection rather than an unreachable gateway',
+    (code) => {
+      const failure = classifyUpstreamError(axiosErrorWithCode(code))
+
+      expect(failure.kind).toBe('upstream-disconnected')
       expect(failure.statusCode).toBe(502)
     },
   )
@@ -60,6 +75,25 @@ describe('classifyUpstreamError', () => {
     expect(failure.kind).toBe('upstream-status')
     expect(failure.statusCode).toBe(502)
     expect(failure.upstreamStatus).toBe(503)
+  })
+
+  it('keeps an uncategorised axios failure out of the unreachable bucket', () => {
+    const failure = classifyUpstreamError(axiosErrorWithCode('ERR_SOMETHING'))
+
+    expect(failure.kind).toBe('upstream-error')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.code).toBe('ERR_SOMETHING')
+  })
+
+  it('reports a JSON-RPC error answer with the code the gateway gave', () => {
+    const failure = classifyUpstreamError(
+      new UpstreamRpcError(-32000, 'Object mapping not found'),
+    )
+
+    expect(failure.kind).toBe('rpc-error')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.detail).toContain('Object mapping not found')
+    expect(failure.code).toBe('-32000')
   })
 
   it('passes an HttpError through with its own status', () => {

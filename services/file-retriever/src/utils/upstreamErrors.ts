@@ -4,7 +4,10 @@ import { HttpError } from '../http/middlewares/error.js'
 export type UpstreamFailureKind =
   | 'upstream-timeout'
   | 'upstream-unreachable'
+  | 'upstream-disconnected'
   | 'upstream-status'
+  | 'rpc-error'
+  | 'upstream-error'
   | 'invalid-response'
   | 'unknown'
 
@@ -21,19 +24,66 @@ export type UpstreamFailure = {
 }
 
 /**
+ * A JSON-RPC error answer, which arrives as HTTP 200 with an `error` member
+ * and therefore cannot be told from a malformed body by status alone.
+ */
+export class UpstreamRpcError extends Error {
+  constructor(
+    public rpcCode: number,
+    public rpcMessage: string,
+  ) {
+    super(`JSON-RPC error ${rpcCode}: ${rpcMessage}`)
+    this.name = 'UpstreamRpcError'
+  }
+}
+
+/** The gateway was never reached: nothing was listening, or no route to it. */
+const UNREACHABLE_CODES = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  // axios reports its own `timeout` as ECONNABORTED unless
+  // transitional.clarifyTimeoutError is set, so an ETIMEDOUT here comes from
+  // the socket: a connect timeout, not a gateway that went quiet.
+  'ETIMEDOUT',
+])
+
+/** The gateway was reached and then the connection went away mid-exchange. */
+const DISCONNECTED_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'ERR_BAD_RESPONSE',
+  'ERR_STREAM_PREMATURE_CLOSE',
+])
+
+/**
  * Maps a failure of an upstream call onto a distinguishable kind.
  *
  * Without this every upstream problem reaches the logs and the client as a bare
  * 500, so a gateway that accepted the request and went quiet (the DSN could not
- * retrieve the piece) is indistinguishable from one that is down, one that
- * answered with an error status, and one that answered with something we could
- * not parse. Those are four different operational problems.
+ * retrieve the piece) is indistinguishable from one that was never reached, one
+ * that dropped the connection, one that answered with an error status, one that
+ * answered with a JSON-RPC error and one that answered with something we could
+ * not parse. Those are different operational problems.
  */
 export const classifyUpstreamError = (error: unknown): UpstreamFailure => {
+  if (error instanceof UpstreamRpcError) {
+    return {
+      kind: 'rpc-error',
+      statusCode: 502,
+      clientMessage:
+        'Bad gateway: the subspace gateway rejected the object request',
+      detail: error.message,
+      code: String(error.rpcCode),
+    }
+  }
+
   if (axios.isAxiosError(error)) {
     const code = error.code
 
-    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+    if (code === 'ECONNABORTED') {
       return {
         kind: 'upstream-timeout',
         statusCode: 504,
@@ -56,10 +106,31 @@ export const classifyUpstreamError = (error: unknown): UpstreamFailure => {
       }
     }
 
+    if (code && UNREACHABLE_CODES.has(code)) {
+      return {
+        kind: 'upstream-unreachable',
+        statusCode: 502,
+        clientMessage: 'Bad gateway: the subspace gateway could not be reached',
+        detail: error.message,
+        code,
+      }
+    }
+
+    if (code && DISCONNECTED_CODES.has(code)) {
+      return {
+        kind: 'upstream-disconnected',
+        statusCode: 502,
+        clientMessage:
+          'Bad gateway: the connection to the subspace gateway was lost',
+        detail: error.message,
+        code,
+      }
+    }
+
     return {
-      kind: 'upstream-unreachable',
+      kind: 'upstream-error',
       statusCode: 502,
-      clientMessage: 'Bad gateway: the subspace gateway could not be reached',
+      clientMessage: 'Bad gateway: the object request failed',
       detail: error.message,
       code,
     }
