@@ -601,12 +601,12 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
     return inFlight
   }
 
-  const fetch = fetchNodeFromDsn(cid, siblings).finally(() => {
+  const pending = fetchNodeFromDsn(cid, siblings).finally(() => {
     inFlightNodeFetches.delete(cid)
   })
-  inFlightNodeFetches.set(cid, fetch)
+  inFlightNodeFetches.set(cid, pending)
 
-  return fetch
+  return pending
 }
 
 const fetchNodeFromDsn = async (

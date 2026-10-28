@@ -35,9 +35,7 @@ export const errorMiddleware: ErrorRequestHandler = (
 
   const error = err instanceof Error ? err : new Error(String(err))
   logger.error(
-    `${route} -> 500: ${error.name}: ${error.message}${
-      error.stack ? `\n${error.stack}` : ''
-    }`,
+    `${route} -> 500: ${error.stack ?? `${error.name}: ${error.message}`}`,
   )
   res.status(500).send('Internal Server Error')
 }

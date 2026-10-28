@@ -186,7 +186,8 @@ export const classifyUpstreamError = (error: unknown): UpstreamFailure => {
     return {
       kind: 'invalid-response',
       statusCode: error.statusCode,
-      clientMessage: error.message,
+      clientMessage:
+        'Bad gateway: the subspace gateway returned an invalid response',
       detail: error.message,
     }
   }

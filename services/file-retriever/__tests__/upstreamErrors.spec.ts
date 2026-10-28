@@ -133,14 +133,27 @@ describe('classifyUpstreamError', () => {
 
   it('passes an HttpError through with its own status', () => {
     const failure = classifyUpstreamError(
-      new HttpError(502, 'Bad gateway: Failed to parse fetch nodes response'),
+      new HttpError(
+        502,
+        'Bad gateway: Failed to parse fetch nodes response (result: Required)',
+      ),
     )
 
     expect(failure.kind).toBe('invalid-response')
     expect(failure.statusCode).toBe(502)
-    expect(failure.clientMessage).toBe(
-      'Bad gateway: Failed to parse fetch nodes response',
+  })
+
+  it('keeps parser internals in the detail and out of the client message', () => {
+    const failure = classifyUpstreamError(
+      new HttpError(
+        502,
+        'Bad gateway: Failed to decode node at position 0 (protobuf: unexpected end of data)',
+      ),
     )
+
+    expect(failure.detail).toContain('protobuf: unexpected end of data')
+    expect(failure.clientMessage).not.toContain('protobuf')
+    expect(failure.clientMessage).not.toContain('position')
   })
 
   it('falls back to 500 for anything else', () => {
