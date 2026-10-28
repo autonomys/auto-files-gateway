@@ -72,7 +72,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@autonomys/asynchronous@npm:1.6.14, @autonomys/asynchronous@npm:^1.6.14":
+"@autonomys/asynchronous@npm:1.6.16":
+  version: 1.6.16
+  resolution: "@autonomys/asynchronous@npm:1.6.16"
+  dependencies:
+    stream-fork: "npm:^1.0.5"
+  checksum: 10c0/6b09d6c21fc13863e615259b72bcb75b83bbdf7349db2ed764c7c2fd9feee0e21bc52daf9114e9ef00d8100f20c7419bae7497e61bec6e68a407db13e5840fba
+  languageName: node
+  linkType: hard
+
+"@autonomys/asynchronous@npm:^1.6.14":
   version: 1.6.14
   resolution: "@autonomys/asynchronous@npm:1.6.14"
   dependencies:
@@ -7745,7 +7754,7 @@ __metadata:
   resolution: "file-retriever@workspace:services/file-retriever"
   dependencies:
     "@auto-files/rpc-apis": "workspace:*"
-    "@autonomys/asynchronous": "npm:1.6.14"
+    "@autonomys/asynchronous": "npm:1.6.16"
     "@autonomys/auto-dag-data": "npm:1.6.14"
     "@autonomys/auto-utils": "npm:1.6.14"
     "@autonomys/file-server": "npm:1.6.14"
