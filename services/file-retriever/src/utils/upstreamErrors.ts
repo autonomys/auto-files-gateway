@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { HttpError } from '../http/middlewares/error.js'
 
 export type UpstreamFailureKind =
@@ -37,6 +37,36 @@ export class UpstreamRpcError extends Error {
   }
 }
 
+/**
+ * Whether the socket had finished connecting when the request timed out.
+ *
+ * axios' `timeout` covers the whole exchange, so it fires just the same while
+ * DNS is still resolving or the SYN is going unanswered - a blackholed host
+ * reaches the deadline as ECONNABORTED exactly like a gateway that accepted
+ * the request and then went quiet. `net.Socket.connecting` tells the two
+ * apart. The path to the socket runs through follow-redirects' internals, so
+ * treat an unreadable one as unknown rather than guessing.
+ */
+type TimeoutPhase = 'connecting' | 'sent' | 'unknown'
+
+type MaybeSocketCarrier = {
+  socket?: { connecting?: boolean }
+  _currentRequest?: { socket?: { connecting?: boolean } }
+}
+
+const timeoutPhase = (error: AxiosError): TimeoutPhase => {
+  try {
+    const request = error.request as MaybeSocketCarrier | undefined
+    const socket = request?._currentRequest?.socket ?? request?.socket
+    if (typeof socket?.connecting !== 'boolean') {
+      return 'unknown'
+    }
+    return socket.connecting ? 'connecting' : 'sent'
+  } catch {
+    return 'unknown'
+  }
+}
+
 /** The gateway was never reached: nothing was listening, or no route to it. */
 const UNREACHABLE_CODES = new Set([
   'ECONNREFUSED',
@@ -62,7 +92,7 @@ const DISCONNECTED_CODES = new Set([
  * Maps a failure of an upstream call onto a distinguishable kind.
  *
  * Without this every upstream problem reaches the logs and the client as a bare
- * 500, so a gateway that accepted the request and went quiet (the DSN could not
+ * 500, so a gateway that took the request and went quiet (the DSN could not
  * retrieve the piece) is indistinguishable from one that was never reached, one
  * that dropped the connection, one that answered with an error status, one that
  * answered with a JSON-RPC error and one that answered with something we could
@@ -84,12 +114,28 @@ export const classifyUpstreamError = (error: unknown): UpstreamFailure => {
     const code = error.code
 
     if (code === 'ECONNABORTED') {
+      const phase = timeoutPhase(error)
+
+      if (phase === 'connecting') {
+        return {
+          kind: 'upstream-unreachable',
+          statusCode: 502,
+          clientMessage:
+            'Bad gateway: the subspace gateway could not be reached',
+          detail: `${error.message} (timed out before the connection was established)`,
+          code,
+        }
+      }
+
       return {
         kind: 'upstream-timeout',
         statusCode: 504,
         clientMessage:
           'Gateway timeout: the object could not be retrieved in time',
-        detail: error.message,
+        detail:
+          phase === 'sent'
+            ? error.message
+            : `${error.message} (connection phase unknown)`,
         code,
       }
     }

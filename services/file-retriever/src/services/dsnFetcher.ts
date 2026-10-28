@@ -17,7 +17,7 @@ import {
 import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
-import { safeIPLDDecode } from '../utils/dagData.js'
+import { decodeNodesOrThrow, safeIPLDDecode } from '../utils/dagData.js'
 import { isZlibCompressed } from '../utils/compression.js'
 import mime from 'mime-types'
 import { config } from '../config.js'
@@ -200,9 +200,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
               `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - attemptStartedAt}ms (requestId=${requestId})`,
             )
 
-            return validatedResponseData.data.result.map((hex) =>
-              decodeNode(Buffer.from(hex, 'hex')),
-            )
+            return decodeNodesOrThrow(validatedResponseData.data.result)
           },
           {
             maxRetries: MAX_FETCH_ATTEMPTS,

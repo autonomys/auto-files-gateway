@@ -9,6 +9,18 @@ import { HttpError } from '../src/http/middlewares/error.js'
 const axiosErrorWithCode = (code: string, message = 'boom') =>
   new AxiosError(message, code)
 
+const axiosTimeout = (request?: unknown) =>
+  new AxiosError(
+    'timeout of 180000ms exceeded',
+    'ECONNABORTED',
+    undefined,
+    request,
+  )
+
+const requestOnSocket = (connecting: boolean) => ({
+  _currentRequest: { socket: { connecting } },
+})
+
 const axiosErrorWithStatus = (status: number) => {
   const headers = new AxiosHeaders()
   const config = { headers }
@@ -28,15 +40,38 @@ const axiosErrorWithStatus = (status: number) => {
 }
 
 describe('classifyUpstreamError', () => {
-  it('maps the axios client timeout to a 504', () => {
-    const failure = classifyUpstreamError(
-      axiosErrorWithCode('ECONNABORTED', 'timeout of 180000ms exceeded'),
-    )
+  it('maps a timeout on an established connection to a 504', () => {
+    const failure = classifyUpstreamError(axiosTimeout(requestOnSocket(false)))
 
     expect(failure.kind).toBe('upstream-timeout')
     expect(failure.statusCode).toBe(504)
     expect(failure.code).toBe('ECONNABORTED')
     expect(failure.detail).toBe('timeout of 180000ms exceeded')
+  })
+
+  it('maps a timeout that fired while still connecting to unreachable', () => {
+    // axios' timeout covers the whole exchange, so an unroutable host or a
+    // DNS lookup that never completes reaches the deadline as ECONNABORTED
+    // just like a gateway that went quiet. socket.connecting separates them.
+    const failure = classifyUpstreamError(axiosTimeout(requestOnSocket(true)))
+
+    expect(failure.kind).toBe('upstream-unreachable')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.detail).toContain(
+      'timed out before the connection was established',
+    )
+  })
+
+  it.each([
+    ['no request at all', undefined],
+    ['a request with no socket', {}],
+    ['a socket that does not say', { _currentRequest: { socket: {} } }],
+  ])('records an unknown connection phase given %s', (_label, request) => {
+    const failure = classifyUpstreamError(axiosTimeout(request))
+
+    expect(failure.kind).toBe('upstream-timeout')
+    expect(failure.statusCode).toBe(504)
+    expect(failure.detail).toContain('connection phase unknown')
   })
 
   it.each(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH'])(
@@ -124,9 +159,7 @@ describe('classifyUpstreamError', () => {
 describe('describeUpstreamFailure', () => {
   it('renders a single log-friendly line', () => {
     const line = describeUpstreamFailure(
-      classifyUpstreamError(
-        axiosErrorWithCode('ECONNABORTED', 'timeout of 180000ms exceeded'),
-      ),
+      classifyUpstreamError(axiosTimeout(requestOnSocket(false))),
     )
 
     expect(line).toBe(
