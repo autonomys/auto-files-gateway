@@ -1,13 +1,14 @@
 type RetryOptions = {
   maxRetries?: number
   delay?: number
+  onError?: (error: Error, attempt: number, willRetry: boolean) => void
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const withRetries = async <T>(
   fn: () => Promise<T>,
-  { maxRetries = 5, delay = 1000 }: RetryOptions = {},
+  { maxRetries = 5, delay = 1000, onError }: RetryOptions = {},
 ): Promise<T> => {
   let retries = 0
   let lastError: Error
@@ -18,7 +19,11 @@ export const withRetries = async <T>(
     } catch (error) {
       lastError = error as Error
       retries++
-      await sleep(delay)
+      const willRetry = retries < maxRetries
+      onError?.(lastError, retries, willRetry)
+      if (willRetry) {
+        await sleep(delay)
+      }
     }
   }
 

@@ -30,6 +30,11 @@ import {
 } from '@autonomys/asynchronous'
 import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
+import {
+  classifyUpstreamError,
+  describeUpstreamFailure,
+} from '../utils/upstreamErrors.js'
+import { sendMetricToVictoria } from '../drivers/metrics.js'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
@@ -56,6 +61,35 @@ const getObjectMappingHash = (cid: string) => {
   } catch {
     throw new HttpError(400, 'Bad request: Not a valid auto-dag-data IPLD node')
   }
+}
+
+const MAX_FETCH_ATTEMPTS = 3
+
+/**
+ * Reports the outcome of one object fetch so a stalled piece can be told apart
+ * from a saturated gateway without reading the logs.
+ */
+const reportObjectFetch = (fields: {
+  outcome: string
+  gateway: number
+  durationMs: number
+  attempts: number
+  objects: number
+  pieceIndex: number
+}) => {
+  if (!config.monitoring.active) {
+    return
+  }
+
+  const { outcome, gateway, ...values } = fields
+
+  sendMetricToVictoria({
+    measurement: 'object_fetch',
+    tag: `${config.monitoring.metricEnvironmentTag},outcome=${outcome},gateway=${gateway}`,
+    fields: values,
+  }).catch((error) => {
+    logger.warn(`Failed to send object fetch metric: ${error}`)
+  })
 }
 
 /**
@@ -87,64 +121,105 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
     id: requestId,
   }
 
-  return concurrencyController(
-    async () =>
-      withRetries(
-        async () => {
-          logger.debug(
-            `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
-          )
-          const fetchStart = performance.now()
-          const response = await axios.post(gatewayUrl, body, {
-            timeout: config.objectFetching.fetchTimeout,
-            responseType: 'json',
-          })
-          if (response.status !== 200) {
-            console.error(
-              'Failed to fetch nodes',
-              response.status,
+  const pieceIndexes = [...new Set(objects.map((object) => object[1]))]
+  const request = `requestId=${requestId} gateway=${gatewayUrl} objects=${objects.length} pieces=[${pieceIndexes.join(',')}]`
+
+  let attempts = 0
+  let attemptStartedAt = now
+
+  try {
+    const nodes = await concurrencyController(
+      async () =>
+        withRetries(
+          async () => {
+            attempts++
+            attemptStartedAt = performance.now()
+            logger.debug(
+              `Fetching nodes (requestId=${requestId}): ${objects.map((e) => e[0]).join(', ')}`,
+            )
+            const response = await axios.post(gatewayUrl, body, {
+              timeout: config.objectFetching.fetchTimeout,
+              responseType: 'json',
+            })
+            if (response.status !== 200) {
+              throw new HttpError(
+                502,
+                `Bad gateway: fetch nodes returned status ${response.status}`,
+              )
+            }
+
+            const validatedResponseData = fetchNodesSchema.safeParse(
               response.data,
             )
-            throw new HttpError(
-              500,
-              'Internal server error: Failed to fetch nodes',
-            )
-          }
+            if (!validatedResponseData.success) {
+              logger.debug(
+                `Fetch nodes response: ${JSON.stringify(response.data)}`,
+              )
+              throw new HttpError(
+                502,
+                `Bad gateway: Failed to parse fetch nodes response (${validatedResponseData.error.issues
+                  .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+                  .join('; ')})`,
+              )
+            }
 
-          const validatedResponseData = fetchNodesSchema.safeParse(
-            response.data,
-          )
-          if (!validatedResponseData.success) {
-            logger.error(
-              `Failed to parse fetch nodes response: ${JSON.stringify(
-                validatedResponseData.error,
-              )}`,
-            )
+            const end = performance.now()
             logger.debug(
-              `Fetch nodes response: ${JSON.stringify(response.data)}`,
+              `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - attemptStartedAt}ms (requestId=${requestId})`,
             )
-            throw new HttpError(
-              500,
-              'Internal server error: Failed to parse fetch nodes response',
+
+            return validatedResponseData.data.result.map((hex) =>
+              decodeNode(Buffer.from(hex, 'hex')),
             )
-          }
+          },
+          {
+            maxRetries: MAX_FETCH_ATTEMPTS,
+            delay: 500,
+            onError: (error, attempt, willRetry) => {
+              const failure = classifyUpstreamError(error)
+              logger.warn(
+                `Object fetch attempt failed: ${request} attempt=${attempt}/${MAX_FETCH_ATTEMPTS} elapsedMs=${Math.round(
+                  performance.now() - attemptStartedAt,
+                )} ${describeUpstreamFailure(failure)} retrying=${willRetry}`,
+              )
+            },
+          },
+        ),
+      objects.length,
+    )
 
-          const end = performance.now()
-          logger.debug(
-            `Fetched ${objects.length} nodes in total=${end - now}ms fetch=${end - fetchStart}ms (requestId=${requestId})`,
-          )
+    reportObjectFetch({
+      outcome: 'success',
+      gateway: index,
+      durationMs: Math.round(performance.now() - now),
+      attempts,
+      objects: objects.length,
+      pieceIndex: pieceIndexes[0] ?? -1,
+    })
 
-          return validatedResponseData.data.result.map((hex) =>
-            decodeNode(Buffer.from(hex, 'hex')),
-          )
-        },
-        {
-          maxRetries: 3,
-          delay: 500,
-        },
-      ),
-    objects.length,
-  )
+    return nodes
+  } catch (error) {
+    const failure = classifyUpstreamError(error)
+
+    logger.error(
+      `Object fetch failed: ${request} attempts=${attempts} totalMs=${Math.round(
+        performance.now() - now,
+      )} ${describeUpstreamFailure(failure)} hashes=[${objects
+        .map((object) => object[0])
+        .join(',')}]`,
+    )
+
+    reportObjectFetch({
+      outcome: failure.kind,
+      gateway: index,
+      durationMs: Math.round(performance.now() - now),
+      attempts,
+      objects: objects.length,
+      pieceIndex: pieceIndexes[0] ?? -1,
+    })
+
+    throw new HttpError(failure.statusCode, failure.clientMessage)
+  }
 }
 
 const getNodesForPartialRetrieval = async (
@@ -393,6 +468,9 @@ const fetchFile = async (
     }
   } catch (error) {
     logger.error(`Failed to fetch file (cid=${cid}); error=${error}`)
+    if (error instanceof HttpError) {
+      throw error
+    }
     throw new HttpError(500, 'Internal server error: Failed to fetch file')
   }
 }
