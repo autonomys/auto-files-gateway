@@ -1838,11 +1838,9 @@ __metadata:
   linkType: hard
 
 "@keyvhq/core@npm:^2.1.1":
-  version: 2.1.7
-  resolution: "@keyvhq/core@npm:2.1.7"
-  dependencies:
-    json-buffer: "npm:~3.0.1"
-  checksum: 10c0/fbc8590ae3cccc8ef19b21b7a2f5be0c8aa26281c3121648cb4eea876699c8cd401b3e1b6f3e16a5c3b14753b6591c7024b0dcebe0451f9ec6f227bcba47ce50
+  version: 2.2.10
+  resolution: "@keyvhq/core@npm:2.2.10"
+  checksum: 10c0/4642d3898ae87ecdba684f9fdb6d2feeaeee16b66ce997aa3d440218fde6300de3aa119c37aa02348b87b3f0f18d0c0858e155627b39326f9a5baf2b6e457de7
   languageName: node
   linkType: hard
 
@@ -10727,7 +10725,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json-buffer@npm:3.0.1, json-buffer@npm:~3.0.1":
+"json-buffer@npm:3.0.1":
   version: 3.0.1
   resolution: "json-buffer@npm:3.0.1"
   checksum: 10c0/0d1c91569d9588e7eef2b49b59851f297f3ab93c7b35c7c221e288099322be6b562767d11e4821da500f3219542b9afd2e54c5dc573107c1126ed1080f8e96d7
