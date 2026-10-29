@@ -20,9 +20,20 @@ import {
 
 const fileRouter = Router()
 
+// Every route that reads a file checks the ban list before touching the DSN or
+// revealing anything about the file.
+const rejectBannedFiles = asyncSafeHandler(async (req, _res, next) => {
+  if (await moderationService.isFileBanned(req.params.cid)) {
+    logger.warn(`File download blocked: ${req.params.cid}`)
+    throw new HttpError(451, 'Unavailable for legal reasons')
+  }
+  next()
+})
+
 fileRouter.get(
   '/:cid/metadata',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
 
@@ -55,6 +66,7 @@ fileRouter.get(
 fileRouter.get(
   '/:cid',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
@@ -70,14 +82,6 @@ fileRouter.get(
         'no-cache'
 
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
-
-    // Checked here as well as in fileComposer.get, because the compression
-    // probe below fetches from the DSN and a 416 would reveal the file's size.
-    if (await moderationService.isFileBanned(cid)) {
-      logger.warn(`File download blocked: ${cid}`)
-      throw new HttpError(451, 'Unavailable for legal reasons')
-    }
-
     const downloadMetadata = DownloadMetadataFactory.fromIPLDData(metadata)
 
     // Some stored objects are flagged `compression: ZLIB` in their metadata while
@@ -146,6 +150,7 @@ fileRouter.get(
 fileRouter.get(
   '/:cid/partial',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
     const chunk = parseInt(req.query.chunk as string)
