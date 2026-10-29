@@ -13,6 +13,7 @@ import {
   ByteRange,
   FileCacheOptions,
   FileResponse,
+  readByteRange,
 } from '@autonomys/file-server'
 import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
@@ -31,10 +32,8 @@ import {
 import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
-import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
 import { dagIndexerRepository } from '../repositories/dag-indexer.js'
-import { sliceReadable } from '../utils/readable.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -147,121 +146,42 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   )
 }
 
-const getNodesForPartialRetrieval = async (
-  chunks: ExtendedIPLDMetadata[],
-  byteRange: ByteRange,
-): Promise<{
-  nodes: string[]
-  firstNodeFileOffset: number
-}> => {
-  let accumulatedLength = 0
-  const nodeRange: [number | null, number | null] = [null, null]
-  let firstNodeFileOffset: number | undefined
-  let i = 0
-
-  logger.debug(
-    `getNodesForPartialRetrieval called (byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}])`,
-  )
-
-  // Searches for the first node that contains the byte range
-  while (nodeRange[0] === null && i < chunks.length) {
-    const chunk = chunks[i]
-    const chunkSize = Number((chunk.size ?? 0).valueOf())
-    // [accumulatedLength, accumulatedLength + chunkSize) // is the range of the chunk
-    if (
-      byteRange[0] >= accumulatedLength &&
-      byteRange[0] < accumulatedLength + chunkSize
-    ) {
-      nodeRange[0] = i
-      firstNodeFileOffset = accumulatedLength
-    } else {
-      accumulatedLength += chunkSize
-      i++
-    }
-  }
-
-  // Searchs for the last node that contains the byte range
-  // unless the byte range is the last byte of the file
-  if (byteRange[1]) {
-    while (nodeRange[1] === null && i < chunks.length) {
-      const chunk = chunks[i]
-      const chunkSize = Number((chunk.size ?? 0).valueOf())
-      if (
-        byteRange[1] >= accumulatedLength &&
-        byteRange[1] < accumulatedLength + chunkSize
-      ) {
-        nodeRange[1] = i
+// Fetches each node only when the stream wants more data, so a slow or
+// stalled client cannot make the whole file pile up in memory.
+const streamNodes = (cids: string[], siblings: string[]): Readable =>
+  Readable.from(
+    (async function* () {
+      for (const cid of cids) {
+        const node = await dsnFetcher.fetchNode(cid, siblings)
+        const data = safeIPLDDecode(node)
+        if (!data) {
+          throw new HttpError(
+            400,
+            'Bad request: Not a valid auto-dag-data IPLD node',
+          )
+        }
+        yield Buffer.from(data.data ?? [])
       }
-      accumulatedLength += chunkSize
-      i++
-    }
-  }
-
-  if (nodeRange[0] == null) {
-    throw new Error('Byte range not found')
-  }
-
-  const nodes = chunks
-    .slice(nodeRange[0], nodeRange[1] === null ? undefined : nodeRange[1] + 1)
-    .map((e) => e.cid)
-
-  return {
-    nodes,
-    firstNodeFileOffset: firstNodeFileOffset ?? 0,
-  }
-}
+    })(),
+    { objectMode: false },
+  )
 
 const fetchFileAsStreamWithByteRange = async (
   cid: string,
   byteRange: ByteRange,
 ): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-  const { nodes, firstNodeFileOffset } = await getNodesForPartialRetrieval(
-    chunks,
-    byteRange,
-  )
-
-  logger.debug(
-    `getNodesForPartialRetrieval called (byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) nodes=${JSON.stringify(nodes)} firstNodeFileOffset=${firstNodeFileOffset}`,
-  )
-
   // We pass all the chunks to the fetchNode function
   // So that we can fetch all the nodes within the same piece
   // in one go
   const siblings = chunks.map((e) => e.cid)
-  const stream = new ReadableStream({
-    start: async (controller) => {
-      try {
-        for (const chunk of nodes) {
-          const node = await dsnFetcher.fetchNode(chunk, siblings)
-          const data = safeIPLDDecode(node)
-          if (!data) {
-            throw new HttpError(
-              400,
-              'Bad request: Not a valid auto-dag-data IPLD node',
-            )
-          }
 
-          controller.enqueue(Buffer.from(data.data ?? []))
-        }
-
-        controller.close()
-      } catch (error) {
-        controller.error(error)
-      }
-    },
+  return readByteRange(chunks, byteRange, (nodes) => {
+    logger.debug(
+      `fetchFileAsStreamWithByteRange (cid=${cid}, byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) ${nodes.length} nodes from ${nodes[0]} to ${nodes[nodes.length - 1]}`,
+    )
+    return streamNodes(nodes, siblings)
   })
-
-  const metadata = await dsnFetcher.fetchNodeMetadata(cid)
-  const fileSize = Number(metadata.size)
-  const endIndex = byteRange[1] ?? fileSize - 1
-  const length = endIndex - byteRange[0] + 1
-
-  return sliceReadable(
-    Readable.fromWeb(stream),
-    byteRange[0] - firstNodeFileOffset,
-    length,
-  )
 }
 
 /**
@@ -275,37 +195,8 @@ const fetchFileAsStreamWithByteRange = async (
  */
 const fetchFileAsStream = async (cid: string): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-
-  // if a file is a multi-node file, we need to fetch the nodes in the correct order
-  // bearing in mind there might be multiple levels of links, we need to fetch
-  // all the links from the root node first and then continue with the next level
-  const stream = new ReadableStream({
-    start: async (controller) => {
-      try {
-        for (const chunk of chunks) {
-          const node = await dsnFetcher.fetchNode(
-            chunk.cid,
-            chunks.map((e) => e.cid),
-          )
-          const data = safeIPLDDecode(node)
-          if (!data) {
-            throw new HttpError(
-              400,
-              'Bad request: Not a valid auto-dag-data IPLD node',
-            )
-          }
-
-          controller.enqueue(Buffer.from(data.data ?? []))
-        }
-
-        controller.close()
-      } catch (error) {
-        controller.error(error)
-      }
-    },
-  })
-
-  return Readable.fromWeb(stream)
+  const cids = chunks.map((e) => e.cid)
+  return streamNodes(cids, cids)
 }
 
 const getFileMetadata = (
