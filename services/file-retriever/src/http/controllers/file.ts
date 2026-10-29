@@ -9,18 +9,31 @@ import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
 import { isValidCID } from '../../utils/dagData.js'
 import { fileCache } from '../../services/cache.js'
+import { moderationService } from '../../services/moderation.js'
 import {
   DownloadMetadataFactory,
   handleDownloadResponseHeaders,
   createResponseBodyTransform,
-  getByteRange,
+  resolveByteRange,
+  sendRangeNotSatisfiable,
 } from '@autonomys/file-server'
 
 const fileRouter = Router()
 
+// Every route that reads a file checks the ban list before touching the DSN or
+// revealing anything about the file.
+const rejectBannedFiles = asyncSafeHandler(async (req, _res, next) => {
+  if (await moderationService.isFileBanned(req.params.cid)) {
+    logger.warn(`File download blocked: ${req.params.cid}`)
+    throw new HttpError(451, 'Unavailable for legal reasons')
+  }
+  next()
+})
+
 fileRouter.get(
   '/:cid/metadata',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
 
@@ -53,6 +66,7 @@ fileRouter.get(
 fileRouter.get(
   '/:cid',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
@@ -62,27 +76,12 @@ fileRouter.get(
     }
 
     const rawMode = req.query.raw === 'true'
-    const byteRange = getByteRange(req)
     const ignoreCache =
       req.query.originControl === 'no-cache' ||
       uniqueHeaderValue(req.headers['x-origin-control'])?.toLowerCase() ===
         'no-cache'
 
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
-    if (byteRange) {
-      if (byteRange[0] > Number(metadata.size)) {
-        res.set('Content-Range', `bytes */${metadata.size}`)
-        res.sendStatus(416)
-        return
-      }
-    }
-
-    const [fromCache, file] = await fileComposer.get(cid, {
-      ignoreCache,
-      byteRange,
-    })
-    res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
-
     const downloadMetadata = DownloadMetadataFactory.fromIPLDData(metadata)
 
     // Some stored objects are flagged `compression: ZLIB` in their metadata while
@@ -95,6 +94,21 @@ fileRouter.get(
     if (downloadMetadata.isCompressed && !downloadMetadata.isEncrypted) {
       downloadMetadata.isCompressed = await dsnFetcher.isActuallyCompressed(cid)
     }
+
+    // Resolved after the compression check, because a compressed file is served
+    // whole, and before the body is fetched, so only the range is fetched.
+    const range = resolveByteRange(req, downloadMetadata)
+    if (range.kind === 'unsatisfiable') {
+      sendRangeNotSatisfiable(res, downloadMetadata.size!)
+      return
+    }
+    const byteRange = range.kind === 'partial' ? range.byteRange : undefined
+
+    const [fromCache, file] = await fileComposer.get(cid, {
+      ignoreCache,
+      byteRange,
+    })
+    res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
 
     const downloadResult = handleDownloadResponseHeaders(
       req,
@@ -136,6 +150,7 @@ fileRouter.get(
 fileRouter.get(
   '/:cid/partial',
   authMiddleware,
+  rejectBannedFiles,
   asyncSafeHandler(async (req, res) => {
     const cid = req.params.cid
     const chunk = parseInt(req.query.chunk as string)
