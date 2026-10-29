@@ -32,7 +32,6 @@ import {
 import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
 import { withRetries } from '../utils/retries.js'
 import { Readable } from 'stream'
-import { ReadableStream } from 'stream/web'
 import { fileCache, nodeCache } from './cache.js'
 import { dagIndexerRepository } from '../repositories/dag-indexer.js'
 
@@ -147,6 +146,26 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   )
 }
 
+// Fetches each node only when the stream wants more data, so a slow or
+// stalled client cannot make the whole file pile up in memory.
+const streamNodes = (cids: string[], siblings: string[]): Readable =>
+  Readable.from(
+    (async function* () {
+      for (const cid of cids) {
+        const node = await dsnFetcher.fetchNode(cid, siblings)
+        const data = safeIPLDDecode(node)
+        if (!data) {
+          throw new HttpError(
+            400,
+            'Bad request: Not a valid auto-dag-data IPLD node',
+          )
+        }
+        yield Buffer.from(data.data ?? [])
+      }
+    })(),
+    { objectMode: false },
+  )
+
 const fetchFileAsStreamWithByteRange = async (
   cid: string,
   byteRange: ByteRange,
@@ -159,31 +178,9 @@ const fetchFileAsStreamWithByteRange = async (
 
   return readByteRange(chunks, byteRange, (nodes) => {
     logger.debug(
-      `fetchFileAsStreamWithByteRange (cid=${cid}, byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) nodes=${JSON.stringify(nodes)}`,
+      `fetchFileAsStreamWithByteRange (cid=${cid}, byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) ${nodes.length} nodes from ${nodes[0]} to ${nodes[nodes.length - 1]}`,
     )
-    const stream = new ReadableStream({
-      start: async (controller) => {
-        try {
-          for (const chunk of nodes) {
-            const node = await dsnFetcher.fetchNode(chunk, siblings)
-            const data = safeIPLDDecode(node)
-            if (!data) {
-              throw new HttpError(
-                400,
-                'Bad request: Not a valid auto-dag-data IPLD node',
-              )
-            }
-
-            controller.enqueue(Buffer.from(data.data ?? []))
-          }
-
-          controller.close()
-        } catch (error) {
-          controller.error(error)
-        }
-      },
-    })
-    return Readable.fromWeb(stream)
+    return streamNodes(nodes, siblings)
   })
 }
 
@@ -198,37 +195,8 @@ const fetchFileAsStreamWithByteRange = async (
  */
 const fetchFileAsStream = async (cid: string): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-
-  // if a file is a multi-node file, we need to fetch the nodes in the correct order
-  // bearing in mind there might be multiple levels of links, we need to fetch
-  // all the links from the root node first and then continue with the next level
-  const stream = new ReadableStream({
-    start: async (controller) => {
-      try {
-        for (const chunk of chunks) {
-          const node = await dsnFetcher.fetchNode(
-            chunk.cid,
-            chunks.map((e) => e.cid),
-          )
-          const data = safeIPLDDecode(node)
-          if (!data) {
-            throw new HttpError(
-              400,
-              'Bad request: Not a valid auto-dag-data IPLD node',
-            )
-          }
-
-          controller.enqueue(Buffer.from(data.data ?? []))
-        }
-
-        controller.close()
-      } catch (error) {
-        controller.error(error)
-      }
-    },
-  })
-
-  return Readable.fromWeb(stream)
+  const cids = chunks.map((e) => e.cid)
+  return streamNodes(cids, cids)
 }
 
 const getFileMetadata = (
