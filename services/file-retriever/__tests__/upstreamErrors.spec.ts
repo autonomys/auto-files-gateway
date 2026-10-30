@@ -2,6 +2,7 @@ import { AxiosError, AxiosHeaders } from 'axios'
 import {
   classifyUpstreamError,
   describeUpstreamFailure,
+  gatewayLabel,
   UpstreamRpcError,
 } from '../src/utils/upstreamErrors.js'
 import { HttpError } from '../src/http/middlewares/error.js'
@@ -186,5 +187,28 @@ describe('describeUpstreamFailure', () => {
     )
 
     expect(line).toContain('upstreamStatus=503')
+  })
+})
+
+describe('gatewayLabel', () => {
+  it('keeps the host and port of a plain gateway URL', () => {
+    expect(gatewayLabel('http://subspace-rpc-gateway:9955')).toBe(
+      'subspace-rpc-gateway:9955',
+    )
+  })
+
+  it('drops credentials, path and query', () => {
+    const label = gatewayLabel(
+      'https://user:token@rpc.example.com/v1/path-secret?apikey=query-secret',
+    )
+
+    expect(label).toBe('rpc.example.com')
+    for (const secret of ['user', 'token', 'path-secret', 'query-secret']) {
+      expect(label).not.toContain(secret)
+    }
+  })
+
+  it('does not echo a value it cannot parse', () => {
+    expect(gatewayLabel('not a url with secret')).toBe('<unparseable url>')
   })
 })

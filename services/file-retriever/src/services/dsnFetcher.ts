@@ -33,6 +33,7 @@ import { withRetries } from '../utils/retries.js'
 import {
   classifyUpstreamError,
   describeUpstreamFailure,
+  gatewayLabel,
   UpstreamRpcError,
 } from '../utils/upstreamErrors.js'
 import { sendMetricToVictoria } from '../drivers/metrics.js'
@@ -56,6 +57,7 @@ const rpcErrorSchema = z.object({
 })
 
 const gatewayUrls = config.subspaceGatewayUrls.split(',')
+const gatewayLabels = gatewayUrls.map(gatewayLabel)
 const concurrencyControllerByGateway = gatewayUrls.map(() =>
   weightedRequestConcurrencyController(
     config.objectFetching.maxSimultaneousFetches,
@@ -132,7 +134,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   }
 
   const pieceIndexes = [...new Set(objects.map((object) => object[1]))]
-  const request = `requestId=${requestId} gateway=${gatewayUrl} objects=${objects.length} pieces=[${pieceIndexes.join(',')}]`
+  const request = `requestId=${requestId} gateway=${gatewayLabels[index]} objects=${objects.length} pieces=[${pieceIndexes.join(',')}]`
 
   let attempts = 0
   let attemptStartedAt = now
@@ -215,7 +217,11 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
             },
           },
         ),
-      objects.length,
+      // The controller rejects a weight above its maximum outright, and one
+      // piece can hold ~16 nodes of a file (64 KiB nodes, 1 MiB pieces) against
+      // a default maximum of 10. An oversized batch is still one request, so
+      // let it take every slot rather than fail before it is sent.
+      Math.min(objects.length, config.objectFetching.maxSimultaneousFetches),
     )
 
     reportObjectFetch({
@@ -540,38 +546,42 @@ const migrateToFileCache = async (cid: string) => {
   }
 
   let index = 0
-  fileCache.set(cid, {
-    data: new Readable({
-      read: async function () {
-        if (index >= chunks.length) {
-          this.push(null)
-          return
-        }
-
-        while (index < chunks.length) {
-          const chunk = chunks[index]
-          const node = await getNodeFromCache(chunk.cid)
-          if (!node) {
-            logger.error(`Failed to migrate to file cache (cid=${cid})`)
+  fileCache
+    .set(cid, {
+      data: new Readable({
+        read: async function () {
+          if (index >= chunks.length) {
+            this.push(null)
             return
           }
 
-          const data = safeIPLDDecode(node)
-          if (!data) {
-            logger.error(`Failed to migrate to file cache (cid=${cid})`)
-            return
-          }
+          while (index < chunks.length) {
+            const chunk = chunks[index]
+            const node = await getNodeFromCache(chunk.cid)
+            if (!node) {
+              logger.error(`Failed to migrate to file cache (cid=${cid})`)
+              return
+            }
 
-          const canContinue = this.push(Buffer.from(data.data ?? []))
-          index++
-          if (!canContinue) {
-            break
+            const data = safeIPLDDecode(node)
+            if (!data) {
+              logger.error(`Failed to migrate to file cache (cid=${cid})`)
+              return
+            }
+
+            const canContinue = this.push(Buffer.from(data.data ?? []))
+            index++
+            if (!canContinue) {
+              break
+            }
           }
-        }
-      },
-    }),
-    ...getFileMetadata(ipldNodeData),
-  })
+        },
+      }),
+      ...getFileMetadata(ipldNodeData),
+    })
+    .catch((error) => {
+      logger.warn(`Failed to migrate to file cache (cid=${cid}): ${error}`)
+    })
 }
 
 const fetchNodeMetadata = async (
@@ -584,7 +594,17 @@ const fetchNodeMetadata = async (
   return node
 }
 
-const inFlightNodeFetches = new Map<string, Promise<PBNode>>()
+// Only callers arriving this soon after a fetch starts may join it. That covers
+// the two reads of chunk 0 within one download, which are a DB round trip
+// apart, without tying a client that retries after a stall to the same
+// gateway's retry chain (up to MAX_FETCH_ATTEMPTS x FETCH_TIMEOUT). Errs short:
+// a caller that misses the window just makes its own fetch, as main does.
+const IN_FLIGHT_JOIN_WINDOW_MS = 2_000
+
+const inFlightNodeFetches = new Map<
+  string,
+  { pending: Promise<PBNode>; startedAt: number }
+>()
 
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const isCached: boolean = await nodeCache.has(cid)
@@ -597,14 +617,23 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   // once for the response stream, once for isActuallyCompressed - and neither
   // has populated nodeCache yet. Share the fetch so the piece is pulled once.
   const inFlight = inFlightNodeFetches.get(cid)
-  if (inFlight) {
-    return inFlight
+  if (
+    inFlight &&
+    performance.now() - inFlight.startedAt < IN_FLIGHT_JOIN_WINDOW_MS
+  ) {
+    return inFlight.pending
   }
 
-  const pending = fetchNodeFromDsn(cid, siblings).finally(() => {
-    inFlightNodeFetches.delete(cid)
-  })
-  inFlightNodeFetches.set(cid, pending)
+  const startedAt = performance.now()
+  const pending: Promise<PBNode> = fetchNodeFromDsn(cid, siblings).finally(
+    () => {
+      // A newer fetch may have replaced this entry after the window closed.
+      if (inFlightNodeFetches.get(cid)?.pending === pending) {
+        inFlightNodeFetches.delete(cid)
+      }
+    },
+  )
+  inFlightNodeFetches.set(cid, { pending, startedAt })
 
   return pending
 }
@@ -647,10 +676,16 @@ const fetchNodeFromDsn = async (
       ),
   )
 
+  // Not awaited, so a failed write (full disk, EACCES on the cache dir) must be
+  // caught here: unhandled, it would take the whole process down.
   Object.entries(objectsByCID).forEach(([cid, node]) => {
-    nodeCache.set(cid, {
-      data: Readable.from(Buffer.from(encodeNode(node))),
-    })
+    nodeCache
+      .set(cid, {
+        data: Readable.from(Buffer.from(encodeNode(node))),
+      })
+      .catch((error) => {
+        logger.warn(`Failed to cache node (cid=${cid}): ${error}`)
+      })
   })
 
   return objectsByCID[cid]

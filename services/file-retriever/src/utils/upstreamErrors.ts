@@ -209,3 +209,16 @@ export const describeUpstreamFailure = (failure: UpstreamFailure): string =>
   ]
     .filter(Boolean)
     .join(' ')
+
+/**
+ * Identifies a gateway in logs by host alone. A configured URL may carry
+ * credentials (`https://user:token@host`) or a key in the path or query, and
+ * these logs leave the host.
+ */
+export const gatewayLabel = (url: string): string => {
+  try {
+    return new URL(url).host || '<no host>'
+  } catch {
+    return '<unparseable url>'
+  }
+}

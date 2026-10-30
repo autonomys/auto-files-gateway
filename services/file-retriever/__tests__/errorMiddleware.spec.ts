@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals'
-import { NextFunction, Request, Response } from 'express'
+import express, { NextFunction, Request, Response } from 'express'
+import request from 'supertest'
 import { errorMiddleware, HttpError } from '../src/http/middlewares/error.js'
 import { logger } from '../src/drivers/logger.js'
 
@@ -96,6 +97,41 @@ describe('errorMiddleware', () => {
     expect(recorded.statusCode).toBe(400)
   })
 
+  it('answers a client error flagged with status at that status, without a stack', () => {
+    const error = jest.spyOn(logger, 'error')
+    const warn = jest.spyOn(logger, 'warn')
+    const { response, recorded } = fakeResponse()
+
+    errorMiddleware(
+      Object.assign(new URIError("Failed to decode param '%E0%A4%A'"), {
+        status: 400,
+      }),
+      fakeRequest('/files/%E0%A4%A', '/files/%E0%A4%A'),
+      response,
+      noop,
+    )
+
+    expect(recorded.statusCode).toBe(400)
+    expect(recorded.body).toEqual({ error: 'Bad Request' })
+    expect(error).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
+    expect(warn.mock.calls.flat().join('\n')).not.toContain('    at ')
+  })
+
+  it('still treats a non-HttpError flagged 5xx as our fault', () => {
+    jest.spyOn(logger, 'error')
+    const { response, recorded } = fakeResponse()
+
+    errorMiddleware(
+      Object.assign(new Error('upstream exploded'), { status: 503 }),
+      fakeRequest('/files/QmTest1', '/files/QmTest1'),
+      response,
+      noop,
+    )
+
+    expect(recorded.statusCode).toBe(500)
+  })
+
   it('answers an unexpected error with the plain 500 body', () => {
     jest.spyOn(logger, 'error')
     const { response, recorded } = fakeResponse()
@@ -109,5 +145,37 @@ describe('errorMiddleware', () => {
 
     expect(recorded.statusCode).toBe(500)
     expect(recorded.body).toBe('Internal Server Error')
+  })
+})
+
+describe('errorMiddleware behind a real Express router', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('answers a malformed route param with 400 before auth runs', async () => {
+    const error = jest.spyOn(logger, 'error')
+    jest.spyOn(logger, 'warn')
+    let authRan = false
+    const router = express.Router()
+    router.get(
+      '/:cid',
+      (_req, _res, next) => {
+        authRan = true
+        next()
+      },
+      (_req, res) => {
+        res.send('ok')
+      },
+    )
+    const app = express()
+    app.use('/files', router)
+    app.use(errorMiddleware)
+
+    const response = await request(app).get('/files/%E0%A4%A')
+
+    expect(response.status).toBe(400)
+    expect(authRan).toBe(false)
+    expect(error).not.toHaveBeenCalled()
   })
 })

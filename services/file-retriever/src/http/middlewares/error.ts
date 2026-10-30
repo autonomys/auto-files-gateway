@@ -1,4 +1,5 @@
 import { ErrorRequestHandler, NextFunction, Request, Response } from 'express'
+import { STATUS_CODES } from 'http'
 import { logger } from '../../drivers/logger.js'
 
 export class HttpError extends Error {
@@ -34,8 +35,34 @@ export const errorMiddleware: ErrorRequestHandler = (
   }
 
   const error = err instanceof Error ? err : new Error(String(err))
+
+  // Express and its parsers flag client errors with `status` rather than
+  // throwing HttpError - a malformed %-escape in a route param becomes a
+  // URIError with status 400, raised before authMiddleware runs. Those are the
+  // client's fault, so answer with their status and keep them out of the
+  // error log, which anyone could otherwise fill without an API key.
+  const clientStatus = clientErrorStatus(error)
+  if (clientStatus) {
+    logger.warn(`${route} -> ${clientStatus}: ${error.name}: ${error.message}`)
+    res
+      .status(clientStatus)
+      .json({ error: STATUS_CODES[clientStatus] ?? 'Bad Request' })
+    return
+  }
+
   logger.error(
     `${route} -> 500: ${error.stack ?? `${error.name}: ${error.message}`}`,
   )
   res.status(500).send('Internal Server Error')
+}
+
+const clientErrorStatus = (error: Error): number | undefined => {
+  const { status, statusCode } = error as {
+    status?: unknown
+    statusCode?: unknown
+  }
+  const candidate = typeof status === 'number' ? status : statusCode
+  return typeof candidate === 'number' && candidate >= 400 && candidate < 500
+    ? candidate
+    : undefined
 }
