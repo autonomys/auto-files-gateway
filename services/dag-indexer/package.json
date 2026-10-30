@@ -48,7 +48,7 @@
     "ipfs-unixfs": "6.0.9"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=22"
   },
   "jest": {
     "preset": "ts-jest",
