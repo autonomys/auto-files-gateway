@@ -594,18 +594,6 @@ const fetchNodeMetadata = async (
   return node
 }
 
-// Only callers arriving this soon after a fetch starts may join it. That covers
-// the two reads of chunk 0 within one download, which are a DB round trip
-// apart, without tying a client that retries after a stall to the same
-// gateway's retry chain (up to MAX_FETCH_ATTEMPTS x FETCH_TIMEOUT). Errs short:
-// a caller that misses the window just makes its own fetch, as main does.
-const IN_FLIGHT_JOIN_WINDOW_MS = 2_000
-
-const inFlightNodeFetches = new Map<
-  string,
-  { pending: Promise<PBNode>; startedAt: number }
->()
-
 const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
   const isCached: boolean = await nodeCache.has(cid)
   if (isCached) {
@@ -613,35 +601,6 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
     return decodeNode(buffer)
   }
 
-  // A full download of a compressed file asks for chunk 0 twice concurrently -
-  // once for the response stream, once for isActuallyCompressed - and neither
-  // has populated nodeCache yet. Share the fetch so the piece is pulled once.
-  const inFlight = inFlightNodeFetches.get(cid)
-  if (
-    inFlight &&
-    performance.now() - inFlight.startedAt < IN_FLIGHT_JOIN_WINDOW_MS
-  ) {
-    return inFlight.pending
-  }
-
-  const startedAt = performance.now()
-  const pending: Promise<PBNode> = fetchNodeFromDsn(cid, siblings).finally(
-    () => {
-      // A newer fetch may have replaced this entry after the window closed.
-      if (inFlightNodeFetches.get(cid)?.pending === pending) {
-        inFlightNodeFetches.delete(cid)
-      }
-    },
-  )
-  inFlightNodeFetches.set(cid, { pending, startedAt })
-
-  return pending
-}
-
-const fetchNodeFromDsn = async (
-  cid: string,
-  siblings: string[],
-): Promise<PBNode> => {
   const nodeObjectMappingHash = getObjectMappingHash(cid)
   const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
     getObjectMappingHash,
