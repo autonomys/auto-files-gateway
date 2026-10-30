@@ -37,7 +37,6 @@
     "@polkadot/util": "^13.5.3",
     "@subql/cli": "^6.0.2",
     "@subql/common-substrate": "^4.3.7",
-    "@subql/node": "^5.10.0",
     "@subql/substrate-wasm-processor": "^1.0.0",
     "@subql/types": "^3.12.1",
     "dotenv": "^17.2.0",
@@ -49,7 +48,7 @@
     "ipfs-unixfs": "6.0.9"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=22"
   },
   "jest": {
     "preset": "ts-jest",

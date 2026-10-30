@@ -1,0 +1,214 @@
+import { AxiosError, AxiosHeaders } from 'axios'
+import {
+  classifyUpstreamError,
+  describeUpstreamFailure,
+  gatewayLabel,
+  UpstreamRpcError,
+} from '../src/utils/upstreamErrors.js'
+import { HttpError } from '../src/http/middlewares/error.js'
+
+const axiosErrorWithCode = (code: string, message = 'boom') =>
+  new AxiosError(message, code)
+
+const axiosTimeout = (request?: unknown) =>
+  new AxiosError(
+    'timeout of 180000ms exceeded',
+    'ECONNABORTED',
+    undefined,
+    request,
+  )
+
+const requestOnSocket = (connecting: boolean) => ({
+  _currentRequest: { socket: { connecting } },
+})
+
+const axiosErrorWithStatus = (status: number) => {
+  const headers = new AxiosHeaders()
+  const config = { headers }
+  return new AxiosError(
+    `Request failed with status code ${status}`,
+    AxiosError.ERR_BAD_RESPONSE,
+    config,
+    {},
+    {
+      status,
+      statusText: '',
+      headers,
+      config,
+      data: {},
+    },
+  )
+}
+
+describe('classifyUpstreamError', () => {
+  it('maps a timeout on an established connection to a 504', () => {
+    const failure = classifyUpstreamError(axiosTimeout(requestOnSocket(false)))
+
+    expect(failure.kind).toBe('upstream-timeout')
+    expect(failure.statusCode).toBe(504)
+    expect(failure.code).toBe('ECONNABORTED')
+    expect(failure.detail).toBe('timeout of 180000ms exceeded')
+  })
+
+  it('maps a timeout that fired while still connecting to unreachable', () => {
+    // axios' timeout covers the whole exchange, so an unroutable host or a
+    // DNS lookup that never completes reaches the deadline as ECONNABORTED
+    // just like a gateway that went quiet. socket.connecting separates them.
+    const failure = classifyUpstreamError(axiosTimeout(requestOnSocket(true)))
+
+    expect(failure.kind).toBe('upstream-unreachable')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.detail).toContain(
+      'timed out before the connection was established',
+    )
+  })
+
+  it.each([
+    ['no request at all', undefined],
+    ['a request with no socket', {}],
+    ['a socket that does not say', { _currentRequest: { socket: {} } }],
+  ])('records an unknown connection phase given %s', (_label, request) => {
+    const failure = classifyUpstreamError(axiosTimeout(request))
+
+    expect(failure.kind).toBe('upstream-timeout')
+    expect(failure.statusCode).toBe(504)
+    expect(failure.detail).toContain('connection phase unknown')
+  })
+
+  it.each(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH'])(
+    'maps %s to an unreachable gateway',
+    (code) => {
+      const failure = classifyUpstreamError(axiosErrorWithCode(code))
+
+      expect(failure.kind).toBe('upstream-unreachable')
+      expect(failure.statusCode).toBe(502)
+    },
+  )
+
+  it('treats ETIMEDOUT as unreachable, not as a gateway that went quiet', () => {
+    // axios surfaces its own `timeout` as ECONNABORTED while
+    // transitional.clarifyTimeoutError is false, so ETIMEDOUT is a socket
+    // connect timeout: the gateway was never reached.
+    const failure = classifyUpstreamError(axiosErrorWithCode('ETIMEDOUT'))
+
+    expect(failure.kind).toBe('upstream-unreachable')
+    expect(failure.statusCode).toBe(502)
+  })
+
+  it.each(['ECONNRESET', 'EPIPE', 'ERR_STREAM_PREMATURE_CLOSE'])(
+    'maps %s to a lost connection rather than an unreachable gateway',
+    (code) => {
+      const failure = classifyUpstreamError(axiosErrorWithCode(code))
+
+      expect(failure.kind).toBe('upstream-disconnected')
+      expect(failure.statusCode).toBe(502)
+    },
+  )
+
+  it('maps an error status from the gateway to a 502 carrying that status', () => {
+    const failure = classifyUpstreamError(axiosErrorWithStatus(503))
+
+    expect(failure.kind).toBe('upstream-status')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.upstreamStatus).toBe(503)
+  })
+
+  it('keeps an uncategorised axios failure out of the unreachable bucket', () => {
+    const failure = classifyUpstreamError(axiosErrorWithCode('ERR_SOMETHING'))
+
+    expect(failure.kind).toBe('upstream-error')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.code).toBe('ERR_SOMETHING')
+  })
+
+  it('reports a JSON-RPC error answer with the code the gateway gave', () => {
+    const failure = classifyUpstreamError(
+      new UpstreamRpcError(-32000, 'Object mapping not found'),
+    )
+
+    expect(failure.kind).toBe('rpc-error')
+    expect(failure.statusCode).toBe(502)
+    expect(failure.detail).toContain('Object mapping not found')
+    expect(failure.code).toBe('-32000')
+  })
+
+  it('passes an HttpError through with its own status', () => {
+    const failure = classifyUpstreamError(
+      new HttpError(
+        502,
+        'Bad gateway: Failed to parse fetch nodes response (result: Required)',
+      ),
+    )
+
+    expect(failure.kind).toBe('invalid-response')
+    expect(failure.statusCode).toBe(502)
+  })
+
+  it('keeps parser internals in the detail and out of the client message', () => {
+    const failure = classifyUpstreamError(
+      new HttpError(
+        502,
+        'Bad gateway: Failed to decode node at position 0 (protobuf: unexpected end of data)',
+      ),
+    )
+
+    expect(failure.detail).toContain('protobuf: unexpected end of data')
+    expect(failure.clientMessage).not.toContain('protobuf')
+    expect(failure.clientMessage).not.toContain('position')
+  })
+
+  it('falls back to 500 for anything else', () => {
+    const failure = classifyUpstreamError(new Error('something else'))
+
+    expect(failure.kind).toBe('unknown')
+    expect(failure.statusCode).toBe(500)
+    expect(failure.detail).toBe('something else')
+  })
+
+  it('handles a thrown non-error', () => {
+    expect(classifyUpstreamError('nope').detail).toBe('nope')
+  })
+})
+
+describe('describeUpstreamFailure', () => {
+  it('renders a single log-friendly line', () => {
+    const line = describeUpstreamFailure(
+      classifyUpstreamError(axiosTimeout(requestOnSocket(false))),
+    )
+
+    expect(line).toBe(
+      'kind=upstream-timeout code=ECONNABORTED detail="timeout of 180000ms exceeded"',
+    )
+  })
+
+  it('includes the upstream status when there is one', () => {
+    const line = describeUpstreamFailure(
+      classifyUpstreamError(axiosErrorWithStatus(503)),
+    )
+
+    expect(line).toContain('upstreamStatus=503')
+  })
+})
+
+describe('gatewayLabel', () => {
+  it('keeps the host and port of a plain gateway URL', () => {
+    expect(gatewayLabel('http://subspace-rpc-gateway:9955')).toBe(
+      'subspace-rpc-gateway:9955',
+    )
+  })
+
+  it('drops credentials, path and query', () => {
+    const label = gatewayLabel(
+      'https://user:token@rpc.example.com/v1/path-secret?apikey=query-secret',
+    )
+
+    expect(label).toBe('rpc.example.com')
+    for (const secret of ['user', 'token', 'path-secret', 'query-secret']) {
+      expect(label).not.toContain(secret)
+    }
+  })
+
+  it('does not echo a value it cannot parse', () => {
+    expect(gatewayLabel('not a url with secret')).toBe('<unparseable url>')
+  })
+})
