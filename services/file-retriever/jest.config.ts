@@ -1,6 +1,6 @@
-const { createDefaultEsmPreset } = require('ts-jest')
+import { createDefaultEsmPreset } from 'ts-jest'
 
-module.exports = {
+export default {
   ...createDefaultEsmPreset(),
   testMatch: ['**/__tests__/**/*.spec.ts'],
   setupFiles: ['./__tests__/test-setup.ts'],
