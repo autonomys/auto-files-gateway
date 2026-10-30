@@ -103,7 +103,7 @@ describe('errorMiddleware', () => {
     const { response, recorded } = fakeResponse()
 
     errorMiddleware(
-      Object.assign(new URIError("Failed to decode param '%E0%A4%A'"), {
+      Object.assign(new URIError('Failed to decode param %E0%A4%A'), {
         status: 400,
       }),
       fakeRequest('/files/%E0%A4%A', '/files/%E0%A4%A'),
