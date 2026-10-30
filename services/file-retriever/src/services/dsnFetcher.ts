@@ -7,6 +7,7 @@ import {
   cidOfNode,
   encodeNode,
   IPLDNodeData,
+  isZlibCompressed,
   MetadataType,
 } from '@autonomys/auto-dag-data'
 import {
@@ -19,7 +20,6 @@ import { z } from 'zod'
 import { PBNode } from '@ipld/dag-pb'
 import { HttpError } from '../http/middlewares/error.js'
 import { safeIPLDDecode } from '../utils/dagData.js'
-import { isZlibCompressed } from '../utils/compression.js'
 import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'

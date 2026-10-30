@@ -1,8 +1,11 @@
 import { deflateSync } from 'zlib'
 import { deflateSync as fflateRawDeflateSync, zlibSync } from 'fflate'
-import { MetadataType, IPLDNodeData } from '@autonomys/auto-dag-data'
+import {
+  MetadataType,
+  IPLDNodeData,
+  isZlibCompressed,
+} from '@autonomys/auto-dag-data'
 import { jest } from '@jest/globals'
-import { isZlibCompressed } from '../src/utils/compression.js'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
 
 describe('isZlibCompressed', () => {
