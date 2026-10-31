@@ -18,7 +18,7 @@ import { objectMappingIndexer } from '../src/services/objectMappingIndexer.js'
 
 const CHUNK_SIZE = 100
 const CHUNK_COUNT = 1000
-const CHUNKS_PER_PIECE = 8
+const CHUNKS_PER_PIECE = 16
 const PIECE_COUNT = Math.ceil(CHUNK_COUNT / CHUNKS_PER_PIECE)
 const LOOKUP_WINDOW = 64
 const file = randomBytes(CHUNK_SIZE * CHUNK_COUNT)
@@ -152,9 +152,10 @@ describe('object mapping lookups while fetching file nodes', () => {
 
   it('looks up a window starting at the requested chunk for a partial download', async () => {
     const chunk = await dsnFetcher.getPartial('root', 20)
+    const pieceEnd = (Math.floor(20 / CHUNKS_PER_PIECE) + 1) * CHUNKS_PER_PIECE
 
     expect(chunk).toEqual(file.subarray(20 * CHUNK_SIZE, 21 * CHUNK_SIZE))
     expect(lookups).toEqual([hashes.slice(20, 20 + LOOKUP_WINDOW)])
-    expect(fetches).toEqual([mappings.slice(20, 3 * CHUNKS_PER_PIECE)])
+    expect(fetches).toEqual([mappings.slice(20, pieceEnd)])
   })
 })
