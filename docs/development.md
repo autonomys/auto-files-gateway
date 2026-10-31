@@ -4,7 +4,7 @@ This guide walks through setting up the Files Gateway locally. The system consis
 
 ## Prerequisites
 
-- Node.js (v18+)
+- Node.js 24 (the Auto SDK requires 22 or later)
 - Yarn 4.x
 - Docker and Docker Compose
 - (Optional) Local Subspace node
