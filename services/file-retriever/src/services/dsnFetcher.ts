@@ -146,13 +146,21 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   )
 }
 
+// A piece holds about 16 full-size nodes, so this covers the rest of the
+// current piece with room to spare, while keeping each object mapping lookup
+// small however large the file is.
+const SIBLING_WINDOW = 64
+
+const siblingWindow = (cids: string[], index: number) =>
+  cids.slice(index, index + SIBLING_WINDOW)
+
 // Fetches each node only when the stream wants more data, so a slow or
 // stalled client cannot make the whole file pile up in memory.
-const streamNodes = (cids: string[], siblings: string[]): Readable =>
+const streamNodes = (cids: string[]): Readable =>
   Readable.from(
     (async function* () {
-      for (const cid of cids) {
-        const node = await dsnFetcher.fetchNode(cid, siblings)
+      for (const [index, cid] of cids.entries()) {
+        const node = await dsnFetcher.fetchNode(cid, siblingWindow(cids, index))
         const data = safeIPLDDecode(node)
         if (!data) {
           throw new HttpError(
@@ -171,16 +179,12 @@ const fetchFileAsStreamWithByteRange = async (
   byteRange: ByteRange,
 ): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-  // We pass all the chunks to the fetchNode function
-  // So that we can fetch all the nodes within the same piece
-  // in one go
-  const siblings = chunks.map((e) => e.cid)
 
   return readByteRange(chunks, byteRange, (nodes) => {
     logger.debug(
       `fetchFileAsStreamWithByteRange (cid=${cid}, byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) ${nodes.length} nodes from ${nodes[0]} to ${nodes[nodes.length - 1]}`,
     )
-    return streamNodes(nodes, siblings)
+    return streamNodes(nodes)
   })
 }
 
@@ -195,8 +199,7 @@ const fetchFileAsStreamWithByteRange = async (
  */
 const fetchFileAsStream = async (cid: string): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-  const cids = chunks.map((e) => e.cid)
-  return streamNodes(cids, cids)
+  return streamNodes(chunks.map((e) => e.cid))
 }
 
 const getFileMetadata = (
@@ -241,7 +244,10 @@ const isActuallyCompressed = async (cid: string): Promise<boolean> => {
 
     const node = await dsnFetcher.fetchNode(
       firstChunk.cid,
-      chunks.map((e) => e.cid),
+      siblingWindow(
+        chunks.map((e) => e.cid),
+        0,
+      ),
     )
     const decoded = safeIPLDDecode(node)
     const data = decoded?.data
@@ -440,7 +446,10 @@ const getPartial = async (
 
   const node = await dsnFetcher.fetchNode(
     chunkDagNode.cid,
-    chunks.map((e) => e.cid),
+    siblingWindow(
+      chunks.map((e) => e.cid),
+      chunk,
+    ),
   )
 
   if (chunk === chunks.length - 1) {
