@@ -138,4 +138,4 @@ services/file-retriever/
 yarn file-retriever test
 ```
 
-Tests use supertest for HTTP endpoint testing with mocked dependencies.
+Tests use supertest for HTTP endpoint testing with mocked dependencies. The chunk ordering query runs against a Postgres container started with Testcontainers, so Docker must be running.
