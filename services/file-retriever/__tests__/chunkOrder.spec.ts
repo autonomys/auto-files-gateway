@@ -1,9 +1,16 @@
 import {
   blake3HashFromCid,
+  type CID,
+  cidOfNode,
   cidToString,
+  createChunkedFileIpldNode,
+  createFileChunkIpldNode,
+  createFileInlinkIpldNode,
   decodeIPLDNodeData,
   decodeNode,
+  encodeNode,
   NODE_METADATA_SIZE,
+  type PBNode,
   processFileToIPLDFormat,
   stringToCid,
 } from '@autonomys/auto-dag-data'
@@ -85,6 +92,10 @@ describe('getSortedChunksByCid', () => {
       },
     )
 
+    return indexFile(blockstore, headCid)
+  }
+
+  const indexFile = async (blockstore: MemoryBlockstore, headCid: CID) => {
     for await (const { cid, block } of blockstore.getAll()) {
       const data = decodeIPLDNodeData(block)
       const links = decodeNode(block).Links.map((link) =>
@@ -151,5 +162,35 @@ describe('getSortedChunksByCid', () => {
     const chunks = await repository.getSortedChunksByCid(file.cid)
 
     expect(await file.readChunkIds(chunks)).toEqual(chunkIds)
+  })
+
+  it('returns the chunks of a file whose leaves sit at different depths', async () => {
+    // The root links a chunk, an inlink and another chunk, so a breadth-first
+    // traversal reaches the last chunk before the two under the inlink.
+    const blockstore = new MemoryBlockstore()
+    const put = async (node: PBNode) => {
+      const cid = cidOfNode(node)
+      await blockstore.put(cid, encodeNode(node))
+      return cid
+    }
+    const [a, b, c, d] = await Promise.all(
+      [0, 1, 2, 3].map((id) => put(createFileChunkIpldNode(chunkContent(id)))),
+    )
+    const inlink = await put(
+      createFileInlinkIpldNode([b, c], 2 * CHUNK_SIZE, 1),
+    )
+    const headCid = await put(
+      createChunkedFileIpldNode(
+        [a, inlink, d],
+        BigInt(4 * CHUNK_SIZE),
+        2,
+        'file.bin',
+      ),
+    )
+    const file = await indexFile(blockstore, headCid)
+
+    const chunks = await repository.getSortedChunksByCid(file.cid)
+
+    expect(await file.readChunkIds(chunks)).toEqual([0, 1, 2, 3])
   })
 })
