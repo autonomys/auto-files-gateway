@@ -4,7 +4,7 @@ import { fileComposer } from '../../services/fileComposer.js'
 import { pipeline } from 'stream'
 import { logger } from '../../drivers/logger.js'
 import { asyncSafeHandler, toSerializable } from '../../utils/express.js'
-import { uniqueHeaderValue } from '../../utils/http.js'
+import { abortWhenClientGone, uniqueHeaderValue } from '../../utils/http.js'
 import { HttpError } from '../middlewares/error.js'
 import { dsnFetcher } from '../../services/dsnFetcher.js'
 import { isValidCID } from '../../utils/dagData.js'
@@ -70,6 +70,7 @@ fileRouter.get(
   asyncSafeHandler(async (req, res) => {
     logger.debug(`Fetching file ${req.params.cid} from ${req.ip}`)
 
+    const signal = abortWhenClientGone(res)
     const cid = req.params.cid
     if (!isValidCID(cid)) {
       throw new HttpError(400, 'Invalid CID')
@@ -92,7 +93,10 @@ fileRouter.get(
     // the real bytes and serve as uncompressed when the flag doesn't match. This
     // runs for both full-body and range responses since both flow through here.
     if (downloadMetadata.isCompressed && !downloadMetadata.isEncrypted) {
-      downloadMetadata.isCompressed = await dsnFetcher.isActuallyCompressed(cid)
+      downloadMetadata.isCompressed = await dsnFetcher.isActuallyCompressed(
+        cid,
+        signal,
+      )
     }
 
     // Resolved after the compression check, because a compressed file is served
@@ -107,6 +111,7 @@ fileRouter.get(
     const [fromCache, file] = await fileComposer.get(cid, {
       ignoreCache,
       byteRange,
+      signal,
     })
     res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
 
@@ -162,7 +167,11 @@ fileRouter.get(
       throw new HttpError(400, 'Invalid CID')
     }
 
-    const fileData = await dsnFetcher.getPartial(cid, chunk)
+    const fileData = await dsnFetcher.getPartial(
+      cid,
+      chunk,
+      abortWhenClientGone(res),
+    )
     if (fileData) {
       res.set('Content-Type', 'application/octet-stream')
       res.set('Content-Length', fileData.length.toString())

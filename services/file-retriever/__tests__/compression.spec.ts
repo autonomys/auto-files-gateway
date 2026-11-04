@@ -7,6 +7,7 @@ import {
 } from '@autonomys/auto-dag-data'
 import { jest } from '@jest/globals'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
+import { HttpError } from '../src/http/middlewares/error.js'
 
 describe('isZlibCompressed', () => {
   it('recognizes a valid zlib stream (node zlib)', () => {
@@ -99,5 +100,20 @@ describe('dsnFetcher.isActuallyCompressed', () => {
   it('returns false when there are no chunks', async () => {
     jest.spyOn(dsnFetcher, 'getFileChunks').mockResolvedValue([])
     await expect(dsnFetcher.isActuallyCompressed(cid)).resolves.toBe(false)
+  })
+
+  it('fails, rather than guess, when the first chunk cannot be fetched', async () => {
+    jest.spyOn(dsnFetcher, 'getFileChunks').mockResolvedValue(chunks)
+    jest
+      .spyOn(dsnFetcher, 'fetchNode')
+      .mockRejectedValue(
+        new HttpError(
+          504,
+          'Gateway timeout: the object could not be retrieved in time',
+        ),
+      )
+    await expect(dsnFetcher.isActuallyCompressed(cid)).rejects.toMatchObject({
+      statusCode: 504,
+    })
   })
 })

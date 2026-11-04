@@ -143,6 +143,7 @@ describe('GET /files/:cid with a Range header', () => {
     expect(fetchFile).toHaveBeenCalledWith(CID, {
       ignoreCache: true,
       byteRange: undefined,
+      signal: expect.any(AbortSignal),
     })
   })
 

@@ -72,7 +72,7 @@ describe('fetchObjects failure logging', () => {
   })
 })
 
-describe('fetchNode cache writes', () => {
+describe('fetchNode and the node cache', () => {
   afterEach(() => {
     jest.restoreAllMocks()
   })
@@ -83,7 +83,7 @@ describe('fetchNode cache writes', () => {
     const hash = Buffer.from(blake3HashFromCid(stringToCid(cid))).toString(
       'hex',
     )
-    jest.spyOn(nodeCache, 'has').mockResolvedValue(false)
+    jest.spyOn(nodeCache, 'get').mockResolvedValue(null)
     jest
       .spyOn(objectMappingIndexer, 'get_object_mappings')
       .mockResolvedValue([[hash, 1, 0]])
@@ -100,5 +100,25 @@ describe('fetchNode cache writes', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to cache node'),
     )
+  })
+
+  it('fetches a node whose cache file was written without its index entry', async () => {
+    const node = createNode(Buffer.from('orphaned cache file'), [])
+    const cid = cidToString(cidOfNode(node))
+    const hash = Buffer.from(blake3HashFromCid(stringToCid(cid))).toString(
+      'hex',
+    )
+    jest.spyOn(nodeCache, 'has').mockResolvedValue(true)
+    jest.spyOn(nodeCache, 'get').mockResolvedValue(null)
+    jest.spyOn(nodeCache, 'set').mockResolvedValue(undefined)
+    jest
+      .spyOn(objectMappingIndexer, 'get_object_mappings')
+      .mockResolvedValue([[hash, 2, 0]])
+    gatewayAnswers([node])
+
+    const fetched = await dsnFetcher.fetchNode(cid, [cid])
+
+    expect(cidToString(cidOfNode(fetched))).toBe(cid)
+    expect(axios.post).toHaveBeenCalledTimes(1)
   })
 })

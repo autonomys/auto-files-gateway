@@ -28,6 +28,15 @@ export const config = {
         defaultValue: 180_000,
       }),
     ),
+    // How long one wait for a node may take, queue and every attempt
+    // included. The partial and node routes wait for one node, so keeping this
+    // below the read timeout of the proxy in front (~120 s) has them answer
+    // before the proxy does.
+    requestTimeout: Number(
+      env('FETCH_REQUEST_TIMEOUT', {
+        defaultValue: 100_000,
+      }),
+    ),
   },
   cacheDir: path.join(
     process.cwd(),
