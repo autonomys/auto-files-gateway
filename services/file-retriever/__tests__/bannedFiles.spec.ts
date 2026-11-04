@@ -1,9 +1,13 @@
 import { MetadataType } from '@autonomys/auto-dag-data'
 import { jest } from '@jest/globals'
 import express from 'express'
+import { Readable } from 'stream'
 import request from 'supertest'
 import { config } from '../src/config.js'
 import { fileRouter } from '../src/http/controllers/file.js'
+import { moderationRouter } from '../src/http/controllers/moderation.js'
+import { bannedFilesRepository } from '../src/repositories/banned-files.js'
+import { fileCache } from '../src/services/cache.js'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
 import { moderationService } from '../src/services/moderation.js'
 
@@ -11,6 +15,7 @@ const CID = 'bafkr6idz7htrqhks6xyntulrqfyevx3k5qrhptbmgoxlmbss65yi3u25ym'
 
 const app = express()
 app.use('/files', fileRouter)
+app.use('/moderation', moderationRouter)
 
 const get = (path: string, headers: Record<string, string> = {}) =>
   request(app)
@@ -68,5 +73,21 @@ describe('banned files', () => {
 
     expect(response.status).toBe(200)
     expect(response.body.name).toBe('file.bin')
+  })
+
+  it('removes a file from the cache when it is banned', async () => {
+    jest.spyOn(bannedFilesRepository, 'addBannedFile').mockResolvedValue()
+    await fileCache.set(CID, {
+      data: Readable.from([Buffer.from('file contents')]),
+      size: BigInt(13),
+    })
+    expect(await fileCache.has(CID)).toBe(true)
+
+    const response = await request(app)
+      .post(`/moderation/${CID}/ban`)
+      .set('Authorization', `Bearer ${config.apiSecret}`)
+
+    expect(response.status).toBe(200)
+    expect(await fileCache.has(CID)).toBe(false)
   })
 })
