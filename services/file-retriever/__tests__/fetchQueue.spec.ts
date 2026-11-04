@@ -287,6 +287,32 @@ describe('object fetch queue', () => {
     )
   })
 
+  it('handles a lookup that fails after its client has already gone', async () => {
+    const { cids } = piece(1000, 1)
+    let failLookup = () => {}
+    jest.spyOn(objectMappingIndexer, 'get_object_mappings').mockReturnValue(
+      new Promise((_, reject) => {
+        failLookup = () => reject(new Error('object mapping indexer is down'))
+      }),
+    )
+    const unhandled: unknown[] = []
+    const recordUnhandled = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', recordUnhandled)
+    const client = new AbortController()
+    client.abort(clientGone())
+
+    try {
+      await expect(
+        dsnFetcher.fetchNode(cids[0], cids, client.signal),
+      ).rejects.toMatchObject({ statusCode: 499 })
+      failLookup()
+      await settle()
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', recordUnhandled)
+    }
+  })
+
   describe('with a short request timeout', () => {
     const requestTimeout = config.objectFetching.requestTimeout
 

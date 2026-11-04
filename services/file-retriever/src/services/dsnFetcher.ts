@@ -349,14 +349,14 @@ const withRequestTimeout = (signal?: AbortSignal): AbortSignal => {
 const unlessAborted = <T>(work: Promise<T>, signal: AbortSignal): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(signal.reason)
-    if (signal.aborted) {
-      onAbort()
-      return
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
     work
       .then(resolve, reject)
       .finally(() => signal.removeEventListener('abort', onAbort))
+    if (signal.aborted) {
+      onAbort()
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true })
+    }
   })
 
 // Fetches each node only when the stream wants more data, so a slow or
