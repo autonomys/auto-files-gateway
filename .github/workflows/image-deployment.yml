@@ -79,7 +79,8 @@ jobs:
 
       - name: Install Ansible
         run: |
-          pip install ansible
+          # Locked with hashes; bump via ansible/requirements.in (see header there)
+          pip install --require-hashes -r ansible/requirements.txt
 
       - name: Setup hosts.ini
         run: |
