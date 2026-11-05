@@ -8,6 +8,8 @@ services:
     depends_on:
       subspace-node:
         condition: service_healthy
+        # The gateway never reconnects its node WebSocket, so restart it when Compose recreates the node.
+        restart: true
     ports:
       - '9955:9955'
       - '30334:30333'
