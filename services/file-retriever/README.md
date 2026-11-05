@@ -33,11 +33,16 @@ For architecture and API documentation, see [docs/file-retriever.md](../../docs/
 
 ### Object Fetching
 
-| Variable                   | Default  | Description                     |
-| -------------------------- | -------- | ------------------------------- |
-| `MAX_OBJECTS_PER_FETCH`    | `100`    | Max objects per gateway request |
-| `MAX_SIMULTANEOUS_FETCHES` | `10`     | Concurrent fetch limit          |
-| `FETCH_TIMEOUT`            | `180000` | Fetch timeout in milliseconds   |
+| Variable                   | Default  | Description                                                                       |
+| -------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `MAX_OBJECTS_PER_FETCH`    | `100`    | Max objects per gateway request                                                   |
+| `MAX_SIMULTANEOUS_FETCHES` | `10`     | Max pieces fetched from each gateway at once                                      |
+| `FETCH_TIMEOUT`            | `180000` | Timeout of one gateway request, in milliseconds                                   |
+| `FETCH_REQUEST_TIMEOUT`    | `100000` | Max wait for a node before answering, queue and retries included, in milliseconds |
+
+`MAX_SIMULTANEOUS_FETCHES` counts pieces. A gateway request takes one slot per piece it touches, however many of that piece's objects it asks for. It used to count objects, so a request for one piece of a file (typically 15 or 16 objects) took 15 or 16 slots, and `MAX_SIMULTANEOUS_FETCHES=20` fetched about one piece at a time. The same value now allows up to 20 pieces at once. When upgrading a deployment that sets it, start lower (for example 4 to 8) and raise it while watching `queueMs` and `fetchMs` on the `object_fetch` metric.
+
+`FETCH_REQUEST_TIMEOUT` bounds the wait for a node on `/files/:cid/partial` and `/nodes/:cid`, and for the encoding check of `GET /files/:cid`. Each of those waits for one node, so with this below the read timeout of the proxy in front, they answer before the proxy gives up. A request that runs out of time gets a 504, but a gateway request already sent keeps running and caches its nodes, so a retry picks them up. Nodes streamed into a `GET /files/:cid` response are not bounded: a failure there can only cut the response short, and on a full download it would also stop the file being cached.
 
 ### Monitoring (Optional)
 
