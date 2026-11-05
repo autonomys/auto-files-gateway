@@ -369,7 +369,12 @@ const streamNodes = (
   Readable.from(
     (async function* () {
       for (const cid of cids) {
-        const node = await dsnFetcher.fetchNode(cid, siblings, signal)
+        // A node that fails inside the response stream can only reset the
+        // connection, and on a full download it also loses the copy being
+        // cached, so streamed nodes wait for as long as their fetch takes.
+        const node = await dsnFetcher.fetchNode(cid, siblings, signal, {
+          timeout: false,
+        })
         const data = safeIPLDDecode(node)
         if (!data) {
           throw new HttpError(
@@ -661,18 +666,22 @@ const fetchNodeFromDsn = async (
  * @param siblings - Nodes fetched along with this one when they share its piece
  * @param signal - Stops waiting once aborted. The fetch itself is dropped only
  *   when no other request is waiting for it.
+ * @param timeout - Also stops waiting after FETCH_REQUEST_TIMEOUT, with a 504
  */
 const fetchNode = async (
   cid: string,
   siblings: string[],
   signal?: AbortSignal,
+  { timeout = true }: { timeout?: boolean } = {},
 ): Promise<PBNode> => {
   const cached = await getNodeFromCache(cid)
   if (cached) {
     return cached
   }
 
-  const deadline = withRequestTimeout(signal)
+  const deadline = timeout
+    ? withRequestTimeout(signal)
+    : (signal ?? new AbortController().signal)
   try {
     return await fetchNodeFromDsn(cid, siblings, deadline)
   } catch (error) {

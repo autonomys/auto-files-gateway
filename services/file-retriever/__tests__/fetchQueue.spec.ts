@@ -9,6 +9,8 @@ import {
   cidToString,
   createNode,
   encodeNode,
+  IPLDNodeData,
+  MetadataType,
   stringToCid,
 } from '@autonomys/auto-dag-data'
 import { ExtendedIPLDMetadata, ObjectMapping } from '@auto-files/models'
@@ -18,7 +20,7 @@ import { fileRouter } from '../src/http/controllers/file.js'
 import { nodeRouter } from '../src/http/controllers/node.js'
 import { errorMiddleware, HttpError } from '../src/http/middlewares/error.js'
 import { logger } from '../src/drivers/logger.js'
-import { nodeCache } from '../src/services/cache.js'
+import { fileCache, nodeCache } from '../src/services/cache.js'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
 import { moderationService } from '../src/services/moderation.js'
 import { objectMappingIndexer } from '../src/services/objectMappingIndexer.js'
@@ -45,6 +47,23 @@ const piece = (pieceIndex: number, count: number) => {
     mappingsByHash.set(mapping[0], mapping)
   })
   return { cids, mappings }
+}
+
+/** File chunks holding `datas`, each stored in its own piece. */
+const fileChunks = (firstPieceIndex: number, datas: Buffer[]) => {
+  const nodes = datas.map((data) =>
+    createNode(
+      IPLDNodeData.encode({ type: MetadataType.FileChunk, linkDepth: 0, data }),
+      [],
+    ),
+  )
+  return nodes.map((node, i) => {
+    const cid = cidToString(cidOfNode(node))
+    const mapping: ObjectMapping = [hashOf(cid), firstPieceIndex + i, 0]
+    nodesByHash.set(mapping[0], node)
+    mappingsByHash.set(mapping[0], mapping)
+    return cid
+  })
 }
 
 const knownMappings = (hashes: string[]) =>
@@ -115,6 +134,25 @@ const waitFor = async (condition: () => boolean) => {
 }
 
 const clientGone = () => new HttpError(499, 'Client closed request')
+
+const collect = async (stream: AsyncIterable<Uint8Array>) => {
+  const parts: Buffer[] = []
+  for await (const part of stream) parts.push(Buffer.from(part))
+  return Buffer.concat(parts)
+}
+
+const download = (url: string, headers: Record<string, string>) =>
+  new Promise<Buffer>((resolve, reject) => {
+    http
+      .get(
+        url,
+        { headers: { authorization: `Bearer ${config.apiSecret}`, ...headers } },
+        (res) => {
+          collect(res).then(resolve, reject)
+        },
+      )
+      .on('error', reject)
+  })
 
 const cidOf = (node: PBNode) => cidToString(cidOfNode(node))
 
@@ -424,6 +462,55 @@ describe('routes that fetch nodes', () => {
   afterEach(() => {
     jest.restoreAllMocks()
   })
+
+  it.each<[string, Record<string, string>, number]>([
+    ['a full download', {}, 960],
+    ['a range', { range: 'bytes=0-' }, 970],
+  ])(
+    'streams %s whose later node takes longer than FETCH_REQUEST_TIMEOUT',
+    async (_, headers, firstPieceIndex) => {
+      const datas = [Buffer.from('first chunk, '), Buffer.from('second chunk')]
+      const file = Buffer.concat(datas)
+      const cids = fileChunks(firstPieceIndex, datas)
+      jest.spyOn(dsnFetcher, 'fetchNodeMetadata').mockResolvedValue({
+        cid: cids[0],
+        type: MetadataType.File,
+        name: 'file.bin',
+        size: BigInt(file.length),
+      } as unknown as ExtendedIPLDMetadata)
+      jest.spyOn(dsnFetcher, 'getFileChunks').mockResolvedValue(
+        cids.map((cid, i) => ({
+          cid,
+          size: BigInt(datas[i].length),
+        })) as unknown as ExtendedIPLDMetadata[],
+      )
+      jest.spyOn(fileCache, 'get').mockResolvedValue(null)
+      let cached: Buffer | undefined
+      jest.spyOn(fileCache, 'set').mockImplementation(async (_, response) => {
+        cached = await collect(response.data)
+      })
+      const calls = gateway()
+      const requestTimeout = config.objectFetching.requestTimeout
+      config.objectFetching.requestTimeout = 50
+
+      try {
+        const body = download(`${baseUrl}/files/${cids[0]}`, headers)
+        await waitFor(() => calls.length === 1)
+        calls[0].answer()
+        await waitFor(() => calls.length === 2)
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        calls[1].answer()
+
+        expect((await body).equals(file)).toBe(true)
+        if (!headers.range) {
+          await waitFor(() => cached !== undefined)
+          expect(cached?.equals(file)).toBe(true)
+        }
+      } finally {
+        config.objectFetching.requestTimeout = requestTimeout
+      }
+    },
+  )
 
   it.each([
     ['/files/:cid/partial?chunk=0', 900],
