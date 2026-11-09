@@ -46,6 +46,7 @@ describe('Partial downloads', () => {
     expect(fetchNodeSpy).toHaveBeenCalledWith(
       'bafkr6idz7htrqhks6xyntulrqfyevx3k5qrhptbmgoxlmbss65yi3u25ym',
       chunks.map((e) => e.cid),
+      undefined,
     )
   })
 })

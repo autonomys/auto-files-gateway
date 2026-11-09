@@ -6,6 +6,7 @@ import { fileCache } from './cache.js'
 
 interface DownloadOptions extends FileCacheOptions {
   ignoreCache?: boolean
+  signal?: AbortSignal
 }
 
 const get = async (

@@ -41,6 +41,7 @@ import { sendMetricToVictoria } from '../drivers/metrics.js'
 import { Readable } from 'stream'
 import { fileCache, nodeCache } from './cache.js'
 import { dagIndexerRepository } from '../repositories/dag-indexer.js'
+import { SharedTask } from '../utils/sharedTask.js'
 
 const fetchNodesSchema = z.object({
   jsonrpc: z.string(),
@@ -107,9 +108,14 @@ const reportObjectFetch = (fields: {
  * Fetches the nodes for a given list of cids
  *
  * @param cids - The list of cids to fetch the nodes for
+ * @param shouldSend - Asked when the fetch reaches the front of the queue:
+ *   false drops it there, unsent. Once sent, a fetch runs to the end.
  * @returns The list of nodes
  */
-const fetchObjects = async (objects: ObjectMapping[]) => {
+const fetchObjects = async (
+  objects: ObjectMapping[],
+  shouldSend?: () => boolean,
+) => {
   const requestId = Math.floor(Math.random() * 65535)
   const now = performance.now()
   logger.debug(
@@ -138,6 +144,7 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
   let attempts = 0
   let attemptStartedAt = now
   let firstAttemptStartedAt: number | undefined
+  let dropped = false
 
   const timings = () => {
     const total = performance.now() - now
@@ -153,8 +160,14 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
 
   try {
     const nodes = await concurrencyController(
-      async () =>
-        withRetries(
+      async () => {
+        // The controller cannot take a job back out of its queue, so a fetch
+        // nobody waits for any more is dropped here, when it reaches the front.
+        if (shouldSend && !shouldSend()) {
+          dropped = true
+          throw new Error('Object fetch dropped before it was sent')
+        }
+        return withRetries(
           async () => {
             attempts++
             attemptStartedAt = performance.now()
@@ -215,12 +228,13 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
               )
             },
           },
-        ),
-      // The controller rejects a weight above its maximum outright, and one
-      // piece can hold ~16 nodes of a file (64 KiB nodes, 1 MiB pieces) against
-      // a default maximum of 10. An oversized batch is still one request, so
-      // let it take every slot rather than fail before it is sent.
-      Math.min(objects.length, config.objectFetching.maxSimultaneousFetches),
+        )
+      },
+      // The gateway downloads each piece once per call, however many of its
+      // objects are asked for, so a call costs one slot per piece. The
+      // controller rejects a weight above its maximum outright, so a batch
+      // spanning more pieces than that takes every slot instead.
+      Math.min(pieceIndexes.length, config.objectFetching.maxSimultaneousFetches),
     )
 
     reportObjectFetch({
@@ -234,18 +248,23 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
 
     return nodes
   } catch (error) {
+    const { durationMs, queueMs, fetchMs } = timings()
     const failure = classifyUpstreamError(error)
 
-    const { durationMs, queueMs, fetchMs } = timings()
-
-    logger.error(
-      `Object fetch failed: ${request} attempts=${attempts} totalMs=${durationMs} queueMs=${queueMs} fetchMs=${fetchMs} ${describeUpstreamFailure(
-        failure,
-      )} hashes=[${objects.map((object) => object[0]).join(',')}]`,
-    )
+    if (dropped) {
+      logger.info(
+        `Object fetch dropped before it was sent, no request is waiting for it: ${request} queueMs=${queueMs}`,
+      )
+    } else {
+      logger.error(
+        `Object fetch failed: ${request} attempts=${attempts} totalMs=${durationMs} queueMs=${queueMs} fetchMs=${fetchMs} ${describeUpstreamFailure(
+          failure,
+        )} hashes=[${objects.map((object) => object[0]).join(',')}]`,
+      )
+    }
 
     reportObjectFetch({
-      outcome: failure.kind,
+      outcome: dropped ? 'dropped' : failure.kind,
       gateway: index,
       durationMs,
       queueMs,
@@ -255,9 +274,90 @@ const fetchObjects = async (objects: ObjectMapping[]) => {
       pieceIndex: pieceIndexes[0] ?? -1,
     })
 
+    if (dropped) {
+      throw error
+    }
     throw new HttpError(failure.statusCode, failure.clientMessage)
   }
 }
+
+type FetchedNodes = Map<string, PBNode>
+
+/**
+ * Fetches that requests can still join, by the object mapping hash of every
+ * node they bring back. A fetch stays listed until its nodes are in the node
+ * cache, so a request that just missed the cache still finds it here. That
+ * holds even after every request has given up on a fetch already sent, so a
+ * retry after a timeout joins it rather than starting the piece over.
+ */
+const sharedFetches = new Map<string, SharedTask<FetchedNodes>>()
+
+// Nobody awaits this, so it must never reject: an unhandled rejection takes
+// the whole process down.
+const cacheNodes = (nodes: FetchedNodes) =>
+  Promise.all(
+    [...nodes].map(async ([cid, node]) => {
+      try {
+        await nodeCache.set(cid, {
+          data: Readable.from(Buffer.from(encodeNode(node))),
+        })
+      } catch (error) {
+        logger.warn(`Failed to cache node (cid=${cid}): ${error}`)
+      }
+    }),
+  )
+
+const startSharedFetch = (
+  objects: ObjectMapping[],
+): SharedTask<FetchedNodes> => {
+  let sent = false
+  const fetch = new SharedTask(async (signal) => {
+    const nodes = await fetchObjects(objects, () => {
+      sent = !signal.aborted
+      return sent
+    })
+    return new Map(nodes.map((node) => [cidToString(cidOfNode(node)), node]))
+  })
+
+  const hashes = objects
+    .map(([hash]) => hash)
+    .filter((hash) => !sharedFetches.has(hash))
+  hashes.forEach((hash) => sharedFetches.set(hash, fetch))
+  const unlist = () =>
+    hashes.forEach((hash) => {
+      if (sharedFetches.get(hash) === fetch) {
+        sharedFetches.delete(hash)
+      }
+    })
+
+  fetch.signal.addEventListener('abort', () => {
+    if (!sent) {
+      unlist()
+    }
+  })
+  fetch.result.then((nodes) => cacheNodes(nodes).finally(unlist), unlist)
+
+  return fetch
+}
+
+const withRequestTimeout = (signal?: AbortSignal): AbortSignal => {
+  const timeout = AbortSignal.timeout(config.objectFetching.requestTimeout)
+  return signal ? AbortSignal.any([signal, timeout]) : timeout
+}
+
+/** Settles with `work`, or rejects with `signal.reason` once it aborts. */
+const unlessAborted = <T>(work: Promise<T>, signal: AbortSignal): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason)
+    work
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener('abort', onAbort))
+    if (signal.aborted) {
+      onAbort()
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true })
+    }
+  })
 
 // A piece holds about 16 full-size nodes, so this covers the rest of the
 // current piece with room to spare, while keeping each object mapping lookup
@@ -269,11 +369,19 @@ const siblingWindow = (cids: string[], index: number) =>
 
 // Fetches each node only when the stream wants more data, so a slow or
 // stalled client cannot make the whole file pile up in memory.
-const streamNodes = (cids: string[]): Readable =>
+const streamNodes = (cids: string[], signal?: AbortSignal): Readable =>
   Readable.from(
     (async function* () {
       for (const [index, cid] of cids.entries()) {
-        const node = await dsnFetcher.fetchNode(cid, siblingWindow(cids, index))
+        // A node that fails inside the response stream can only reset the
+        // connection, and on a full download it also loses the copy being
+        // cached, so streamed nodes wait for as long as their fetch takes.
+        const node = await dsnFetcher.fetchNode(
+          cid,
+          siblingWindow(cids, index),
+          signal,
+          { timeout: false },
+        )
         const data = safeIPLDDecode(node)
         if (!data) {
           throw new HttpError(
@@ -290,6 +398,7 @@ const streamNodes = (cids: string[]): Readable =>
 const fetchFileAsStreamWithByteRange = async (
   cid: string,
   byteRange: ByteRange,
+  signal?: AbortSignal,
 ): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
 
@@ -297,7 +406,7 @@ const fetchFileAsStreamWithByteRange = async (
     logger.debug(
       `fetchFileAsStreamWithByteRange (cid=${cid}, byteRange=[${byteRange[0]}, ${byteRange[1] ?? 'EOF'}]) ${nodes.length} nodes from ${nodes[0]} to ${nodes[nodes.length - 1]}`,
     )
-    return streamNodes(nodes)
+    return streamNodes(nodes, signal)
   })
 }
 
@@ -345,41 +454,39 @@ const getFileMetadata = (
  * than trusting the metadata flag alone.
  *
  * @returns true if the first chunk's bytes are a valid zlib stream; false when
- *   the file is not actually compressed (or the bytes can't be inspected).
+ *   they are not, or there are none. Rejects when the first chunk cannot be
+ *   fetched, since either guess would serve some files with the wrong encoding.
  */
-const isActuallyCompressed = async (cid: string): Promise<boolean> => {
-  try {
-    const chunks = await dsnFetcher.getFileChunks(cid)
-    const firstChunk = chunks[0]
-    if (!firstChunk) {
-      return false
-    }
-
-    const node = await dsnFetcher.fetchNode(
-      firstChunk.cid,
-      siblingWindow(
-        chunks.map((e) => e.cid),
-        0,
-      ),
-    )
-    const decoded = safeIPLDDecode(node)
-    const data = decoded?.data
-    if (!data || data.length === 0) {
-      return false
-    }
-
-    return isZlibCompressed(Buffer.from(data))
-  } catch (error) {
-    logger.warn(
-      `Failed to verify actual compression (cid=${cid}); assuming uncompressed; error=${error}`,
-    )
+const isActuallyCompressed = async (
+  cid: string,
+  signal?: AbortSignal,
+): Promise<boolean> => {
+  const chunks = await dsnFetcher.getFileChunks(cid)
+  const firstChunk = chunks[0]
+  if (!firstChunk) {
     return false
   }
+
+  const node = await dsnFetcher.fetchNode(
+    firstChunk.cid,
+    siblingWindow(
+      chunks.map((e) => e.cid),
+      0,
+    ),
+    signal,
+  )
+  const decoded = safeIPLDDecode(node)
+  const data = decoded?.data
+  if (!data || data.length === 0) {
+    return false
+  }
+
+  return isZlibCompressed(Buffer.from(data))
 }
 
 const fetchFile = async (
   cid: string,
-  options?: FileCacheOptions,
+  options?: FileCacheOptions & { signal?: AbortSignal },
 ): Promise<FileResponse> => {
   try {
     const metadata = await dsnFetcher.fetchNodeMetadata(cid)
@@ -393,8 +500,14 @@ const fetchFile = async (
       `Fetching file (cid=${cid}, size=${traits.size}, mimeType=${traits.mimeType}, filename=${traits.filename}, encoding=${traits.encoding})`,
     )
 
+    // A whole file is also written to the file cache, which keeps reading
+    // after the client has gone, so only a range stops with the request.
     const readable = options?.byteRange
-      ? await fetchFileAsStreamWithByteRange(cid, options.byteRange)
+      ? await fetchFileAsStreamWithByteRange(
+          cid,
+          options.byteRange,
+          options.signal,
+        )
       : await fetchFileAsStream(cid)
 
     return {
@@ -491,13 +604,10 @@ const fetchNodeMetadata = async (
   return node
 }
 
-const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
-  const isCached: boolean = await nodeCache.has(cid)
-  if (isCached) {
-    const buffer = await nodeCache.get(cid).then((e) => streamToBuffer(e!.data))
-    return decodeNode(buffer)
-  }
-
+const findPieceObjects = async (
+  cid: string,
+  siblings: string[],
+): Promise<ObjectMapping[]> => {
   const nodeObjectMappingHash = getObjectMappingHash(cid)
   const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
     getObjectMappingHash,
@@ -525,26 +635,69 @@ const fetchNode = async (cid: string, siblings: string[]): Promise<PBNode> => {
     )
   }
 
-  const objectsByCID = await fetchObjects(objectMappingsWithinSamePiece).then(
-    (nodes) =>
-      Object.fromEntries(
-        nodes.map((e) => [cidToString(cidOfNode(e)), e] as [string, PBNode]),
-      ),
-  )
+  return objectMappingsWithinSamePiece
+}
 
-  // Not awaited, so a failed write (full disk, EACCES on the cache dir) must be
-  // caught here: unhandled, it would take the whole process down.
-  Object.entries(objectsByCID).forEach(([cid, node]) => {
-    nodeCache
-      .set(cid, {
-        data: Readable.from(Buffer.from(encodeNode(node))),
-      })
-      .catch((error) => {
-        logger.warn(`Failed to cache node (cid=${cid}): ${error}`)
-      })
-  })
+const fetchNodeFromDsn = async (
+  cid: string,
+  siblings: string[],
+  deadline: AbortSignal,
+): Promise<PBNode> => {
+  const hash = getObjectMappingHash(cid)
+  let fetch = sharedFetches.get(hash)
+  if (fetch) {
+    logger.debug(`Joining in-flight fetch (cid=${cid})`)
+  } else {
+    // The indexer client takes no signal, so a lookup that hangs is left
+    // behind rather than cancelled.
+    const objects = await unlessAborted(
+      findPieceObjects(cid, siblings),
+      deadline,
+    )
+    fetch = sharedFetches.get(hash) ?? startSharedFetch(objects)
+  }
 
-  return objectsByCID[cid]
+  const node = (await fetch.wait(deadline)).get(cid)
+  if (!node) {
+    throw new HttpError(
+      502,
+      'Bad gateway: the subspace gateway did not return the requested node',
+    )
+  }
+  return node
+}
+
+/**
+ * @param siblings - Nodes fetched along with this one when they share its piece
+ * @param signal - Stops waiting once aborted. The fetch itself is dropped only
+ *   when no other request is waiting for it.
+ * @param timeout - Also stops waiting after FETCH_REQUEST_TIMEOUT, with a 504
+ */
+const fetchNode = async (
+  cid: string,
+  siblings: string[],
+  signal?: AbortSignal,
+  { timeout = true }: { timeout?: boolean } = {},
+): Promise<PBNode> => {
+  const cached = await getNodeFromCache(cid)
+  if (cached) {
+    return cached
+  }
+
+  const deadline = timeout
+    ? withRequestTimeout(signal)
+    : (signal ?? new AbortController().signal)
+  try {
+    return await fetchNodeFromDsn(cid, siblings, deadline)
+  } catch (error) {
+    if (error !== deadline.reason || error instanceof HttpError) {
+      throw error
+    }
+    throw new HttpError(
+      504,
+      'Gateway timeout: the object could not be retrieved in time',
+    )
+  }
 }
 
 const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
@@ -563,6 +716,7 @@ const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
 const getPartial = async (
   cid: string,
   chunk: number,
+  signal?: AbortSignal,
 ): Promise<Buffer | null> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
   const chunkDagNode = chunks[chunk]
@@ -576,6 +730,7 @@ const getPartial = async (
       chunks.map((e) => e.cid),
       chunk,
     ),
+    signal,
   )
 
   if (chunk === chunks.length - 1) {
