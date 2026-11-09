@@ -1,3 +1,4 @@
+import { streamToBuffer } from '@autonomys/asynchronous'
 import {
   CompressionAlgorithm,
   IPLDNodeData,
@@ -9,6 +10,7 @@ import { Readable } from 'stream'
 import request from 'supertest'
 import { deflateSync } from 'zlib'
 import { config } from '../src/config.js'
+import { logger } from '../src/drivers/logger.js'
 import { fileRouter } from '../src/http/controllers/file.js'
 import { fileCache } from '../src/services/cache.js'
 import { dsnFetcher } from '../src/services/dsnFetcher.js'
@@ -106,6 +108,102 @@ describe('GET /files/:cid with a Range header', () => {
       expect(fetchNode).toHaveBeenCalledTimes(fetches)
     },
   )
+
+  const mockCacheWrites = () => {
+    const writes: Promise<Buffer>[] = []
+    jest.spyOn(fileCache, 'set').mockImplementation(async (_cid, { data }) => {
+      writes.push(streamToBuffer(data))
+    })
+    return writes
+  }
+
+  it.each([
+    'bytes=0-',
+    `bytes=0-${file.length - 1}`,
+    'bytes=0-9000',
+    `bytes=-${file.length}`,
+  ])('caches the whole file for %s and still answers 206', async (range) => {
+    mockFetchNode()
+    const writes = mockCacheWrites()
+    const fetchFile = jest.spyOn(dsnFetcher, 'fetchFile')
+
+    const response = await download(range)
+
+    expect(response.status).toBe(206)
+    expect(response.headers['content-range']).toBe(
+      `bytes 0-${file.length - 1}/${file.length}`,
+    )
+    expect(response.headers['content-length']).toBe(String(file.length))
+    expect(response.body).toEqual(file)
+    expect(fetchFile).toHaveBeenCalledWith(CID, {
+      ignoreCache: true,
+      byteRange: undefined,
+      signal: expect.any(AbortSignal),
+    })
+    expect(writes).toHaveLength(1)
+    expect(await writes[0]).toEqual(file)
+  })
+
+  it.each(['bytes=1-', `bytes=0-${file.length - 2}`])(
+    'does not cache %s, which leaves out part of the file',
+    async (range) => {
+      mockFetchNode()
+      const writes = mockCacheWrites()
+
+      const response = await download(range)
+
+      expect(response.status).toBe(206)
+      expect(writes).toHaveLength(0)
+    },
+  )
+
+  it('serves a range covering the whole file from the cache with 206', async () => {
+    const fetchNode = mockFetchNode()
+    const cacheGet = jest.spyOn(fileCache, 'get').mockResolvedValue({
+      data: Readable.from([file]),
+      size: BigInt(file.length),
+    })
+
+    const response = await download('bytes=0-', {
+      'X-Origin-Control': 'cache',
+    })
+
+    expect(response.status).toBe(206)
+    expect(response.headers['x-file-origin']).toBe('cache')
+    expect(response.headers['content-range']).toBe(
+      `bytes 0-${file.length - 1}/${file.length}`,
+    )
+    expect(response.body).toEqual(file)
+    expect(cacheGet).toHaveBeenCalledWith(CID, {
+      ignoreCache: false,
+      byteRange: undefined,
+      signal: expect.any(AbortSignal),
+    })
+    expect(fetchNode).not.toHaveBeenCalled()
+  })
+
+  it('still caches the whole file when the client disconnects before the first node arrives', async () => {
+    const fetchNode = mockFetchNode()
+    const fetchChunk = fetchNode.getMockImplementation()!
+    // The controller logs this once it has given up on the client.
+    const serverGaveUp = new Promise<void>((resolve) => {
+      jest.spyOn(logger, 'error').mockImplementation(async () => resolve())
+    })
+    fetchNode.mockImplementationOnce(async (cid, siblings, signal, options) => {
+      await serverGaveUp
+      // As the real fetchNode does, give up once the request's signal aborts.
+      signal?.throwIfAborted()
+      return fetchChunk(cid, siblings, signal, options)
+    })
+    const writes = mockCacheWrites()
+
+    await expect(
+      download('bytes=0-').timeout({ response: 50 }),
+    ).rejects.toThrow('Response timeout')
+
+    expect(writes).toHaveLength(1)
+    expect(await writes[0]).toEqual(file)
+  })
 
   it('answers 416 for a range starting at the end of the file', async () => {
     const fetchNode = mockFetchNode()

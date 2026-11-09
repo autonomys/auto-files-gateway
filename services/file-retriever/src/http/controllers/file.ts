@@ -107,10 +107,15 @@ fileRouter.get(
       return
     }
     const byteRange = range.kind === 'partial' ? range.byteRange : undefined
+    // A range over the whole file, like the `bytes=0-` browsers open media
+    // with, is fetched as a full download so that it is cached, and is still
+    // answered with 206.
+    const coversWholeFile =
+      byteRange?.[0] === 0 && byteRange[1] === Number(downloadMetadata.size) - 1
 
     const [fromCache, file] = await fileComposer.get(cid, {
       ignoreCache,
-      byteRange,
+      byteRange: coversWholeFile ? undefined : byteRange,
       signal,
     })
     res.setHeader('x-file-origin', fromCache ? 'cache' : 'gateway')
