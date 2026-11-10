@@ -658,7 +658,16 @@ const fetchNodeFromDsn = async (
       findPieceObjects(cid, siblings),
       deadline,
     )
-    fetch = sharedFetches.get(hash) ?? startSharedFetch(objects)
+    fetch = sharedFetches.get(hash)
+    if (!fetch) {
+      // A fetch that finished during the lookup is no longer listed, but its
+      // nodes are cached.
+      const cached = await getNodeFromCache(cid)
+      if (cached) {
+        return cached
+      }
+      fetch = sharedFetches.get(hash) ?? startSharedFetch(objects)
+    }
   }
 
   const node = (await fetch.wait(deadline)).get(cid)

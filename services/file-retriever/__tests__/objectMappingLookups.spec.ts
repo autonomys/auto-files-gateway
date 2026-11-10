@@ -150,6 +150,31 @@ describe('object mapping lookups while fetching file nodes', () => {
     },
   )
 
+  it('reads a node from the cache when another reader fetched its piece during the lookup', async () => {
+    const heldLookups: (() => void)[] = []
+    jest
+      .mocked(objectMappingIndexer.get_object_mappings)
+      .mockImplementation(async ({ hashes }) => {
+        lookups.push(hashes)
+        await new Promise<void>((resolve) => heldLookups.push(resolve))
+        return hashes.map((hash) => mappingByHash.get(hash)!)
+      })
+    const siblings = cids.slice(0, LOOKUP_WINDOW)
+
+    const first = dsnFetcher.fetchNode(cids[0], siblings)
+    const second = dsnFetcher.fetchNode(cids[0], siblings)
+    await new Promise(setImmediate)
+    expect(heldLookups).toHaveLength(2)
+    heldLookups[0]()
+    await first
+    // Lets the first fetch cache its nodes and leave sharedFetches
+    await new Promise(setImmediate)
+    heldLookups[1]()
+
+    expect(cidToString(cidOfNode(await second))).toBe(cids[0])
+    expect(fetches).toHaveLength(1)
+  })
+
   it('looks up a window starting at the requested chunk for a partial download', async () => {
     const chunk = await dsnFetcher.getPartial('root', 20)
     const pieceEnd = (Math.floor(20 / CHUNKS_PER_PIECE) + 1) * CHUNKS_PER_PIECE
