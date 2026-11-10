@@ -24,7 +24,8 @@ import mime from 'mime-types'
 import { config } from '../config.js'
 import { logger } from '../drivers/logger.js'
 import axios from 'axios'
-import { objectMappingIndexer } from './objectMappingIndexer.js'
+import { objectMappingService } from './objectMappingService.js'
+import { LRUCache } from 'lru-cache'
 import {
   streamToBuffer,
   weightedRequestConcurrencyController,
@@ -594,13 +595,29 @@ const migrateToFileCache = async (cid: string) => {
     })
 }
 
+const fileChunksCache = new LRUCache<string, ExtendedIPLDMetadata[]>({
+  max: 10_000,
+  ttl: 24 * 60 * 60 * 1000,
+})
+
+const nodeMetadataCache = new LRUCache<string, ExtendedIPLDMetadata>({
+  max: 10_000,
+  ttl: 24 * 60 * 60 * 1000,
+})
+
 const fetchNodeMetadata = async (
   cid: string,
 ): Promise<ExtendedIPLDMetadata> => {
+  const cached = nodeMetadataCache.get(cid)
+  if (cached) {
+    return cached
+  }
+
   const node = await dagIndexerRepository.getDagNode(cid)
   if (!node) {
     throw new HttpError(404, 'Not found: Failed to get node metadata')
   }
+  nodeMetadataCache.set(cid, node)
   return node
 }
 
@@ -612,9 +629,7 @@ const findPieceObjects = async (
   const hashes = [cid, ...siblings.filter((e) => e !== cid)].map(
     getObjectMappingHash,
   )
-  const objectMappings = await objectMappingIndexer.get_object_mappings({
-    hashes,
-  })
+  const objectMappings = await objectMappingService.getObjectMappings(hashes)
   const nodeObjectMapping = objectMappings.find(
     (e) => e[0] === nodeObjectMappingHash,
   )
@@ -701,6 +716,11 @@ const fetchNode = async (
 }
 
 const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
+  const cached = fileChunksCache.get(cid)
+  if (cached) {
+    return cached
+  }
+
   const root = await dagIndexerRepository.getDagNode(cid)
   if (!root) {
     throw new HttpError(500, 'Internal server error: Failed to get file chunks')
@@ -710,7 +730,9 @@ const getFileChunks = async (cid: string): Promise<ExtendedIPLDMetadata[]> => {
     throw new HttpError(400, 'Bad request: Not a file')
   }
 
-  return dagIndexerRepository.getSortedChunksByCid(cid)
+  const chunks = await dagIndexerRepository.getSortedChunksByCid(cid)
+  fileChunksCache.set(cid, chunks)
+  return chunks
 }
 
 const getPartial = async (
@@ -744,6 +766,12 @@ const getPartial = async (
   return Buffer.from(ipldMetadata.data ?? [])
 }
 
+const clearCaches = () => {
+  fileChunksCache.clear()
+  nodeMetadataCache.clear()
+  objectMappingService.clear()
+}
+
 export const dsnFetcher = {
   fetchFile,
   fetchNode,
@@ -753,4 +781,5 @@ export const dsnFetcher = {
   getFileChunks,
   getFileMetadata,
   isActuallyCompressed,
+  clearCaches,
 }
