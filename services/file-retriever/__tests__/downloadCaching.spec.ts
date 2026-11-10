@@ -53,18 +53,25 @@ describe('GET /files/:cid caching', () => {
       const serverGaveUp = new Promise<void>((resolve) => {
         jest.spyOn(logger, 'error').mockImplementation(async () => resolve())
       })
-      jest.spyOn(dsnFetcher, 'fetchFile').mockImplementation(async () => ({
-        data: Readable.from(
-          (async function* () {
-            if (bytesSentBeforeDisconnect > 0) {
-              yield file.subarray(0, bytesSentBeforeDisconnect)
-            }
-            await serverGaveUp
-            yield file.subarray(bytesSentBeforeDisconnect)
-          })(),
-        ),
-        size: BigInt(file.length),
-      }))
+      jest
+        .spyOn(dsnFetcher, 'fetchFile')
+        .mockImplementation(async (_cid, options) => ({
+          data: Readable.from(
+            (async function* (signal?: AbortSignal) {
+              if (bytesSentBeforeDisconnect > 0) {
+                yield file.subarray(0, bytesSentBeforeDisconnect)
+              }
+              // As the real node stream does, a download stops waiting once
+              // its request's signal aborts.
+              await new Promise((resolve, reject) => {
+                serverGaveUp.then(resolve)
+                signal?.addEventListener('abort', () => reject(signal.reason))
+              })
+              yield file.subarray(bytesSentBeforeDisconnect)
+            })(options?.signal),
+          ),
+          size: BigInt(file.length),
+        }))
       const cacheWrite = jest.spyOn(fileCache, 'set')
 
       await expect(
@@ -88,7 +95,8 @@ describe('GET /files/:cid caching', () => {
   ])(
     'serves the whole file when the cache write fails before reading it (Range: %s)',
     async (range, status) => {
-      // More than the fork's buffers hold, so an unread cache branch stalls it
+      // More than the stream buffers hold, so a response held back by an
+      // unread cache write stalls
       const chunkSize = 64 * 1024
       const large = Buffer.alloc(16 * chunkSize, 7)
       jest

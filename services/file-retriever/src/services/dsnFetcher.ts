@@ -373,9 +373,9 @@ const streamNodes = (cids: string[], signal?: AbortSignal): Readable =>
   Readable.from(
     (async function* () {
       for (const [index, cid] of cids.entries()) {
-        // A node that fails inside the response stream can only reset the
-        // connection, and on a full download it also loses the copy being
-        // cached, so streamed nodes wait for as long as their fetch takes.
+        // A node that fails inside a response stream can only reset the
+        // connection, and inside a cache fill it loses the copy being cached,
+        // so streamed nodes wait for as long as their fetch takes.
         const node = await dsnFetcher.fetchNode(
           cid,
           siblingWindow(cids, index),
@@ -419,9 +419,15 @@ const fetchFileAsStreamWithByteRange = async (
  * @param node - The root node of the file
  * @returns A readable stream of the file
  */
-const fetchFileAsStream = async (cid: string): Promise<Readable> => {
+const fetchFileAsStream = async (
+  cid: string,
+  signal?: AbortSignal,
+): Promise<Readable> => {
   const chunks = await dsnFetcher.getFileChunks(cid)
-  return streamNodes(chunks.map((e) => e.cid))
+  return streamNodes(
+    chunks.map((e) => e.cid),
+    signal,
+  )
 }
 
 const getFileMetadata = (
@@ -500,15 +506,13 @@ const fetchFile = async (
       `Fetching file (cid=${cid}, size=${traits.size}, mimeType=${traits.mimeType}, filename=${traits.filename}, encoding=${traits.encoding})`,
     )
 
-    // A whole file is also written to the file cache, which keeps reading
-    // after the client has gone, so only a range stops with the request.
     const readable = options?.byteRange
       ? await fetchFileAsStreamWithByteRange(
           cid,
           options.byteRange,
           options.signal,
         )
-      : await fetchFileAsStream(cid)
+      : await fetchFileAsStream(cid, options?.signal)
 
     return {
       data: readable,

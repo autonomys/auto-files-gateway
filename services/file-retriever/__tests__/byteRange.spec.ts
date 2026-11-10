@@ -189,10 +189,14 @@ describe('GET /files/:cid with a Range header', () => {
     const serverGaveUp = new Promise<void>((resolve) => {
       jest.spyOn(logger, 'error').mockImplementation(async () => resolve())
     })
-    fetchNode.mockImplementationOnce(async (cid, siblings, signal, options) => {
-      await serverGaveUp
-      // As the real fetchNode does, give up once the request's signal aborts.
-      signal?.throwIfAborted()
+    fetchNode.mockImplementation(async (cid, siblings, signal, options) => {
+      if (cid === 'chunk0') {
+        // As the real fetchNode does, give up once the request's signal aborts.
+        await new Promise((resolve, reject) => {
+          serverGaveUp.then(resolve)
+          signal?.addEventListener('abort', () => reject(signal.reason))
+        })
+      }
       return fetchChunk(cid, siblings, signal, options)
     })
     const writes = mockCacheWrites()
