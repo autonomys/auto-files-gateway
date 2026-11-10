@@ -3,6 +3,7 @@ import { forkStream } from '@autonomys/asynchronous'
 import { logger } from '../drivers/logger.js'
 import { FileCacheOptions, FileResponse } from '@autonomys/file-server'
 import { fileCache } from './cache.js'
+import { Duplex } from 'stream'
 
 interface DownloadOptions extends FileCacheOptions {
   ignoreCache?: boolean
@@ -45,6 +46,13 @@ const get = async (
       data: cachingStream,
     })
     .catch((e) => {
+      // Release the fork, or the response waits on a branch nobody reads.
+      // Unpipe first: forkStream pipes, and a chunk written to the branch
+      // after destroy() but before it closes leaves the source paused.
+      if (cachingStream instanceof Duplex) {
+        file.data.unpipe(cachingStream)
+      }
+      cachingStream.destroy()
       console.error('Error caching file', e)
     })
 
