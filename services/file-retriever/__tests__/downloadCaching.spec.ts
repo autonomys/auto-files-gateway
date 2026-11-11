@@ -79,4 +79,43 @@ describe('GET /files/:cid caching', () => {
       expect(await streamToBuffer(cached!.data)).toEqual(file)
     },
   )
+
+  it('caches the whole file and returns 206 Partial Content when requested with a full-span range (bytes=0-)', async () => {
+    jest.spyOn(dsnFetcher, 'fetchFile').mockImplementation(async () => ({
+      data: Readable.from(file),
+      size: BigInt(file.length),
+    }))
+    const cacheWrite = jest.spyOn(fileCache, 'set')
+
+    const res = await request(app)
+      .get(`/files/${CID}`)
+      .set('Authorization', `Bearer ${config.apiSecret}`)
+      .set('Range', 'bytes=0-')
+
+    expect(res.status).toBe(206)
+    expect(res.headers['content-range']).toBe(
+      `bytes 0-${file.length - 1}/${file.length}`,
+    )
+    expect(cacheWrite).toHaveBeenCalledTimes(1)
+    await cacheWrite.mock.results[0].value
+    const cached = await fileCache.get(CID)
+    expect(await streamToBuffer(cached!.data)).toEqual(file)
+  })
+
+  it('does not cache when range is genuinely partial (e.g. bytes=0-100)', async () => {
+    jest.spyOn(dsnFetcher, 'fetchFile').mockImplementation(async () => ({
+      data: Readable.from(file.subarray(0, 101)),
+      size: BigInt(file.length),
+    }))
+    const cacheWrite = jest.spyOn(fileCache, 'set')
+
+    const res = await request(app)
+      .get(`/files/${CID}`)
+      .set('Authorization', `Bearer ${config.apiSecret}`)
+      .set('Range', 'bytes=0-100')
+
+    expect(res.status).toBe(206)
+    expect(res.headers['content-range']).toBe(`bytes 0-100/${file.length}`)
+    expect(cacheWrite).not.toHaveBeenCalled()
+  })
 })

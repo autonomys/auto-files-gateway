@@ -29,8 +29,18 @@ const get = async (
   let end = performance.now()
   logger.debug(`Fetching file from DSN ${cid} took ${end - start}ms`)
 
-  // Do not cache partial responses
-  if (isPartialRequest) {
+  // Do not cache partial responses unless the range covers the entire file
+  // (e.g. `Range: bytes=0-` resolving to `[0, size - 1]`), which fetches all bytes
+  // from the DSN and should populate the cache while still returning 206 to the client (#199).
+  const byteRange = options.byteRange
+  const isFullFetch =
+    byteRange == null ||
+    (byteRange[0] === 0 &&
+      (byteRange[1] == null ||
+        (file.size != null &&
+          BigInt(byteRange[1]) === BigInt(file.size) - 1n)))
+
+  if (!isFullFetch) {
     return [false, file]
   }
 
