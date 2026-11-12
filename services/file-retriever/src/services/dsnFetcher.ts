@@ -39,7 +39,7 @@ import {
 } from '../utils/upstreamErrors.js'
 import { sendMetricToVictoria } from '../drivers/metrics.js'
 import { Readable } from 'stream'
-import { fileCache, nodeCache } from './cache.js'
+import { nodeCache } from './cache.js'
 import { dagIndexerRepository } from '../repositories/dag-indexer.js'
 import { SharedTask } from '../utils/sharedTask.js'
 
@@ -523,12 +523,6 @@ const fetchFile = async (
   }
 }
 
-const onFileDownloaded = async (cid: string) => {
-  setTimeout(() => {
-    migrateToFileCache(cid)
-  })
-}
-
 const getNodeFromCache = async (cid: string) => {
   const cachedItem = await nodeCache.get(cid)
   if (!cachedItem) {
@@ -536,62 +530,6 @@ const getNodeFromCache = async (cid: string) => {
   }
   const buffer = await streamToBuffer(cachedItem.data)
   return decodeNode(buffer)
-}
-
-const migrateToFileCache = async (cid: string) => {
-  const node = await getNodeFromCache(cid)
-  if (!node) {
-    logger.error(
-      `Failed to migrate to file cache (cid=${cid}): node not found in cache`,
-    )
-    return
-  }
-
-  const chunks = await dsnFetcher.getFileChunks(cid)
-
-  const ipldNodeData = safeIPLDDecode(node)
-  if (!ipldNodeData) {
-    logger.error(`Failed to migrate to file cache (cid=${cid})`)
-    return
-  }
-
-  let index = 0
-  fileCache
-    .set(cid, {
-      data: new Readable({
-        read: async function () {
-          if (index >= chunks.length) {
-            this.push(null)
-            return
-          }
-
-          while (index < chunks.length) {
-            const chunk = chunks[index]
-            const node = await getNodeFromCache(chunk.cid)
-            if (!node) {
-              logger.error(`Failed to migrate to file cache (cid=${cid})`)
-              return
-            }
-
-            const data = safeIPLDDecode(node)
-            if (!data) {
-              logger.error(`Failed to migrate to file cache (cid=${cid})`)
-              return
-            }
-
-            const canContinue = this.push(Buffer.from(data.data ?? []))
-            index++
-            if (!canContinue) {
-              break
-            }
-          }
-        },
-      }),
-      ...getFileMetadata(ipldNodeData),
-    })
-    .catch((error) => {
-      logger.warn(`Failed to migrate to file cache (cid=${cid}): ${error}`)
-    })
 }
 
 const fetchNodeMetadata = async (
@@ -732,10 +670,6 @@ const getPartial = async (
     ),
     signal,
   )
-
-  if (chunk === chunks.length - 1) {
-    onFileDownloaded(cid)
-  }
 
   const ipldMetadata = safeIPLDDecode(node)
   if (!ipldMetadata) {
