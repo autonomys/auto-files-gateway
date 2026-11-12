@@ -67,6 +67,15 @@ const project: SubstrateProject = {
               method: 'remarkWithEvent',
             },
           },
+          // Remarks nested in utility batches and single-call wrappers.
+          // No `method`: one handler covers every utility call.
+          {
+            kind: SubstrateHandlerKind.Call,
+            handler: 'handleCall',
+            filter: {
+              module: 'utility',
+            },
+          },
         ],
       },
     },
