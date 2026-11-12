@@ -1,0 +1,3 @@
+# Deploy workflow toolchain. Edit this, then regenerate requirements.txt with:
+#   uv pip compile ansible/requirements.in --universal --python-version 3.14 --generate-hashes -o ansible/requirements.txt
+ansible==14.6.0
