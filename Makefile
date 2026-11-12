@@ -22,4 +22,5 @@ lint:
 test:
 	yarn file-retriever test
 	yarn indexer test
+	yarn dag-indexer test
 
