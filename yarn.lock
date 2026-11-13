@@ -11462,6 +11462,7 @@ __metadata:
     "@autonomys/auto-utils": "npm:1.7.0"
     "@autonomys/rpc": "npm:1.7.0"
     "@peculiar/webcrypto": "npm:^1.5.0"
+    "@testcontainers/postgresql": "npm:^12.2.1"
     "@types/cors": "npm:^2.8.17"
     "@types/express": "npm:^5.0.0"
     "@types/node": "npm:^22.10.2"
