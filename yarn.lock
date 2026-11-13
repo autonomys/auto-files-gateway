@@ -7980,6 +7980,7 @@ __metadata:
     cors: "npm:^2.8.5"
     cpu-features: "npm:^0.0.10"
     db-migrate: "npm:^0.11.14"
+    db-migrate-pg: "npm:^1.5.2"
     dotenv: "npm:^16.4.7"
     eslint-plugin-require-extensions: "npm:^0.1.3"
     express: "npm:^4.21.1"
