@@ -1,0 +1,13 @@
+*
+!.yarn/releases
+!.yarnrc.yml
+!package.json
+!yarn.lock
+!common
+!services
+**/node_modules
+**/dist
+**/.env*
+**/.cache
+services/dag-indexer/project.yaml
+services/dag-indexer/src/types
