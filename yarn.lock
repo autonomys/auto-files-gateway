@@ -2935,7 +2935,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/types-support@npm:10.13.1":
+"@polkadot/types-support@npm:10.13.1, @polkadot/types-support@npm:^10.11.2":
   version: 10.13.1
   resolution: "@polkadot/types-support@npm:10.13.1"
   dependencies:
@@ -2965,7 +2965,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/types@npm:10.13.1":
+"@polkadot/types@npm:10.13.1, @polkadot/types@npm:^10.11.2":
   version: 10.13.1
   resolution: "@polkadot/types@npm:10.13.1"
   dependencies:
@@ -6427,6 +6427,8 @@ __metadata:
   dependencies:
     "@autonomys/auto-dag-data": "npm:1.7.0"
     "@polkadot/api": "npm:^10.11.2"
+    "@polkadot/types": "npm:^10.11.2"
+    "@polkadot/types-support": "npm:^10.11.2"
     "@polkadot/util": "npm:^13.5.3"
     "@subql/cli": "npm:^6.0.2"
     "@subql/common-substrate": "npm:^4.3.7"

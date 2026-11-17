@@ -10,9 +10,9 @@
     "dev": "yarn build && yarn start",
     "start": "docker run --rm -v '.:/app' -w /app --env-file ../../.env --network host ghcr.io/autonomys/subql-node-substrate:latest",
     "prepack": "rm -rf dist && npm run build",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "subql codegen && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --coverage"
   },
   "repository": "https://github.com/autonomys/auto-files-gateway",
   "files": [
@@ -24,6 +24,8 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@polkadot/api": "^10.11.2",
+    "@polkadot/types": "^10.11.2",
+    "@polkadot/types-support": "^10.11.2",
     "@subql/types": "^3.14.1",
     "@types/jest": "^29.5.5",
     "@types/node": "^20.8.10",
@@ -51,8 +53,17 @@
     "node": ">=22"
   },
   "jest": {
-    "preset": "ts-jest",
+    "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "useESM": true,
+          "tsconfig": "tsconfig.jest.json"
+        }
+      ]
+    },
     "testMatch": [
       "**/__tests__/**/*.spec.ts"
     ],
