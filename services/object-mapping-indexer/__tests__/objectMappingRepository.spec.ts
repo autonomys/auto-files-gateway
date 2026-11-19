@@ -3,21 +3,11 @@ import {
   PostgreSqlContainer,
   StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql'
+import { readdir, readFile } from 'node:fs/promises'
 import pg from 'pg'
 import type { objectMappingRepository } from '../src/repositories/objectMapping.js'
 
-// The table the init migration creates, with the index on the dispatch cursor
-const CREATE_SCHEMA = `
-  CREATE TABLE object_mappings (
-    hash TEXT NOT NULL PRIMARY KEY,
-    "pieceIndex" INTEGER NOT NULL,
-    "pieceOffset" INTEGER NOT NULL,
-    "blockNumber" INTEGER NOT NULL,
-    "insertedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE INDEX object_mappings_piece_index_offset_index
-    ON object_mappings ("pieceIndex", "pieceOffset");
-`
+const MIGRATIONS = new URL('../migrations/sqls/', import.meta.url)
 
 interface PlanNode {
   'Index Cond'?: string
@@ -39,7 +29,12 @@ describe('getObjectsFromPieceIndexAndOffset', () => {
     container = await new PostgreSqlContainer('postgres:17.9').start()
     client = new pg.Client({ connectionString: container.getConnectionUri() })
     await client.connect()
-    await client.query(CREATE_SCHEMA)
+    const ups = (await readdir(MIGRATIONS))
+      .filter((file) => file.endsWith('-up.sql'))
+      .sort()
+    for (const file of ups) {
+      await client.query(await readFile(new URL(file, MIGRATIONS), 'utf8'))
+    }
 
     // test-setup.ts replaces the driver with a stub for every test file
     jest.unstable_mockModule('../src/drivers/pg.ts', () => ({
