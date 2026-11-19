@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: "Generate prerelease build with branch name and snapshot tags"
+        description: "Generate prerelease build with branch name and snapshot tags (always on for branches other than main)"
         required: false
         default: false
         type: boolean
@@ -25,7 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Set up Docker Buildx
@@ -42,11 +41,12 @@ jobs:
         run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_ENV
 
       - name: Add BRANCH_NAME env property with branch name
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=${GITHUB_REF_NAME//[^A-Za-z0-9_.-]/-}" >> $GITHUB_ENV
 
       - name: Build and push Docker image (release)
         uses: docker/build-push-action@v7
-        if: ${{ !inputs.prerelease }}
+        # Production deploys pull :latest, so only main may push it
+        if: ${{ !inputs.prerelease && github.ref == 'refs/heads/main' }}
         with:
           context: .
           file: ./services/${{ matrix.app }}/Dockerfile
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build and push Docker image (prerelease)
         uses: docker/build-push-action@v7
-        if: ${{ inputs.prerelease }}
+        if: ${{ inputs.prerelease || github.ref != 'refs/heads/main' }}
         with:
           context: .
           file: ./services/${{ matrix.app }}/Dockerfile

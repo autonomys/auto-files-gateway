@@ -14,12 +14,10 @@ jobs:
     name: Services Build, Test and Lint Check
     runs-on: ubuntu-latest
 
-    # Cache dependencies to speed up the workflow
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Set up Node.js
