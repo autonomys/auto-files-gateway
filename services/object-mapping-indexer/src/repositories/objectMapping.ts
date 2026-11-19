@@ -71,8 +71,11 @@ const getObjectsFromPieceIndexAndOffset = async (
 ) => {
   const db = await getDatabase()
 
+  // The row comparison lets Postgres start the ("pieceIndex", "pieceOffset")
+  // index scan at the cursor; the same bound written with OR makes it read the
+  // index from the first piece and filter.
   const result = await db.query<DBObjectMapping>(
-    'SELECT * FROM object_mappings WHERE ("pieceIndex" > $1 OR ("pieceIndex" = $1 AND "pieceOffset" > $2)) AND "pieceIndex" <= $3 ORDER BY "pieceIndex" ASC, "pieceOffset" ASC LIMIT $4',
+    'SELECT * FROM object_mappings WHERE ("pieceIndex", "pieceOffset") > ($1, $2) AND "pieceIndex" <= $3 ORDER BY "pieceIndex" ASC, "pieceOffset" ASC LIMIT $4',
     [minPieceIndex, minPieceOffset, maxPieceIndex, limit],
   )
 
