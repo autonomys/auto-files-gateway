@@ -19,6 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [file-retriever, object-mapping-indexer, dag-indexer]
 
