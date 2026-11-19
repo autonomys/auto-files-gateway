@@ -127,6 +127,7 @@ describe('getObjectsFromPieceIndexAndOffset', () => {
     const [{ text, values }] = queries
 
     await client.query('SET enable_seqscan = off')
+    await client.query('SET enable_bitmapscan = off')
     try {
       const { rows } = await client.query(`EXPLAIN (FORMAT JSON) ${text}`, values)
       const [{ Plan }] = rows[0]['QUERY PLAN'] as { Plan: PlanNode }[]
@@ -136,6 +137,7 @@ describe('getObjectsFromPieceIndexAndOffset', () => {
       ).toBe(true)
     } finally {
       await client.query('RESET enable_seqscan')
+      await client.query('RESET enable_bitmapscan')
     }
   })
 })
