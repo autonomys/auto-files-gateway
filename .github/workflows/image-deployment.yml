@@ -30,52 +30,36 @@ env:
   INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
   INFISICAL_SECRET: ${{ secrets.INFISICAL_SECRET }}
   INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+  TARGET_MACHINES: ${{ inputs.target_machines }}
+  GATEWAY_IMAGE_TAG: ${{ inputs.gateway_image_tag }}
+  INDEXER_IMAGE_TAG: ${{ inputs.indexer_image_tag }}
+  FILE_RETRIEVER_IMAGE_TAG: ${{ inputs.file_retriever_image_tag }}
+  NODE_IMAGE_TAG: ${{ inputs.node_image_tag }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Check image references
+        run: |
+          # The playbook pastes these into shell commands on the target hosts.
+          for name in GATEWAY_IMAGE_TAG INDEXER_IMAGE_TAG FILE_RETRIEVER_IMAGE_TAG NODE_IMAGE_TAG; do
+            value="${!name}"
+            if [[ -n "$value" && ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9._/:@-]*$ ]]; then
+              echo "::error::$name may only contain letters, digits and . _ / : @ -"
+              exit 1
+            fi
+          done
+
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           # Pinned: '3.x' resolved to 3.15, which ansible-core 2.21 can't import on
           # (AttributeError: module 'dataclasses' has no attribute '_is_type').
           python-version: '3.14'
-
-      - name: Determine deployment parameters
-        id: params
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Manual trigger - use inputs
-            TARGET_MACHINES="${{ github.event.inputs.target_machines }}"
-            GATEWAY_IMAGE_TAG="${{ github.event.inputs.gateway_image_tag }}"
-            INDEXER_IMAGE_TAG="${{ github.event.inputs.indexer_image_tag }}"
-            FILE_RETRIEVER_IMAGE_TAG="${{ github.event.inputs.file_retriever_image_tag }}"
-            NODE_IMAGE_TAG="${{ github.event.inputs.node_image_tag }}"
-            echo "Using manual inputs"
-          else
-            # Push trigger - use defaults
-            TARGET_MACHINES="files_gateway_mainnet_staging"
-            GATEWAY_IMAGE_TAG=""  # or set a default like "latest"
-            INDEXER_IMAGE_TAG=""  # or set a default like "latest"
-            FILE_RETRIEVER_IMAGE_TAG=""  # or set a default like "latest"
-            NODE_IMAGE_TAG=""
-            echo "Using push defaults"
-          fi
-
-          echo "target_machines=$TARGET_MACHINES" >> $GITHUB_OUTPUT
-          echo "gateway_image_tag=$GATEWAY_IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "indexer_image_tag=$INDEXER_IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "file_retriever_image_tag=$FILE_RETRIEVER_IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "node_image_tag=$NODE_IMAGE_TAG" >> $GITHUB_OUTPUT
-
-          echo "Final parameters:"
-          echo "  Target machines: $TARGET_MACHINES"
-          echo "  Image tag: $IMAGE_TAG"
-          echo "  Trigger: ${{ github.event_name }}"
 
       - name: Install Ansible
         run: |
@@ -108,11 +92,11 @@ jobs:
           ansible-playbook ansible/auto-files-gateway-deployment.yaml \
             --private-key ansible/ssh_private_key.pem \
             -i ansible/hosts.ini \
-            -e "target_machines=${{ steps.params.outputs.target_machines }}" \
-            -e "gateway_image_tag=${{ steps.params.outputs.gateway_image_tag }}" \
-            -e "indexer_image_tag=${{ steps.params.outputs.indexer_image_tag }}" \
-            -e "file_retriever_image_tag=${{ steps.params.outputs.file_retriever_image_tag }}" \
-            -e "node_image_tag=${{ steps.params.outputs.node_image_tag }}" \
+            -e "target_machines=$TARGET_MACHINES" \
+            -e "gateway_image_tag=$GATEWAY_IMAGE_TAG" \
+            -e "indexer_image_tag=$INDEXER_IMAGE_TAG" \
+            -e "file_retriever_image_tag=$FILE_RETRIEVER_IMAGE_TAG" \
+            -e "node_image_tag=$NODE_IMAGE_TAG" \
             -e "infisical_client_id=${{ secrets.INFISICAL_CLIENT_ID }}" \
             -e "infisical_secret=${{ secrets.INFISICAL_SECRET }}" \
             -e "infisical_project_id=${{ secrets.INFISICAL_PROJECT_ID }}" \
@@ -123,8 +107,7 @@ jobs:
       - name: Deployment Status
         run: |
           echo "Deployment completed successfully!"
-          echo "Target: ${{ github.event.inputs.target_machines }}"
-          echo "Image: ${{ github.event.inputs.image_tag }}"
+          echo "Target: $TARGET_MACHINES"
 
       - name: Clean up
         if: always()
